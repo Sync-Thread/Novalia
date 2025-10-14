@@ -1,0 +1,257 @@
+/* src/modules/auth/index.css */
+@import "../../shared/styles/tokens.css";
+
+:root { color-scheme: light; }
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; margin: 0; }
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, "Noto Sans";
+  background: var(--bg);
+  color: var(--text-900);
+}
+a { color: inherit; text-decoration: none; }
+button { cursor: pointer; }
+
+/* ====== HEADER / FOOTER BLANCOS ====== */
+.auth-header{ position: sticky; top: 0; z-index: 10; background: #fff; border-bottom:1px solid var(--line); }
+.auth-header__bar{ height: 64px; display:flex; align-items:center; justify-content:center; gap:10px; }
+.auth-header__bar img{ width:22px; height:22px; }
+.auth-header__bar span{ font-weight:600; }
+
+.auth-footer{ background:#fff; border-top:1px solid var(--line); }
+.auth-footer__bar{ height: 56px; display:flex; gap:18px; justify-content:center; align-items:center; color: var(--text-600); font-size:14px; }
+.auth-footer__bar a{ color: var(--text-600); }
+
+/* ====== CONTENEDOR AUTH (fondo recortado, sin zoom) ====== */
+.container-auth{
+  min-height: calc(100dvh - 64px - 56px); /* resta header y footer */
+  position: relative; display: grid; place-items: center; overflow: hidden;
+}
+.container-auth::before{
+  content:""; position:absolute; inset:0;
+  background: url("../../shared/assets/images/login-hero.jpg") center/cover no-repeat; /* cover = recorta sin deformar */
+  /* sin transform scale => no se agranda */
+}
+.container-auth::after{
+  content:""; position:absolute; inset:0;
+  background: linear-gradient(0deg, rgba(15,23,42,.38), rgba(15,23,42,.10));
+}
+
+/* ====== CARD AUTH ====== */
+.auth-card{
+  position: relative; z-index: 1; background: var(--card);
+  width: 100%; max-width: 480px; border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); padding: 28px;
+}
+.brand{ display:flex; align-items:center; justify-content:center; gap:10px; margin:6px 0; }
+.brand img{ width:22px; height:22px }
+.brand span{ font-weight:600 }
+.auth-title{ font-size:28px; font-weight:800; text-align:center; margin:8px 0 6px }
+.auth-subtitle{ color:var(--text-600); text-align:center; margin-bottom:18px }
+
+/* ====== CAMPOS (más altos) ====== */
+.field{ display:grid; gap:6px; margin-bottom:14px }
+.input{
+  width:100%; height:48px; /* +4px */
+  padding:0 48px; border:1px solid var(--line); border-radius:12px; background:#fff; color:var(--text-900);
+}
+.input:focus{ outline:3px solid rgba(37,99,235,.25); border-color:var(--brand-600) }
+.input-wrap{ position:relative; }
+.input-left,.input-right{
+  position:absolute; top:0; height:48px; display:grid; place-items:center; color:var(--text-500);
+}
+.input-left{ left:12px } .input-right{ right:12px }
+.input-error{ color:var(--danger); font-size:12px }
+
+/* ====== BOTONES ====== */
+.btn{ height:46px; border-radius:12px; border:0; width:100%; font-weight:600; }
+.btn-primary{ background:var(--brand-600); color:#fff } .btn-primary:hover{ background:var(--brand-700) }
+.btn-ghost{ background:#fff; border:1px solid var(--line); color:var(--text-900) }
+
+/* ====== OAUTH ====== */
+.oauth{ display:grid; gap:10px; margin-top:12px; }
+.oauth-btn img{ width:18px; height:18px; }
+.oauth-btn{
+  height:46px; border-radius:12px; border:1px solid var(--line);
+  background:#fff; display:flex; align-items:center; justify-content:center; gap:10px; font-weight:600;
+}
+.oauth-btn.apple{ background:#000; color:#fff; border-color:#000 }
+
+
+/* ====== DIVIDER 100% SIMÉTRICO ====== */
+.divider{
+  display:flex; align-items:center; gap:12px; justify-content:center; color:var(--text-600); margin:14px 0;
+}
+.divider::before, .divider::after{ content:""; flex:1; height:1px; background:var(--line); }
+
+/* ====== METAS ====== */
+.auth-meta{ display:flex; justify-content:space-between; align-items:center; margin-top:10px; }
+.forgot{ font-size:14px; color:var(--brand-700) }
+
+/* ===== Overlay + fade-in ===== */
+.modal-overlay{
+  position: fixed; inset: 0; z-index: 50;
+  display: grid; place-items: center;
+  background: rgba(2,6,23,.55);
+  opacity: 0; transition: opacity .18s ease;
+}
+.modal-overlay.show{ opacity: 1; }
+
+/* Panel centrado */
+.modal{
+  width: min(780px, calc(100% - 32px));
+  border-radius: 20px; background: #fff; box-shadow: var(--shadow-lg);
+  opacity: 0; transform: translateY(8px);
+  transition: opacity .2s ease, transform .2s ease;
+}
+.modal.show{ opacity: 1; transform: translateY(0); }
+.modal-body{ padding: 24px 28px 10px; }
+.modal-footer{ padding: 0 28px 24px; }
+
+/* Título y subtítulo (consistente con Auth) */
+.modal-title{ font-size: 28px; font-weight: 800; text-align: center; margin: 8px 0 6px; color: var(--text-900); }
+.modal-sub{ color: var(--text-600); text-align: center; margin-bottom: 18px; }
+
+/* Tarjetas */
+.option-list{ display: grid; gap: 16px; margin-top: 12px; }
+.option-card{
+  display: grid; grid-template-columns: auto 1fr auto;
+  gap: 16px; align-items: center;
+  width: 100%; text-align: left;
+  padding: 16px;
+  border: 1px solid var(--line); border-radius: 16px; background: #fff;
+}
+.option-card:hover{ border-color: var(--brand-600); }
+.option-left{
+  width: 56px; height: 56px; border-radius: 12px;
+  display: grid; place-items: center;
+  background: #eef2f7; color: var(--text-700);
+}
+.option-title{ font-weight: 600; margin-bottom: 4px; }
+.option-desc{ color: var(--text-600); }
+
+/* “radio” visual */
+.radio-dot{
+  width: 22px; height: 22px; border-radius: 999px;
+  border: 2px solid #cbd5e1; display: grid; place-items: center;
+}
+.radio-dot::after{ content:""; width: 10px; height: 10px; border-radius: 999px; background: transparent; }
+
+.option-card.selected{ border-color: var(--brand-600); box-shadow: 0 0 0 3px rgba(37,99,235,.18); }
+.option-card.selected .option-left{ background: #e8effe; color: var(--brand-600); }
+.option-card.selected .radio-dot{ border-color: var(--brand-600); }
+.option-card.selected .radio-dot::after{ background: var(--brand-600); }
+
+/* Botón disabled coherente */
+.btn[disabled]{ opacity:.6; cursor:not-allowed; }
+
+
+/* ===== Register grid ===== */
+.form-grid{
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px 16px;
+}
+
+/* columnas */
+.col { min-width: 0; }
+.col-span-2 { grid-column: span 2; }
+
+/* 1 columna en pantallas estrechas */
+@media (max-width: 720px){
+  .form-grid{ grid-template-columns: 1fr; }
+  .col-span-2{ grid-column: auto; }
+}
+
+/* Contenedor centrado y con ancho controlado */
+.oauth-section {
+  width: 100%;
+  max-width: 720px;       /* ajústalo a tu card si quieres */
+  margin: 8px auto 0;     /* centra horizontal */
+  padding: 0 8px;         /* respiración lateral */
+}
+
+/* Grid responsivo: 1 col (mobile), 2 cols (desktop) */
+.oauth-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  margin: 0 auto;
+  max-width: 300px;
+}
+
+/* @media (min-width: 768px) {
+  .oauth-row { grid-template-columns: 1fr 1fr; }
+} */
+
+/* Forzar que cada botón ocupe toda su celda */
+.oauth-btn-wrap {
+  display: flex;
+  width: 100%;
+}
+
+.oauth-btn-wrap > * {
+  flex: 1 1 auto;          /* estírase aunque el hijo tenga ancho propio */
+  min-height: 44px;        /* alto cómodo */
+}
+
+/* Si el componente renderiza <button> o <a>, también cúbrelos */
+.oauth-btn-wrap :where(button, a, div) {
+  width: 100%;
+}
+
+
+/* ===== CONTENEDOR AUTH (ahora scrolla y no se pega a header/footer) ===== */
+.container-auth{
+  /* resta header (64px) y footer (56px) para que el área central scrollee */
+  min-height: calc(100dvh - 64px - 56px);
+  position: relative;
+  display: grid;
+  justify-items: center;     /* centrado horizontal */
+  align-content: start;      /* NO centrado vertical: comienza arriba y permite scroll */
+  padding: 32px 16px 40px;   /* respiración arriba/abajo */
+  overflow: auto;            /* <- clave: si el contenido crece, aparece scroll */
+}
+.container-auth::before{
+  content:""; position:absolute; inset:0;
+  background: url("../../shared/assets/images/login-hero.jpg") center/cover no-repeat; /* recorta sin deformar */
+}
+.container-auth::after{
+  content:""; position:absolute; inset:0;
+  background: linear-gradient(0deg, rgba(15,23,42,.38), rgba(15,23,42,.10));
+}
+
+/* ===== CARD AUTH ===== */
+.auth-card{
+  position: relative; z-index: 1; background: var(--card);
+  width: 100%;
+  max-width: 520px;          /* md: login y formularios simples */
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: 28px;
+  margin: 0 auto;            /* centra dentro del grid */
+}
+
+/* variante ancha para pantallas como Register */
+.auth-card--wide{
+  max-width: 960px;          /* ~contenedor ancho de tu mock */
+}
+
+/* ===== GRID DE FORM (lo que ya tenías, sin cambios) */
+.form-grid{
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px 16px;
+}
+.col { min-width: 0; }
+.col-span-2 { grid-column: span 2; }
+@media (max-width: 720px){
+  .form-grid{ grid-template-columns: 1fr; }
+  .col-span-2{ grid-column: auto; }
+}
+
+/* (opcional) utilidad para 2 botones OAuth en fila */
+.oauth-row-2{
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}

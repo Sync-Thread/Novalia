@@ -1,0 +1,25 @@
+/* src/index.css - hoja de estilos globales para la aplicación */
+/* Importa variables globales y tokens compartidos si existen */
+@import "./shared/styles/tokens.css";
+
+:root{
+  --bg: #ffffff;
+  --card: #ffffff;
+  --text-900: #0f172a;
+  --text-600: #6b7280;
+  --text-500: #9ca3af;
+  --line: #e6edf3;
+  --brand-600: #2563eb;
+  --brand-700: #1d4ed8;
+  --radius-lg: 12px;
+  --shadow-lg: 0 8px 24px rgba(2,6,23,0.08);
+  --danger: #dc2626;
+}
+
+/* Reset ligero coherente con los módulos */
+*{ box-sizing: border-box; }
+html, body, #root{ height:100%; margin:0; }
+body{ font-family: system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, "Noto Sans"; background:var(--bg); color:var(--text-900); }
+
+/* Pueden añadirse aquí estilos globales comunes */
+

@@ -1,0 +1,19 @@
+/* src/shared/styles/tokens.css */
+:root{
+  --brand-600:#2563eb;
+  --brand-700:#1e40af;
+
+  --text-900:#0f172a;
+  --text-700:#334155;
+  --text-600:#475569;
+  --text-500:#64748b;
+
+  --bg:#f8fafc;
+  --card:#ffffff;
+  --line:#e2e8f0;
+
+  --danger:#ef4444;
+
+  --radius-lg:16px;
+  --shadow-lg:0 10px 30px rgba(2,6,23,.10);
+}
