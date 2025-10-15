@@ -1,0 +1,14 @@
+TITLE: Document Card
+ID: cmp-document-card
+MODULE: properties
+
+### ENUMS
+docType: rpp_certificate|deed|id_doc|floorplan|other
+verification: pending|verified|rejected
+
+### FIELDS
+- doc_type      | select | Tipo de documento         | document.docType      | enum=docType
+- file          | file   | Archivo                   | document.file
+- verification  | badge  | Verificación              | document.verification | enum=verification (RO)
+- uploaded_at   | display| Fecha de carga            | document.createdAt
+- actions       | action | Ver, Reemplazar, Eliminar | DocumentRepo.*

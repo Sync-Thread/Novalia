@@ -1,0 +1,42 @@
+TITLE: QuickView + Review (Side Sheet)
+ID: properties-quickview-review
+MODULE: properties
+USES: GetProperty, PublishProperty, PauseProperty, MarkSold, DeleteProperty
+
+### HEADER
+- title            | display | Título                  | property.title
+- status           | badge   | Estado                  | property.status (draft|published|sold)
+- short_id         | copy    | ID corto                | property.shortId
+- price            | money   | Precio (MXN)            | property.price
+- location_short   | text    | Ubicación breve         | property.city+", "+property.state
+- property_type    | text    | Tipo                    | property.propertyType
+- completeness     | circle  | Completitud %           | property.completenessScore
+- rpp_pill         | badge   | RPP                     | property.rppVerification (pending|verified|rejected)
+
+### SUMMARY
+- features         | list    | Rec/Ba/Est              | {bedrooms,bathrooms,parkingSpots}
+- areas            | list    | m²                      | {constructionM2,landM2}
+- meta             | list    | Año, Niveles            | {yearBuilt,levels}
+- published_at     | text    | Publicada el            | property.publishedAt (if)
+
+### ACTIVITY
+- views_7d         | metric  | Vistas (7d)             | metrics.views7d
+- views_30d        | metric  | Vistas (30d)            | metrics.views30d
+- leads            | metric  | Leads                   | metrics.leads
+- chats            | metric  | Chats                   | metrics.chats
+- updated_ago      | text    | Última actualización    | property.updatedAgo
+
+### MEDIA_DOCS
+- photos_count     | metric  | Fotos                   | media.counts.photos
+- videos_count     | metric  | Videos                  | media.counts.videos
+- floorplans_count | metric  | Planos                  | media.counts.floorplans
+- rpp_row          | row     | RPP                     | {docType:'rpp_certificate', verification}
+
+### ACTIONS
+- view_public      | action  | Ver publicación         | UI.openNewTab("/p/"+property.slug) | visible if status==published
+- edit             | action  | Editar                  | UI.navigate("/propiedades/"+id+"/editar")
+- publish          | action  | Publicar                | PublishProperty.exec({id})          | visible if status==draft
+- schedule         | action  | Programar               | PublishProperty.exec({id, scheduledAt})
+- pause            | action  | Pausar (a borrador)     | PauseProperty.exec({id})            | visible if status==published
+- mark_sold        | action  | Marcar vendida          | MarkSold.exec({id, soldAt})
+- delete           | action  | Eliminar                | DeleteProperty.exec({id}) | confirm

@@ -1,0 +1,77 @@
+TITLE: Publicar Propiedad · Wizard v2
+ID: properties-publish-wizard
+MODULE: properties
+USES: CreateProperty, UpdateProperty, UploadMedia, AttachDocument, PublishProperty, PauseProperty
+
+### ENUMS
+currency: MXN
+propertyType: house|apartment|land|office|commercial|industrial|other
+condition: new|excellent|good|needs_renovation|unknown
+orientation: north|northeast|east|southeast|south|southwest|west|northwest
+rppVerification: pending|verified|rejected
+
+### STEP1_BASIC
+- property_type     | select  | Tipo de propiedad       | property.propertyType | req | enum=propertyType
+- operation_type    | display | Operación               | "sale"                |     | fixed
+- title             | text    | Título                  | property.title        | req | max=80
+- description       | rich    | Descripción             | property.description  |     | max=2000
+- price             | money   | Precio                  | property.price.amount | req | min=0 currency=MXN
+- currency          | select  | Moneda                  | property.price.currency| req | enum=currency | default=MXN
+- tags              | chips   | Etiquetas               | property.tags[]       |     | freeText
+- internal_id       | text    | ID interno              | property.internalId
+- org_id            | display | Organización            | property.orgId
+- lister_user_id    | display | Publicador              | property.listerUserId
+
+### STEP2_LOCATION
+- address_line      | text    | Dirección               | property.address.addressLine
+- neighborhood      | text    | Colonia                 | property.address.neighborhood
+- city              | text    | Ciudad                  | property.address.city  | req
+- state             | text    | Estado                  | property.address.state | req
+- postal_code       | text    | Código Postal           | property.address.postalCode
+- country           | text    | País                    | property.address.country | req
+- display_address   | toggle  | Mostrar dirección aprox.| property.address.displayAddress | default=false
+- lat               | number  | Latitud                 | property.location.lat  |     | -90..90
+- lng               | number  | Longitud                | property.location.lng  |     | -180..180
+- normalized_status | badge   | Dirección normalizada   | property.normalizedStatus | values=pending|ok|error (RO)
+
+### STEP3_DETAILS
+- bedrooms          | number  | Recámaras               | property.bedrooms      |     | min=0
+- bathrooms         | number  | Baños                   | property.bathrooms     |     | step=0.5 min=0
+- parking_spots     | number  | Estacionamientos        | property.parkingSpots  |     | min=0
+- construction_m2   | number  | m² construcción         | property.constructionM2|     | min=0
+- land_m2           | number  | m² terreno              | property.landM2        |     | min=0
+- levels            | number  | Niveles                 | property.levels        |     | min=0
+- year_built        | number  | Año de construcción     | property.yearBuilt     |     | 1800..(currentYear+1)
+- floor             | number  | Piso (si aplica)        | property.floor         |     | min=0
+- hoa_fee           | number  | Cuota mantenimiento     | property.hoaFee        |     | min=0
+- condition         | select  | Condición               | property.condition     |     | enum=condition
+- furnished         | toggle  | Amueblado               | property.furnished     |     | default=false
+- pet_friendly      | toggle  | Pet friendly            | property.petFriendly   |     | default=false
+- orientation       | select  | Orientación             | property.orientation   |     | enum=orientation
+
+### STEP4_AMENITIES
+- amenities         | chips   | Amenidades              | property.amenities[]   |     | freeText, categories=interior|exterior|seguridad|comunes|sustentabilidad|accesibilidad
+- amenities_extra   | text    | Otras amenidades        | property.amenitiesExtra
+
+### STEP5_MEDIA
+- upload            | drop    | Subir archivos          | media.files[]          |     | accept=image/*,video/*,pdf; minPhotosRecommended=8
+- set_cover         | action  | Marcar como portada     | SetCoverMedia({mediaId})
+- reorder           | action  | Reordenar               | ReorderMedia({ids})
+- delete_media      | action  | Eliminar archivo        | RemoveMedia({mediaId})
+- counts            | info    | Fotos/Videos/Planos     | media.counts
+
+### STEP6_DOCUMENTS
+- doc_rpp           | file    | Certificado RPP         | documents.rpp          |     | docType=rpp_certificate
+- doc_deed          | file    | Escritura               | documents.deed
+- doc_id            | file    | Identificación          | documents.id_doc
+- doc_floorplan     | file    | Plano                   | documents.floorplan
+- doc_other         | file    | Otro                    | documents.other
+- verification      | badge   | Verificación (RPP)      | documents.rpp.verification | values=pending|verified|rejected (RO)
+- brokerage_consent | checkbox| Acepto contrato 2%      | property.consent
+- checklist         | info    | Revisión                | readiness.items (KYC ok, completeness≥80, RPP cargado, precio/tipo/ubicación definidos)
+
+### ACTIONS
+- save_draft        | action  | Guardar borrador        | UpdateProperty.exec({id, patch})
+- publish_now       | action  | Publicar ahora          | PublishProperty.exec({id})              | enable if readiness.ok
+- schedule_publish  | action  | Programar publicación   | PublishProperty.exec({id, scheduledAt})
+- cancel            | action  | Cancelar                | UI.navigate("/propiedades")

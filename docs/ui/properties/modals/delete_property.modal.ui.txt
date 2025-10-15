@@ -1,0 +1,11 @@
+TITLE: Eliminar Propiedad
+ID: modal-delete-property
+MODULE: properties
+USES: DeleteProperty
+
+### FIELDS
+- confirm_text | confirm  | ¿Eliminar esta propiedad? | form.confirm | req
+
+### ACTIONS
+- delete       | action   | Eliminar                  | DeleteProperty.exec({id})
+- cancel       | action   | Cancelar                  | UI.closeModal()

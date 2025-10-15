@@ -1,0 +1,8 @@
+TITLE: KYC Banner
+ID: cmp-kyc-banner
+MODULE: properties
+
+### PROPS
+- visible     | boolean | mostrar si user.kycStatus != verified
+- message     | string  | "Para publicar necesitas tu KYC (INE) verificado"
+- action      | link    | /kyc

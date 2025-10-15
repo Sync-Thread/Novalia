@@ -1,0 +1,41 @@
+TITLE: Mis Propiedades
+ID: properties-dashboard
+MODULE: properties
+USES: ListProperties, GetProperty, PublishProperty, PauseProperty, MarkSold, DeleteProperty, DuplicateProperty
+
+### ENUMS
+status: draft|published|sold
+propertyType: house|apartment|land|office|commercial|industrial|other
+rppVerification: pending|verified|rejected
+sort: recent|price_asc|price_desc|completeness_desc
+
+### KPI
+- drafts_count     | bind=stats.drafts
+- published_count  | bind=stats.published
+- sold_count       | bind=stats.sold
+
+### FILTERS
+# id | type | label | bind | required | constraints | options | help
+- q                | search  | Buscar por título o ID  | filters.q
+- status           | select  | Estado                  | filters.status         |  | enum=status | default=all
+- property_type    | select  | Tipo de propiedad       | filters.propertyType   |  | enum=propertyType
+- city             | text    | Ciudad                  | filters.city
+- state            | text    | Estado                  | filters.state
+- price_min        | number  | Precio min (MXN)        | filters.priceMin       |  | min=0
+- price_max        | number  | Precio max (MXN)        | filters.priceMax       |  | min=0
+- sort_by          | select  | Ordenar por             | filters.sortBy         |  | enum=sort   | default=recent
+- view_mode        | toggle  | Vista Grid/Lista        | ui.viewMode            |  | values=grid|list | default=grid
+- reset            | button  | Limpiar filtros         | action.reset
+
+### LIST DATA
+- items            | array   | Propiedades             | data.items (PropertyDTO[])
+
+### ROW/ITEM ACTIONS (context menu)
+- quick_view       | action  | Vista rápida            | QuickView.open({id})
+- edit             | action  | Editar                  | UI.navigate("/propiedades/"+id+"/editar")
+- publish          | action  | Publicar                | PublishProperty.exec({id})        | visible if status==draft
+- pause            | action  | Pausar (a borrador)     | PauseProperty.exec({id})          | visible if status==published
+- mark_sold        | action  | Marcar como vendida     | MarkSold.exec({id, soldAt})       | ask date
+- duplicate        | action  | Duplicar                | DuplicateProperty.exec({id})
+- view_public      | action  | Ver publicación         | UI.openNewTab("/p/"+slug)         | visible if status==published
+- delete           | action  | Eliminar                | DeleteProperty.exec({id})         | confirm
