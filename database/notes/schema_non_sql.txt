@@ -1,0 +1,48 @@
+-- NOVALIA – Esquema base (orden corregido: integration_providers antes de usarla)
+-- 0) EXTENSIONES
+-- 1) ENUMS
+-- 2) HELPERS sin dependencias
+-- 3) IAM
+-- 4) HELPER que usa tablas IAM
+-- 5) CATÁLOGOS / PLANES
+-- 6) *INTEGRATION PROVIDERS* (MOVIDO ARRIBA: requerido por mensajería/webhooks/integrations)
+-- 7) PROPIEDADES
+-- 8) TRACKING & ATRIBUCIÓN
+-- 9) CHAT + MENSAJERÍA
+-- (AQUÍ ya existe integration_providers, así que FK es válida)
+-- 10) KYC / INE
+-- 11) CONTRATOS / NOTARÍA
+-- 12) FACTURACIÓN / COMISIÓN / PAGOS
+-- 13) INTEGRACIONES (usa integration_providers ya creada)
+-- 14) JOBS / COLAS
+-- 15) AUDITORÍA
+-- 16) RLS (activar al final)
+-- POLÍTICAS (idénticas a la versión anterior)
+-- Exporta el esquema actual
+pg_dump --schema-only --no-owner --no-privileges -d postgres://<connection> > novalia_backup_before_auth.sql
+-- 1.1 Asegurar NULL/DEFAULTs seguros
+-- (los timestamps ya tienen DEFAULT now())
+-- 1.2 (Opcional) Si en algún entorno se quedó un NOT NULL “fantasma”:
+-- Validar rápidamente (no falla si no existe):
+-- select column_name, is_nullable, column_default
+-- from information_schema.columns
+-- where table_schema='public' and table_name='profiles';
+-- Ver solo mi perfil
+-- =========================================================
+-- NOVALIA - Patch BD Propiedades (solo compraventa + sold)
+-- Seguro e idempotente (PostgreSQL 13+ / Supabase)
+-- =========================================================
+-- 0) Enums nuevos / ampliaciones
+-- Añadir 'sold' al status (el esquema actual trae 'draft','published','archived')
+-- 1) properties: columnas nuevas y defaults alineados a UX
+-- Validación de año razonable
+-- ⚠️ Cambio mínimo: comparar por texto para evitar "unsafe use" del enum recién extendido
+-- Único parcial (org_id, internal_id) cuando internal_id no es null
+-- Sólo compraventa: default de operación en 'sale'
+-- 2) Publicación: asegurar published_at automáticamente
+-- 3) Completeness Score
+-- Helper PERMANENTE para triggers (antes estaba en pg_temp)
+-- Triggers en properties para recalcular en alta/updates
+-- Helpers PERMANENTES para media/documents (antes estaban en pg_temp)
+-- Triggers en media/documents
+-- 4) Índices útiles para listado/orden
