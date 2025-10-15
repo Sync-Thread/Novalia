@@ -4,6 +4,7 @@
 import type { DocumentType, VerificationStatus } from "../enums";
 import { VERIFICATION_STATUS } from "../enums";
 import { UniqueEntityID } from "../value-objects/UniqueEntityID";
+import type { DomainClock } from "../clock";
 
 export type DocumentProps = {
   id: UniqueEntityID;
@@ -37,13 +38,17 @@ export class Document {
 
   readonly createdAt: Date;
   private _updatedAt: Date;
+  private readonly clock: DomainClock;
 
-  constructor(p: DocumentProps) {
+  constructor(p: DocumentProps, deps: { clock: DomainClock }) {
     this.id = p.id; this.orgId = p.orgId ?? null; this.relatedId = p.relatedId;
     this._docType = p.docType; this._verification = p.verification;
     this.source = p.source ?? null; this.s3Key = p.s3Key ?? null; this.url = p.url ?? null;
     this.hashSha256 = p.hashSha256 ?? null; this.metadata = p.metadata ?? null;
-    this.createdAt = p.createdAt ?? new Date(); this._updatedAt = p.updatedAt ?? this.createdAt;
+    this.clock = deps.clock;
+    const createdAt = p.createdAt ?? this.clock.now();
+    this.createdAt = createdAt;
+    this._updatedAt = p.updatedAt ?? createdAt;
   }
 
   get docType() { return this._docType; }
@@ -55,5 +60,5 @@ export class Document {
   reject() { this._verification = VERIFICATION_STATUS.Rejected; this.touch(); }
   pend() { this._verification = VERIFICATION_STATUS.Pending; this.touch(); }
 
-  private touch() { this._updatedAt = new Date(); }
+  private touch() { this._updatedAt = this.clock.now(); }
 }

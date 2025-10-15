@@ -1,13 +1,14 @@
 // src/modules/properties/domain/policies/StatusTransitionPolicy.ts
-// Transiciones válidas entre estados.
+// Guards valid transitions between property statuses.
 
-import type { PropertyStatus } from "../enums";
+import { PROPERTY_STATUS, type PropertyStatus } from "../enums";
 import { StatusTransitionError } from "../errors/StatusTransitionError";
 
 export const VALID_TRANSITIONS: Record<PropertyStatus, PropertyStatus[]> = {
-  draft: ["published"],
-  published: ["draft", "sold"],
-  sold: [], // terminal
+  [PROPERTY_STATUS.Draft]: [PROPERTY_STATUS.Published, PROPERTY_STATUS.Archived],
+  [PROPERTY_STATUS.Published]: [PROPERTY_STATUS.Draft, PROPERTY_STATUS.Sold, PROPERTY_STATUS.Archived],
+  [PROPERTY_STATUS.Archived]: [PROPERTY_STATUS.Draft],
+  [PROPERTY_STATUS.Sold]: [PROPERTY_STATUS.Archived],
 };
 
 export function canTransition(from: PropertyStatus, to: PropertyStatus): boolean {
@@ -17,3 +18,4 @@ export function canTransition(from: PropertyStatus, to: PropertyStatus): boolean
 export function assertTransition(from: PropertyStatus, to: PropertyStatus): void {
   if (!canTransition(from, to)) throw new StatusTransitionError(from, to);
 }
+

@@ -1,17 +1,16 @@
 // src/modules/properties/domain/policies/MediaOrderingPolicy.ts
-// Normaliza posiciones y elige portada (posición 0).
+// Normalize positions and pick a cover asset (index 0).
 
 import type { MediaType } from "../enums";
 
 export type MediaLite = {
-  id: unknown;          // UniqueEntityID u otro identificador
-  type: MediaType;      // "image" | "video" | "floorplan"
+  id: unknown;          // UniqueEntityID or any identifier
+  type: MediaType;      // "image" | "video" | "document"
   position: number;     // 0-based
 };
 
 export function selectCover(list: MediaLite[]): number {
   if (!list.length) return -1;
-  // Prioridad: primera imagen con menor posición; si no hay, el más bajo de cualquier tipo.
   const images = list.filter(m => m.type === "image").sort((a, b) => a.position - b.position);
   const candidate = (images[0] ?? list.slice().sort((a, b) => a.position - b.position)[0]);
   return list.findIndex(m => m === candidate);
@@ -31,3 +30,4 @@ export function ensureCoverAtZero(list: MediaLite[]): MediaLite[] {
   copy.unshift(cover);
   return normalizePositions(copy);
 }
+

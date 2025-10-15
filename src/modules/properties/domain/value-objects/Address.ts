@@ -1,5 +1,8 @@
 // src/modules/properties/domain/value-objects/Address.ts
-// V.O: Dirección con control de privacidad (displayAddress=false por defecto)
+// Address value object with privacy flag (displayAddress defaults to false).
+
+import { requireNonEmpty } from "../utils/invariants";
+
 export type AddressProps = {
   addressLine?: string | null;
   neighborhood?: string | null;
@@ -7,7 +10,7 @@ export type AddressProps = {
   state: string;
   postalCode?: string | null;
   country: string;
-  displayAddress?: boolean; // false = no mostrar completa
+  displayAddress?: boolean;
 };
 
 export class Address {
@@ -20,16 +23,14 @@ export class Address {
   readonly displayAddress: boolean;
 
   constructor(props: AddressProps) {
-    if (!props.city?.trim()) throw new Error("City required");
-    if (!props.state?.trim()) throw new Error("State required");
-    if (!props.country?.trim()) throw new Error("Country required");
+    this.city = requireNonEmpty(props.city, "city");
+    this.state = requireNonEmpty(props.state, "state");
+    this.country = requireNonEmpty(props.country, "country");
 
-    this.addressLine   = props.addressLine ?? null;
-    this.neighborhood  = props.neighborhood ?? null;
-    this.city          = props.city.trim();
-    this.state         = props.state.trim();
-    this.postalCode    = props.postalCode ?? null;
-    this.country       = props.country.trim();
+    this.addressLine = props.addressLine?.trim() || null;
+    this.neighborhood = props.neighborhood?.trim() || null;
+    this.postalCode = props.postalCode?.trim() || null;
     this.displayAddress = props.displayAddress ?? false;
   }
 }
+

@@ -1,10 +1,10 @@
 // src/modules/properties/domain/services/ReadinessService.ts
-// Checklist "listo para publicar" sin textos de UI 
+// Checklist "ready to publish" without UI strings.
+
 import type { VerificationStatus } from "../enums";
-import { PROGRESS_THRESHOLDS, MIN_PUBLISH_SCORE, computeScore } from "../policies/CompletenessPolicy";
+import { MIN_PUBLISH_SCORE, classify, computeScore } from "../policies/CompletenessPolicy";
 import { canPublish } from "../policies/PublishPolicy";
 
-// Entrada resumida (no acoplar a entidades ni a infra).
 export type ReadinessInputs = {
   hasTitle: boolean;
   descriptionLength: number;
@@ -20,7 +20,6 @@ export type ReadinessInputs = {
   blockIfRppRejected?: boolean;  // default true
 };
 
-// Códigos consumibles por UI para mapear mensajes.
 export type ReadinessIssueCode =
   | "kyc_missing"
   | "score_below_min"
@@ -34,11 +33,10 @@ export type ReadinessResult = {
   bucket: "red" | "amber" | "green";
   canPublish: boolean;
   issues: ReadinessIssueCode[];
-  reasons?: string[]; // razones crudas de PublishPolicy (debug/telemetría)
+  reasons?: string[];
 };
 
 export function buildReadiness(i: ReadinessInputs): ReadinessResult {
-  // 1) Score + bucket
   const score = computeScore({
     hasTitle: i.hasTitle,
     descriptionLength: i.descriptionLength,
@@ -49,11 +47,8 @@ export function buildReadiness(i: ReadinessInputs): ReadinessResult {
     hasRppDoc: i.hasRppDoc,
   });
 
-  const bucket = score >= PROGRESS_THRESHOLDS.green ? "green"
-               : score >= PROGRESS_THRESHOLDS.amber ? "amber"
-               : "red";
+  const bucket = classify(score);
 
-  // 2) Gate publicación (no lanza; devuelve razones)
   const min = i.minScore ?? MIN_PUBLISH_SCORE;
   const gate = canPublish({
     kycVerified: i.kycVerified,
@@ -63,7 +58,6 @@ export function buildReadiness(i: ReadinessInputs): ReadinessResult {
     blockIfRppRejected: i.blockIfRppRejected,
   });
 
-  // 3) Códigos neutrales (UI decide copy)
   const issues: ReadinessIssueCode[] = [];
   if (!i.kycVerified) issues.push("kyc_missing");
   if (!i.addressFilled) issues.push("address_incomplete");
@@ -80,3 +74,4 @@ export function buildReadiness(i: ReadinessInputs): ReadinessResult {
     reasons: gate.ok ? undefined : gate.reasons,
   };
 }
+

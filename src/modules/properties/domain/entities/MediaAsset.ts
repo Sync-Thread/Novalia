@@ -1,8 +1,10 @@
 // src/modules/properties/domain/entities/MediaAsset.ts
-// Media con org, orden y metadatos.
+// Media item with ordering and metadata.
 
 import type { MediaType } from "../enums";
 import { UniqueEntityID } from "../value-objects/UniqueEntityID";
+import type { DomainClock } from "../clock";
+import { requireNonNegativeInteger } from "../utils/invariants";
 
 export type MediaAssetProps = {
   id: UniqueEntityID;
@@ -30,22 +32,31 @@ export class MediaAsset {
 
   readonly createdAt: Date;
   private _updatedAt: Date;
+  private readonly clock: DomainClock;
 
-  constructor(p: MediaAssetProps) {
-    if (p.position < 0 || !Number.isInteger(p.position)) throw new Error("Invalid position");
-    this.id = p.id; this.orgId = p.orgId; this.propertyId = p.propertyId ?? null;
-    this.type = p.type; this._position = p.position;
-    this.s3Key = p.s3Key ?? null; this.url = p.url ?? null; this.metadata = p.metadata ?? null;
-    this.createdAt = p.createdAt ?? new Date(); this._updatedAt = p.updatedAt ?? this.createdAt;
+  constructor(p: MediaAssetProps, deps: { clock: DomainClock }) {
+    this.id = p.id;
+    this.orgId = p.orgId;
+    this.propertyId = p.propertyId ?? null;
+    this.type = p.type;
+    this._position = requireNonNegativeInteger(p.position, "position");
+    this.s3Key = p.s3Key ?? null;
+    this.url = p.url ?? null;
+    this.metadata = p.metadata ?? null;
+    this.clock = deps.clock;
+    const createdAt = p.createdAt ?? this.clock.now();
+    this.createdAt = createdAt;
+    this._updatedAt = p.updatedAt ?? createdAt;
   }
 
   get position() { return this._position; }
   get updatedAt() { return this._updatedAt; }
 
   moveTo(pos: number) {
-    if (pos < 0 || !Number.isInteger(pos)) throw new Error("Invalid position");
-    this._position = pos; this.touch();
+    this._position = requireNonNegativeInteger(pos, "position");
+    this.touch();
   }
 
-  private touch() { this._updatedAt = new Date(); }
+  private touch() { this._updatedAt = this.clock.now(); }
 }
+

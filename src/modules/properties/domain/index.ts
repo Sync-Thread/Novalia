@@ -10,6 +10,7 @@ export * from "./value-objects/Address";
 export * from "./value-objects/Money";
 export * from "./value-objects/GeoPoint";
 export * from "./value-objects/UniqueEntityID";
+export type { DomainClock } from "./clock";
 
 // Policies y errores (para consumo desde application)
 export * as policies from "./policies";
