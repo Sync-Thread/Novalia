@@ -29,6 +29,7 @@ export * from "./use-cases/duplicate/DuplicateProperty";
 export * from "./use-cases/media/UploadMedia";
 export * from "./use-cases/media/RemoveMedia";
 export * from "./use-cases/media/SetCoverMedia";
+export * from "./use-cases/media/ReorderMedia";
 export * from "./use-cases/documents/AttachDocument";
 export * from "./use-cases/documents/VerifyRpp";
 

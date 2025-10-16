@@ -4,7 +4,7 @@ import { Result } from "../../application/_shared/result";
 import type { AuthService } from "../../application/ports/AuthService";
 import type { Clock } from "../../application/ports/Clock";
 
-type MediaErrorCode = "AUTH" | "NOT_FOUND" | "UNKNOWN";
+type MediaErrorCode = "AUTH" | "NOT_FOUND" | "INVALID" | "UNKNOWN";
 
 export type MediaInfraError = {
   scope: "media";
@@ -171,6 +171,52 @@ export class MediaStorageFake implements MediaStorage {
     if (!updated) {
       return Result.fail(mediaError("NOT_FOUND", "Media asset not found"));
     }
+
+    return Result.ok(undefined);
+  }
+
+  async reorder(propertyId: string, orderedIds: string[]): Promise<Result<void>> {
+    const propertyMedia = this.mediaByProperty.get(propertyId);
+    if (!propertyMedia || propertyMedia.length === 0) {
+      return orderedIds.length === 0
+        ? Result.ok(undefined)
+        : Result.fail(mediaError("NOT_FOUND", "Media asset not found"));
+    }
+
+    const uniqueIds = new Set(orderedIds);
+    if (uniqueIds.size !== orderedIds.length) {
+      return Result.fail(mediaError("INVALID", "orderedIds contains duplicates"));
+    }
+
+    if (orderedIds.length !== propertyMedia.length) {
+      return Result.fail(
+        mediaError("INVALID", "orderedIds length does not match existing media"),
+      );
+    }
+
+    const itemsById = new Map(propertyMedia.map(item => [item.id, item] as const));
+    for (const id of orderedIds) {
+      if (!itemsById.has(id)) {
+        return Result.fail(mediaError("NOT_FOUND", "Media asset not found"));
+      }
+    }
+
+    const nowIso = this.clock.now().toISOString();
+    const reordered = orderedIds.map(id => itemsById.get(id)!);
+
+    reordered.forEach((item, index) => {
+      item.position = index;
+      item.isCover = index === 0;
+      item.metadata = {
+        ...(item.metadata ?? {}),
+        isCover: item.isCover,
+      };
+      item.updatedAt = nowIso;
+      this.mediaById.set(item.id, item);
+    });
+
+    propertyMedia.splice(0, propertyMedia.length, ...reordered);
+    this.mediaByProperty.set(propertyId, propertyMedia);
 
     return Result.ok(undefined);
   }

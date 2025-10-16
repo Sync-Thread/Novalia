@@ -135,6 +135,11 @@ export const setCoverMediaSchema = z.object({
   mediaId: z.string().uuid(),
 });
 
+export const reorderMediaSchema = z.object({
+  propertyId: propertyIdSchema,
+  orderedIds: z.array(z.string().uuid()).nonempty(),
+});
+
 export const attachDocumentSchema = z.object({
   propertyId: propertyIdSchema,
   docType: z.enum(["rpp_certificate", "deed", "id_doc", "floorplan", "other"] as const),
@@ -160,5 +165,6 @@ export type DuplicatePropertyInput = z.infer<typeof duplicatePropertySchema>;
 export type UploadMediaInput = z.infer<typeof uploadMediaSchema>;
 export type RemoveMediaInput = z.infer<typeof removeMediaSchema>;
 export type SetCoverMediaInput = z.infer<typeof setCoverMediaSchema>;
+export type ReorderMediaInput = z.infer<typeof reorderMediaSchema>;
 export type AttachDocumentInput = z.infer<typeof attachDocumentSchema>;
 export type VerifyRppInput = z.infer<typeof verifyRppSchema>;

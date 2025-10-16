@@ -27,6 +27,22 @@ export class InMemoryDocumentRepo implements DocumentRepo {
     return Result.ok({ id });
   }
 
+  async listByProperty(propertyId: string): Promise<Result<DocumentDTO[]>> {
+    const docs = this.documents
+      .filter(doc => doc.propertyId === propertyId)
+      .map(doc => ({ ...doc }));
+    return Result.ok(docs);
+  }
+
+  async delete(documentId: string): Promise<Result<void>> {
+    const index = this.documents.findIndex(doc => doc.id === documentId);
+    if (index === -1) {
+      return Result.fail(new Error("Document not found"));
+    }
+    this.documents.splice(index, 1);
+    return Result.ok(undefined);
+  }
+
   async verifyRpp(
     propertyId: string,
     docId: string,

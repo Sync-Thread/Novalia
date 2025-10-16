@@ -1,4 +1,4 @@
-// src/modules/properties/properties.container.tss
+// src/modules/properties/properties.container.ts
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "../../core/supabase/client";
 import type { Clock } from "./application/ports/Clock";
@@ -12,10 +12,10 @@ import {
   SchedulePublish,
   MarkSold,
   DeleteProperty,
-  DuplicateProperty,
   UploadMedia,
   RemoveMedia,
   SetCoverMedia,
+  ReorderMedia,
   AttachDocument,
   VerifyRpp,
 } from "./application";
@@ -40,10 +40,10 @@ export interface PropertiesUseCases {
   schedulePublish: SchedulePublish;
   markSold: MarkSold;
   deleteProperty: DeleteProperty;
-  duplicateProperty: DuplicateProperty;
   uploadMedia: UploadMedia;
   removeMedia: RemoveMedia;
   setCoverMedia: SetCoverMedia;
+  reorderMedia: ReorderMedia;
   attachDocument: AttachDocument;
   verifyRpp: VerifyRpp;
 }
@@ -76,10 +76,10 @@ export function createPropertiesContainer(deps: PropertiesContainerDeps = {}): P
       schedulePublish: new SchedulePublish({ repo: propertyRepo, clock }),
       markSold: new MarkSold({ repo: propertyRepo, clock }),
       deleteProperty: new DeleteProperty({ repo: propertyRepo, clock }),
-      duplicateProperty: new DuplicateProperty({ repo: propertyRepo, auth, clock }),
       uploadMedia: new UploadMedia({ media: mediaStorage, properties: propertyRepo }),
       removeMedia: new RemoveMedia({ media: mediaStorage }),
       setCoverMedia: new SetCoverMedia({ media: mediaStorage }),
+      reorderMedia: new ReorderMedia({ media: mediaStorage }),
       attachDocument: new AttachDocument({ documents: documentRepo, properties: propertyRepo }),
       verifyRpp: new VerifyRpp({ documents: documentRepo, properties: propertyRepo, clock }),
     },

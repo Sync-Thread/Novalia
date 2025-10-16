@@ -56,4 +56,45 @@ export class InMemoryMediaStorage implements MediaStorage {
     }
     return Result.ok(undefined);
   }
+
+  async reorder(propertyId: string, orderedIds: string[]): Promise<Result<void>> {
+    const items = this.media.filter(item => item.propertyId === propertyId);
+    if (items.length === 0) {
+      return orderedIds.length === 0
+        ? Result.ok(undefined)
+        : Result.fail(new Error("Media not found"));
+    }
+
+    const uniqueIds = new Set(orderedIds);
+    if (uniqueIds.size !== orderedIds.length) {
+      return Result.fail(new Error("orderedIds contains duplicates"));
+    }
+
+    if (orderedIds.length !== items.length) {
+      return Result.fail(new Error("orderedIds length does not match existing media"));
+    }
+
+    const itemsById = new Map(items.map(item => [item.id, item] as const));
+    for (const id of orderedIds) {
+      if (!itemsById.has(id)) {
+        return Result.fail(new Error("Media not found"));
+      }
+    }
+
+    const nowIso = new Date().toISOString();
+    const reordered = orderedIds.map(id => itemsById.get(id)!);
+
+    reordered.forEach((item, index) => {
+      item.position = index;
+      item.isCover = index === 0;
+      item.updatedAt = nowIso;
+      item.metadata = { ...(item.metadata ?? {}), isCover: item.isCover };
+    });
+
+    const others = this.media.filter(item => item.propertyId !== propertyId);
+    this.media.length = 0;
+    this.media.push(...others, ...reordered);
+
+    return Result.ok(undefined);
+  }
 }
