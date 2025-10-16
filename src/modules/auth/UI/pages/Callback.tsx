@@ -13,7 +13,7 @@ export default function Callback() {
         nav("/auth/login?error=callback");
         return;
       }
-      if (data.session) nav("/dashboard");
+      if (data.session) nav("/properties");
       else nav("/auth/login");
     })();
   }, []);

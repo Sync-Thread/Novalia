@@ -18,6 +18,7 @@ import {
   PROPERTY_TYPE_VALUES,
   VERIFICATION_STATUS_VALUES,
 } from "../../domain/enums";
+import { listFiltersSchema } from "./filters.schema";
 
 export const propertyIdSchema = z.string().uuid();
 
@@ -168,3 +169,5 @@ export type SetCoverMediaInput = z.infer<typeof setCoverMediaSchema>;
 export type ReorderMediaInput = z.infer<typeof reorderMediaSchema>;
 export type AttachDocumentInput = z.infer<typeof attachDocumentSchema>;
 export type VerifyRppInput = z.infer<typeof verifyRppSchema>;
+
+export { listFiltersSchema };

@@ -32,6 +32,9 @@ export * from "./use-cases/media/SetCoverMedia";
 export * from "./use-cases/media/ReorderMedia";
 export * from "./use-cases/documents/AttachDocument";
 export * from "./use-cases/documents/VerifyRpp";
+export * from "./use-cases/documents/ListPropertyDocuments";
+export * from "./use-cases/documents/DeleteDocument";
+export * from "./use-cases/auth/GetAuthProfile";
 
 export * from "./fakes/InMemoryPropertyRepo";
 export * from "./fakes/InMemoryDocumentRepo";

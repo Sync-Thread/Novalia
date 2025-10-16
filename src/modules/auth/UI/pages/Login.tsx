@@ -40,7 +40,7 @@ export default function Login() {
   // Si ya hay sesión → dashboard
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) nav("/dashboard");
+      if (data.session) nav("/properties");
     });
   }, [nav]);
 
@@ -124,7 +124,7 @@ export default function Login() {
       return;
     }
 
-    nav("/dashboard");
+    nav("/properties");
   };
 
   const goRegister = (t: "buyer" | "agent" | "owner" | null) => {

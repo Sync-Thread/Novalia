@@ -18,6 +18,9 @@ import {
   ReorderMedia,
   AttachDocument,
   VerifyRpp,
+  ListPropertyDocuments,
+  DeleteDocument as DeleteDocumentUseCase,
+  GetAuthProfile,
 } from "./application";
 import { SupabaseAuthService } from "./infrastructure/adapters/SupabaseAuthService";
 import { SupabasePropertyRepo } from "./infrastructure/adapters/SupabasePropertyRepo";
@@ -46,6 +49,9 @@ export interface PropertiesUseCases {
   reorderMedia: ReorderMedia;
   attachDocument: AttachDocument;
   verifyRpp: VerifyRpp;
+  listDocuments: ListPropertyDocuments;
+  deleteDocument: DeleteDocumentUseCase;
+  getAuthProfile: GetAuthProfile;
 }
 
 export interface PropertiesContainer {
@@ -82,6 +88,9 @@ export function createPropertiesContainer(deps: PropertiesContainerDeps = {}): P
       reorderMedia: new ReorderMedia({ media: mediaStorage }),
       attachDocument: new AttachDocument({ documents: documentRepo, properties: propertyRepo }),
       verifyRpp: new VerifyRpp({ documents: documentRepo, properties: propertyRepo, clock }),
+      listDocuments: new ListPropertyDocuments({ documents: documentRepo }),
+      deleteDocument: new DeleteDocumentUseCase({ documents: documentRepo }),
+      getAuthProfile: new GetAuthProfile({ auth }),
     },
   };
 }
