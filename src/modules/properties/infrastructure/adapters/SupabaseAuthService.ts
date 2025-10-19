@@ -25,6 +25,10 @@ function mapKycStatus(input: string | null | undefined): AuthProfile["kycStatus"
   return "pending";
 }
 
+async function wait(ms: number) {
+  await new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export class SupabaseAuthService implements AuthService {
   private readonly client: SupabaseClient;
 
@@ -43,17 +47,35 @@ export class SupabaseAuthService implements AuthService {
       return Result.fail(authError("NOT_AUTHENTICATED", "No active Supabase session"));
     }
 
-    const { data: profile, error: profileError } = await this.client
-      .from("profiles")
-      .select("org_id")
-      .eq("id", user.id)
-      .single();
+    let profileError: PostgrestError | null = null;
+    let profile: { org_id: string | null } | null = null;
+
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const { data, error } = await this.client
+        .from("profiles")
+        .select("org_id")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      profileError = error ?? null;
+      profile = (data as { org_id: string | null } | null) ?? null;
+
+      if (error || profile) {
+        break;
+      }
+
+      await wait(200);
+    }
 
     if (profileError) {
       return Result.fail(mapPostgrestError(profileError, "PROFILE_ERROR", "Failed to load profile"));
     }
 
-    const orgId = profile?.org_id as string | null;
+    if (!profile) {
+      return Result.fail(authError("PROFILE_ERROR", "User profile has not been provisioned"));
+    }
+
+    const orgId = profile.org_id as string | null;
     if (!orgId) {
       return Result.fail(authError("ORG_MISSING", "User does not belong to an organization"));
     }

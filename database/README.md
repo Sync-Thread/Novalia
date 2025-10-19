@@ -13,3 +13,10 @@ To verify that the concatenated migrations still match the source schema (ignori
 ```sh
 ./database/verify_concat.sh
 ```
+
+## Auth bootstrap
+
+New rows in `auth.users` automatically create a matching record in
+`public.profiles` through the `public.handle_new_user` trigger. The trigger
+is idempotent and will also backfill missing profiles when the migration is
+re-applied, so manual inserts from the application are not required.
