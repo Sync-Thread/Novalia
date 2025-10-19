@@ -48,12 +48,20 @@ export class SupabaseAuthService implements AuthService {
     }
 
     let profileError: PostgrestError | null = null;
-    let profile: { org_id: string | null } | null = null;
+    let profile:
+      | {
+          org_id: string | null;
+          full_name: string | null;
+          email: string | null;
+          phone: string | null;
+          role_hint: string | null;
+        }
+      | null = null;
 
     for (let attempt = 0; attempt < 2; attempt++) {
       const { data, error } = await this.client
         .from("profiles")
-        .select("org_id")
+        .select("org_id, full_name, email, phone, role_hint")
         .eq("id", user.id)
         .maybeSingle();
 
@@ -75,10 +83,7 @@ export class SupabaseAuthService implements AuthService {
       return Result.fail(authError("PROFILE_ERROR", "User profile has not been provisioned"));
     }
 
-    const orgId = profile.org_id as string | null;
-    if (!orgId) {
-      return Result.fail(authError("ORG_MISSING", "User does not belong to an organization"));
-    }
+    const orgId = profile.org_id ?? null;
 
     const { data: kycRow, error: kycError } = await this.client
       .from("kyc_verifications")
@@ -94,10 +99,28 @@ export class SupabaseAuthService implements AuthService {
 
     const kycStatus = mapKycStatus((kycRow?.status as string | null) ?? null);
 
+    const profileSnapshot = {
+      userId: user.id,
+      email: user.email ?? null,
+      orgId,
+      roleHint: profile.role_hint ?? null,
+      kycStatus,
+      fullName: profile.full_name ?? null,
+      phone: profile.phone ?? null,
+      profileEmail: profile.email ?? null,
+      orgMissing: orgId === null,
+    };
+
+    console.info("[auth] profile snapshot", profileSnapshot);
+
     return Result.ok({
       userId: user.id,
       orgId,
       kycStatus,
+      fullName: profile.full_name ?? null,
+      email: profile.email ?? user.email ?? null,
+      phone: profile.phone ?? null,
+      roleHint: profile.role_hint ?? null,
     });
   }
 }

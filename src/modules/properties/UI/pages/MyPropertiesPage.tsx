@@ -25,6 +25,7 @@ function MyPropertiesPageContent() {
   const { filters, items, loading, error, setFilters, refresh, setPage, page, pageSize, total, cache, getCachedById } =
     usePropertyList();
   const actions = usePropertiesActions();
+  const { getAuthProfile } = actions;
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [authProfileStatus, setAuthProfileStatus] = useState<"verified" | "pending" | "rejected">("pending");
   const [quickViewOpen, setQuickViewOpen] = useState(false);
@@ -33,12 +34,12 @@ function MyPropertiesPageContent() {
   const [deleteFor, setDeleteFor] = useState<PropertyDTO | null>(null);
 
   useEffect(() => {
-    void actions.getAuthProfile().then(result => {
+    void getAuthProfile().then(result => {
       if (result.isOk()) {
         setAuthProfileStatus(result.value.kycStatus);
       }
     });
-  }, [actions]);
+  }, [getAuthProfile]);
 
   const filterValues: FiltersBarValues = useMemo(
     () => ({
@@ -315,7 +316,7 @@ function PropertyListTable({
       <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "'Inter', system-ui, sans-serif" }}>
         <thead style={{ background: "rgba(15,23,42,0.04)", textAlign: "left" }}>
           <tr>
-            {["Propiedad", "Estado", "Tipo", "Precio", "UbicaciÃ³n", "Publicada", "Completitud", "RPP", "Acciones"].map(
+            {["Propiedad", "Estado", "Tipo", "Precio", "Ubicaci\u00F3n", "Publicada", "Completitud", "RPP", "Acciones"].map(
               header => (
                 <th key={header} style={{ padding: "12px 16px", fontSize: 12, color: "#475569" }}>
                   {header}
@@ -337,7 +338,7 @@ function PropertyListTable({
               <td style={tdStyle}>
                 {property.address.city}, {property.address.state}
               </td>
-              <td style={tdStyle}>{property.publishedAt ? formatDate(property.publishedAt) : "â€”"}</td>
+              <td style={tdStyle}>{property.publishedAt ? formatDate(property.publishedAt) : "-"}</td>
               <td style={tdStyle}>{Math.round(property.completenessScore)}%</td>
               <td style={tdStyle}>{formatVerification(property.rppVerification ?? null)}</td>
               <td style={tdStyle}>
@@ -396,7 +397,7 @@ function Pagination({
       }}
     >
       <span>
-        PÃ¡gina {page} de {totalPages}
+        Página {page} de {totalPages}
       </span>
       <div style={{ display: "flex", gap: 12 }}>
         <button type="button" onClick={() => onChange(Math.max(1, page - 1))} disabled={page === 1} style={paginationBtnStyle}>
@@ -423,4 +424,3 @@ const paginationBtnStyle: React.CSSProperties = {
   padding: "8px 12px",
   cursor: "pointer",
 };
-

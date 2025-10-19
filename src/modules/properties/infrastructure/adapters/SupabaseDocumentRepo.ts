@@ -87,13 +87,19 @@ export class SupabaseDocumentRepo implements DocumentRepo {
       return Result.fail(docError("AUTH", "Cannot resolve authenticated context", authResult.error));
     }
 
-    const { data, error } = await this.client
+    const { orgId } = authResult.value;
+
+    let listQuery = this.client
       .from("documents")
       .select(DOCUMENT_COLUMNS)
       .eq("related_type", "property")
-      .eq("related_id", propertyId)
-      .eq("org_id", authResult.value.orgId)
-      .order("created_at", { ascending: true });
+      .eq("related_id", propertyId);
+
+    if (orgId) {
+      listQuery = listQuery.eq("org_id", orgId);
+    }
+
+    const { data, error } = await listQuery.order("created_at", { ascending: true });
 
     if (error) {
       return Result.fail(mapPostgrestError(error));
@@ -115,13 +121,19 @@ export class SupabaseDocumentRepo implements DocumentRepo {
       return Result.fail(docError("AUTH", "Cannot resolve authenticated context", authResult.error));
     }
 
-    const lookup = await this.client
+    const { orgId } = authResult.value;
+
+    let lookupQuery = this.client
       .from("documents")
       .select("related_id")
       .eq("id", documentId)
-      .eq("org_id", authResult.value.orgId)
-      .eq("related_type", "property")
-      .maybeSingle();
+      .eq("related_type", "property");
+
+    if (orgId) {
+      lookupQuery = lookupQuery.eq("org_id", orgId);
+    }
+
+    const lookup = await lookupQuery.maybeSingle();
 
     if (lookup.error) {
       return Result.fail(mapPostgrestError(lookup.error));
@@ -132,15 +144,18 @@ export class SupabaseDocumentRepo implements DocumentRepo {
       return Result.fail(docError("NOT_FOUND", "Document not found"));
     }
 
-    const { error } = await this.client
+    let deleteQuery = this.client
       .from("documents")
       .delete()
       .eq("id", documentId)
       .eq("related_type", "property")
-      .eq("related_id", propertyId)
-      .eq("org_id", authResult.value.orgId)
-      .select("id")
-      .single();
+      .eq("related_id", propertyId);
+
+    if (orgId) {
+      deleteQuery = deleteQuery.eq("org_id", orgId);
+    }
+
+    const { error } = await deleteQuery.select("id").single();
 
     if (error) {
       return Result.fail(mapPostgrestError(error));
@@ -159,16 +174,21 @@ export class SupabaseDocumentRepo implements DocumentRepo {
       return Result.fail(docError("AUTH", "Cannot resolve authenticated context", authResult.error));
     }
 
+    const { orgId } = authResult.value;
+
     const dbStatus = mapVerificationToDb(status);
-    const { error } = await this.client
+    let verifyQuery = this.client
       .from("documents")
       .update({ verification: dbStatus })
       .eq("id", docId)
       .eq("related_id", propertyId)
-      .eq("related_type", "property")
-      .eq("org_id", authResult.value.orgId)
-      .select("id")
-      .single();
+      .eq("related_type", "property");
+
+    if (orgId) {
+      verifyQuery = verifyQuery.eq("org_id", orgId);
+    }
+
+    const { error } = await verifyQuery.select("id").single();
 
     if (error) {
       return Result.fail(mapPostgrestError(error));

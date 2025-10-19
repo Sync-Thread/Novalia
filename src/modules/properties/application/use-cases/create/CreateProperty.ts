@@ -12,6 +12,12 @@ export class CreateProperty {
   private readonly auth: AuthService;
   private readonly clock: Clock;
 
+  private static readonly ORG_MISSING_ERROR = {
+    scope: "auth",
+    code: "ORG_MISSING",
+    message: "Debe existir una organización asignada antes de crear una propiedad.",
+  } as const;
+
   constructor(deps: { repo: PropertyRepo; auth: AuthService; clock: Clock }) {
     this.repo = deps.repo;
     this.auth = deps.auth;

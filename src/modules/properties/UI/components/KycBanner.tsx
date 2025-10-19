@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 
 export interface KycBannerProps {
   visible: boolean;
@@ -12,7 +12,7 @@ export function KycBanner({
   visible,
   message = "Para publicar necesitas tu KYC (INE) verificado.",
   actionHref = "/kyc",
-  actionLabel = "Completar verificaciÃ³n",
+  actionLabel = "Completar verificaci\u00F3n",
   onActionClick,
 }: KycBannerProps) {
   if (!visible) return null;
@@ -42,7 +42,7 @@ export function KycBanner({
             color: "#1D4ED8",
           }}
         >
-          VerificaciÃ³n necesaria
+          Verificaci\u00F3n necesaria
         </strong>
         <span
           style={{
@@ -78,5 +78,3 @@ export function KycBanner({
 }
 
 export default KycBanner;
-
-

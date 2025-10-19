@@ -36,12 +36,14 @@ export class DuplicateProperty {
       return Result.fail(propertyResult.error);
     }
 
+    const { orgId, userId } = authResult.value;
+
     try {
       const entity = toDomain(propertyResult.value, { clock: this.clock });
       entity.duplicate(
         new UniqueEntityID(generateId()),
-        new UniqueEntityID(authResult.value.userId),
-        new UniqueEntityID(authResult.value.orgId),
+        new UniqueEntityID(userId),
+        new UniqueEntityID(orgId),
       );
     } catch (error) {
       return Result.fail(error);

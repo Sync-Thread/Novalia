@@ -50,6 +50,19 @@ type AsyncResult<T> = Promise<Result<T>>;
 type LoadingState = Record<ActionKey, boolean>;
 type ErrorState = Record<ActionKey, string | null>;
 
+type ExecuteMessages = {
+  success?: string;
+  error?: string;
+  successTitle?: string;
+  errorTitle?: string;
+};
+
+type ExecuteOptions = {
+  suppressSuccessToast?: boolean;
+  suppressErrorToast?: boolean;
+  onError?: (error: unknown, message: string) => void;
+};
+
 const DEFAULT_LOADING = ACTIONS.reduce<LoadingState>((state, action) => {
   state[action] = false;
   return state;
@@ -62,6 +75,18 @@ const DEFAULT_ERRORS = ACTIONS.reduce<ErrorState>((state, action) => {
 
 function resolveErrorMessage(error: unknown): string {
   if (error && typeof error === "object") {
+    if ("scope" in error && (error as { scope?: unknown }).scope === "properties") {
+      const root = error as { cause?: unknown; details?: unknown; message?: string };
+      const cause = root.cause as { code?: string; message?: string } | undefined;
+      const details = root.details as { code?: string } | undefined;
+      const code = details?.code ?? cause?.code;
+      if (code === "ORG_MISSING") {
+        return "Necesitas unirte a una organizaci\u00F3n o crear una antes de gestionar propiedades.";
+      }
+      if (cause?.message) {
+        return cause.message;
+      }
+    }
     if ("message" in error && typeof (error as { message?: unknown }).message === "string") {
       return (error as { message: string }).message;
     }
@@ -140,26 +165,33 @@ export function usePropertiesActions(): PropertiesActionsState {
     async <T>(
       action: ActionKey,
       runner: () => Promise<Result<T>>,
-      messages?: { success?: string; error?: string; successTitle?: string; errorTitle?: string },
+      messages?: ExecuteMessages,
+      options?: ExecuteOptions,
     ): Promise<Result<T>> => {
       setLoadingFor(action, true);
       setErrorFor(action, null);
       try {
         const result = await runner();
         if (result.isOk()) {
-          if (messages?.success) {
+          if (messages?.success && !options?.suppressSuccessToast) {
             notifySuccess(messages.success, messages.successTitle);
           }
           return result;
         }
         const message = messages?.error ?? resolveErrorMessage(result.error);
         setErrorFor(action, message);
-        notifyError(message, messages?.errorTitle);
+        if (!options?.suppressErrorToast) {
+          notifyError(message, messages?.errorTitle);
+        }
+        options?.onError?.(result.error, message);
         return result;
       } catch (error) {
         const message = messages?.error ?? resolveErrorMessage(error);
         setErrorFor(action, message);
-        notifyError(message, messages?.errorTitle);
+        if (!options?.suppressErrorToast) {
+          notifyError(message, messages?.errorTitle);
+        }
+        options?.onError?.(error, message);
         return Result.fail(error);
       } finally {
         setLoadingFor(action, false);
@@ -172,7 +204,7 @@ export function usePropertiesActions(): PropertiesActionsState {
     (filters?: Partial<ListFiltersInput>) =>
       execute("listProperties", () => useCases.listProperties.execute(filters ?? {}), {
         error: "No pudimos cargar tus propiedades.",
-      }),
+      }, { suppressErrorToast: true }),
     [execute, useCases.listProperties],
   );
 
@@ -336,7 +368,7 @@ export function usePropertiesActions(): PropertiesActionsState {
     () =>
       execute("getAuthProfile", () => useCases.getAuthProfile.execute(), {
         error: "No pudimos obtener la información del perfil.",
-      }),
+      }, { suppressErrorToast: true }),
     [execute, useCases.getAuthProfile],
   );
 

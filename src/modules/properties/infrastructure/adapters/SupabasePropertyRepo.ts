@@ -134,7 +134,8 @@ export class SupabasePropertyRepo implements PropertyRepo {
       return Result.fail(propertyError("AUTH", "Cannot resolve authenticated context", authResult.error));
     }
 
-    const { orgId } = authResult.value;
+    const authProfile = authResult.value;
+    const { orgId, userId } = authProfile;
     const page = Math.max(filters.page ?? 1, 1);
     const pageSize = Math.max(filters.pageSize ?? 20, 1);
     const from = (page - 1) * pageSize;
@@ -143,8 +144,13 @@ export class SupabasePropertyRepo implements PropertyRepo {
     let query = this.client
       .from("properties")
       .select(PROPERTY_COLUMNS, { count: "exact" })
-      .eq("org_id", orgId)
       .is("deleted_at", null);
+
+    if (orgId) {
+      query = query.eq("org_id", orgId);
+    } else {
+      query = query.eq("lister_user_id", userId);
+    }
 
     if (filters.status) {
       query = query.eq("status", filters.status);
@@ -197,15 +203,22 @@ export class SupabasePropertyRepo implements PropertyRepo {
       return Result.fail(propertyError("AUTH", "Cannot resolve authenticated context", authResult.error));
     }
 
-    const { orgId } = authResult.value;
-    const { data, error } = await this.client
+    const authProfile = authResult.value;
+    const { orgId, userId } = authProfile;
+    let query = this.client
       .from("properties")
       .select(PROPERTY_COLUMNS)
       .eq("id", id)
-      .eq("org_id", orgId)
       .is("deleted_at", null)
-      .limit(1)
-      .single();
+      .limit(1);
+
+    if (orgId) {
+      query = query.eq("org_id", orgId);
+    } else {
+      query = query.eq("lister_user_id", userId);
+    }
+
+    const { data, error } = await query.single();
 
     if (error) {
       return Result.fail(mapPostgrestError(error));
@@ -240,6 +253,9 @@ export class SupabasePropertyRepo implements PropertyRepo {
       return Result.fail(propertyError("AUTH", "Cannot resolve authenticated context", authResult.error));
     }
 
+    const authProfile = authResult.value;
+    const { orgId, userId } = authProfile;
+
     let payload: Record<string, unknown>;
     try {
       payload = mapPropertyUpdateToPayload(patch);
@@ -251,14 +267,20 @@ export class SupabasePropertyRepo implements PropertyRepo {
       return Result.ok(undefined);
     }
 
-    const { error } = await this.client
+    let updateQuery = this.client
       .from("properties")
       .update(payload)
       .eq("id", id)
-      .eq("org_id", authResult.value.orgId)
       .is("deleted_at", null)
-      .select("id")
-      .single();
+      .select("id");
+
+    if (orgId) {
+      updateQuery = updateQuery.eq("org_id", orgId);
+    } else {
+      updateQuery = updateQuery.eq("lister_user_id", userId);
+    }
+
+    const { error } = await updateQuery.single();
 
     if (error) {
       return Result.fail(mapPostgrestError(error));
@@ -272,20 +294,29 @@ export class SupabasePropertyRepo implements PropertyRepo {
       return Result.fail(propertyError("AUTH", "Cannot resolve authenticated context", authResult.error));
     }
 
+    const authProfile = authResult.value;
+    const { orgId, userId } = authProfile;
+
     const payload = {
       status: "published",
       published_at: at.toISOString(),
       deleted_at: null,
     };
 
-    const { error } = await this.client
+    let publishQuery = this.client
       .from("properties")
       .update(payload)
       .eq("id", id)
-      .eq("org_id", authResult.value.orgId)
       .is("deleted_at", null)
-      .select("id")
-      .single();
+      .select("id");
+
+    if (orgId) {
+      publishQuery = publishQuery.eq("org_id", orgId);
+    } else {
+      publishQuery = publishQuery.eq("lister_user_id", userId);
+    }
+
+    const { error } = await publishQuery.single();
 
     if (error) {
       return Result.fail(mapPostgrestError(error));
@@ -300,14 +331,23 @@ export class SupabasePropertyRepo implements PropertyRepo {
       return Result.fail(propertyError("AUTH", "Cannot resolve authenticated context", authResult.error));
     }
 
-    const { error } = await this.client
+    const authProfile = authResult.value;
+    const { orgId, userId } = authProfile;
+
+    let pauseQuery = this.client
       .from("properties")
       .update({ status: "draft" })
       .eq("id", id)
-      .eq("org_id", authResult.value.orgId)
       .is("deleted_at", null)
-      .select("id")
-      .single();
+      .select("id");
+
+    if (orgId) {
+      pauseQuery = pauseQuery.eq("org_id", orgId);
+    } else {
+      pauseQuery = pauseQuery.eq("lister_user_id", userId);
+    }
+
+    const { error } = await pauseQuery.single();
 
     if (error) {
       return Result.fail(mapPostgrestError(error));
@@ -322,19 +362,28 @@ export class SupabasePropertyRepo implements PropertyRepo {
       return Result.fail(propertyError("AUTH", "Cannot resolve authenticated context", authResult.error));
     }
 
+    const authProfile = authResult.value;
+    const { orgId, userId } = authProfile;
+
     const payload = {
       status: "sold",
       sold_at: at.toISOString(),
     };
 
-    const { error } = await this.client
+    let markSoldQuery = this.client
       .from("properties")
       .update(payload)
       .eq("id", id)
-      .eq("org_id", authResult.value.orgId)
       .is("deleted_at", null)
-      .select("id")
-      .single();
+      .select("id");
+
+    if (orgId) {
+      markSoldQuery = markSoldQuery.eq("org_id", orgId);
+    } else {
+      markSoldQuery = markSoldQuery.eq("lister_user_id", userId);
+    }
+
+    const { error } = await markSoldQuery.single();
 
     if (error) {
       return Result.fail(mapPostgrestError(error));
@@ -349,15 +398,24 @@ export class SupabasePropertyRepo implements PropertyRepo {
       return Result.fail(propertyError("AUTH", "Cannot resolve authenticated context", authResult.error));
     }
 
+    const authProfile = authResult.value;
+    const { orgId, userId } = authProfile;
+
     const deletedAt = this.clock.now().toISOString();
-    const { error } = await this.client
+    let softDeleteQuery = this.client
       .from("properties")
       .update({ deleted_at: deletedAt })
       .eq("id", id)
-      .eq("org_id", authResult.value.orgId)
       .is("deleted_at", null)
-      .select("id")
-      .single();
+      .select("id");
+
+    if (orgId) {
+      softDeleteQuery = softDeleteQuery.eq("org_id", orgId);
+    } else {
+      softDeleteQuery = softDeleteQuery.eq("lister_user_id", userId);
+    }
+
+    const { error } = await softDeleteQuery.single();
 
     if (error) {
       return Result.fail(mapPostgrestError(error));
@@ -375,16 +433,23 @@ export class SupabasePropertyRepo implements PropertyRepo {
       return Result.fail(propertyError("AUTH", "Cannot resolve authenticated context", authResult.error));
     }
 
-    const { orgId, userId } = authResult.value;
+    const authProfile = authResult.value;
+    const { userId, orgId: authOrgId } = authProfile;
 
-    const originalResult = await this.client
+    let originalQuery = this.client
       .from("properties")
       .select(PROPERTY_COLUMNS)
       .eq("id", id)
-      .eq("org_id", orgId)
       .is("deleted_at", null)
-      .limit(1)
-      .single();
+      .limit(1);
+
+    if (authOrgId) {
+      originalQuery = originalQuery.eq("org_id", authOrgId);
+    } else {
+      originalQuery = originalQuery.eq("lister_user_id", userId);
+    }
+
+    const originalResult = await originalQuery.single();
 
     if (originalResult.error) {
       return Result.fail(mapPostgrestError(originalResult.error));
@@ -405,7 +470,7 @@ export class SupabasePropertyRepo implements PropertyRepo {
     const duplicate: CreatePropertyDTO = {
       ...baseDto,
       id: newId,
-      orgId,
+      orgId: baseDto.orgId,
       listerUserId: userId,
       status: "draft",
       title: `${baseDto.title} (copy)`,
