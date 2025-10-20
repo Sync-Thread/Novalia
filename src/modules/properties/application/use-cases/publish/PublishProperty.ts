@@ -1,54 +1,39 @@
+// Caso de uso: publicar una propiedad si cumple políticas de dominio.
+// Mantener verificación de KYC y fecha de publicación.
 import { publishPropertySchema } from "../../validators/property.schema";
 import type { PropertyRepo } from "../../ports/PropertyRepo";
 import type { AuthService } from "../../ports/AuthService";
 import type { Clock } from "../../ports/Clock";
 import { Result } from "../../_shared/result";
+import { parseWith } from "../../_shared/validation";
 import { toDomain } from "../../mappers/property.mapper";
 
 export class PublishProperty {
-  private readonly repo: PropertyRepo;
-  private readonly auth: AuthService;
-  private readonly clock: Clock;
-
-  constructor(deps: { repo: PropertyRepo; auth: AuthService; clock: Clock }) {
-    this.repo = deps.repo;
-    this.auth = deps.auth;
-    this.clock = deps.clock;
-  }
+  constructor(
+    private readonly deps: { repo: PropertyRepo; auth: AuthService; clock: Clock },
+  ) {}
 
   async execute(rawInput: unknown): Promise<Result<void>> {
-    const parsed = publishPropertySchema.safeParse(rawInput);
-    if (!parsed.success) {
-      return Result.fail(parsed.error);
+    const parsedInput = parseWith(publishPropertySchema, rawInput);
+    if (parsedInput.isErr()) {
+      return Result.fail(parsedInput.error);
     }
 
     const [authResult, propertyResult] = await Promise.all([
-      this.auth.getCurrent(),
-      this.repo.getById(parsed.data.id),
+      this.deps.auth.getCurrent(),
+      this.deps.repo.getById(parsedInput.value.id),
     ]);
+    if (authResult.isErr()) return Result.fail(authResult.error);
+    if (propertyResult.isErr()) return Result.fail(propertyResult.error);
 
-    if (authResult.isErr()) {
-      return Result.fail(authResult.error);
-    }
-    if (propertyResult.isErr()) {
-      return Result.fail(propertyResult.error);
-    }
+    const entity = toDomain(propertyResult.value, { clock: this.deps.clock });
+    entity.publish({
+      now: this.deps.clock.now(),
+      kycVerified: authResult.value.kycStatus === "verified",
+    });
 
-    try {
-      const entity = toDomain(propertyResult.value, { clock: this.clock });
-      entity.publish({
-        now: this.clock.now(),
-        kycVerified: authResult.value.kycStatus === "verified",
-      });
-
-      const publishedAt = entity.publishedAt ?? this.clock.now();
-      const repoResult = await this.repo.publish(entity.id.toString(), publishedAt);
-      if (repoResult.isErr()) {
-        return Result.fail(repoResult.error);
-      }
-      return Result.ok(undefined);
-    } catch (error) {
-      return Result.fail(error);
-    }
+    const publishedAt = entity.publishedAt ?? this.deps.clock.now();
+    const repoResult = await this.deps.repo.publish(entity.id.toString(), publishedAt);
+    return repoResult.isErr() ? Result.fail(repoResult.error) : Result.ok(undefined);
   }
 }

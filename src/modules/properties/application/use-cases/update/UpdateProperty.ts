@@ -1,102 +1,115 @@
+// Caso de uso: actualización parcial de propiedades.
+// No tocar la lógica de dominio; sólo orquestar validaciones y repositorio.
 import { propertyIdSchema, updatePropertySchema } from "../../validators/property.schema";
 import type { PropertyRepo } from "../../ports/PropertyRepo";
 import type { Clock } from "../../ports/Clock";
 import { Result } from "../../_shared/result";
+import { parseWith } from "../../_shared/validation";
 import type { UpdatePropertyDTO } from "../../dto/PropertyDTO";
 import { toDomain, fromDomain } from "../../mappers/property.mapper";
 
-export class UpdateProperty {
-  private readonly repo: PropertyRepo;
-  private readonly clock: Clock;
+type ParsedPatch = ReturnType<typeof updatePropertySchema.parse>;
+type PropertySnapshot = ReturnType<typeof fromDomain>;
 
-  constructor(deps: { repo: PropertyRepo; clock: Clock }) {
-    this.repo = deps.repo;
-    this.clock = deps.clock;
-  }
+const DIRECT_KEYS: Array<keyof UpdatePropertyDTO> = [
+  "title",
+  "description",
+  "propertyType",
+  "operationType",
+  "bedrooms",
+  "bathrooms",
+  "parkingSpots",
+  "constructionM2",
+  "landM2",
+  "levels",
+  "yearBuilt",
+  "floor",
+  "condition",
+  "furnished",
+  "petFriendly",
+  "orientation",
+  "amenities",
+  "amenitiesExtra",
+  "tags",
+  "internalId",
+  "rppVerification",
+  "normalizedStatus",
+] as const;
+
+export class UpdateProperty {
+  constructor(private readonly deps: { repo: PropertyRepo; clock: Clock }) {}
 
   async execute(params: { id: string; patch: unknown }): Promise<Result<void>> {
-    const idResult = propertyIdSchema.safeParse(params.id);
-    if (!idResult.success) {
+    const idResult = parseWith(propertyIdSchema, params.id);
+    if (idResult.isErr()) {
       return Result.fail(idResult.error);
     }
 
-    const patchResult = updatePropertySchema.safeParse(params.patch);
-    if (!patchResult.success) {
+    const patchResult = parseWith(updatePropertySchema, params.patch);
+    if (patchResult.isErr()) {
       return Result.fail(patchResult.error);
     }
 
-    const repoResult = await this.repo.getById(idResult.data);
+    const repoResult = await this.deps.repo.getById(idResult.value);
     if (repoResult.isErr()) {
       return Result.fail(repoResult.error);
     }
 
-    const current = toDomain(repoResult.value, { clock: this.clock });
-    const baseDto = fromDomain(current);
+    const current = toDomain(repoResult.value, { clock: this.deps.clock });
+    const baseSnapshot = fromDomain(current);
 
-    const merged = {
-      ...baseDto,
-      ...patchResult.data,
-      address: patchResult.data.address ? { ...baseDto.address, ...patchResult.data.address } : baseDto.address,
-      price: patchResult.data.price ?? baseDto.price,
-      hoaFee: patchResult.data.hoaFee ?? baseDto.hoaFee,
-      amenities: patchResult.data.amenities ?? baseDto.amenities,
-      tags: patchResult.data.tags ?? baseDto.tags,
-    };
-
-    const updatedEntity = toDomain(
-      {
-        ...merged,
-        id: baseDto.id,
-        orgId: baseDto.orgId,
-        listerUserId: baseDto.listerUserId,
-        completenessScore: baseDto.completenessScore,
-        normalizedStatus: merged.normalizedStatus ?? baseDto.normalizedStatus ?? null,
-        trustScore: baseDto.trustScore ?? null,
-        createdAt: baseDto.createdAt ?? undefined,
-        updatedAt: baseDto.updatedAt ?? undefined,
-        publishedAt: baseDto.publishedAt ?? null,
-        soldAt: baseDto.soldAt ?? null,
-        deletedAt: baseDto.deletedAt ?? null,
-      },
-      { clock: this.clock },
-    );
-
+    const mergedDto = mergeSnapshot(baseSnapshot, patchResult.value);
+    const updatedEntity = toDomain(mergedDto, { clock: this.deps.clock });
     const sanitized = fromDomain(updatedEntity);
-    const updatePayload: UpdatePropertyDTO = {};
-    const patch = patchResult.data;
 
-    if ("title" in patch) updatePayload.title = sanitized.title;
-    if ("description" in patch) updatePayload.description = sanitized.description ?? null;
-    if ("price" in patch) updatePayload.price = sanitized.price;
-    if ("propertyType" in patch) updatePayload.propertyType = sanitized.propertyType;
-    if ("operationType" in patch) updatePayload.operationType = sanitized.operationType;
-    if ("bedrooms" in patch) updatePayload.bedrooms = sanitized.bedrooms ?? null;
-    if ("bathrooms" in patch) updatePayload.bathrooms = sanitized.bathrooms ?? null;
-    if ("parkingSpots" in patch) updatePayload.parkingSpots = sanitized.parkingSpots ?? null;
-    if ("constructionM2" in patch) updatePayload.constructionM2 = sanitized.constructionM2 ?? null;
-    if ("landM2" in patch) updatePayload.landM2 = sanitized.landM2 ?? null;
-    if ("levels" in patch) updatePayload.levels = sanitized.levels ?? null;
-    if ("yearBuilt" in patch) updatePayload.yearBuilt = sanitized.yearBuilt ?? null;
-    if ("floor" in patch) updatePayload.floor = sanitized.floor ?? null;
-    if ("hoaFee" in patch) updatePayload.hoaFee = sanitized.hoaFee ?? null;
-    if ("condition" in patch) updatePayload.condition = sanitized.condition ?? null;
-    if ("furnished" in patch) updatePayload.furnished = sanitized.furnished ?? null;
-    if ("petFriendly" in patch) updatePayload.petFriendly = sanitized.petFriendly ?? null;
-    if ("orientation" in patch) updatePayload.orientation = sanitized.orientation ?? null;
-    if ("amenities" in patch) updatePayload.amenities = sanitized.amenities;
-    if ("amenitiesExtra" in patch) updatePayload.amenitiesExtra = sanitized.amenitiesExtra ?? null;
-    if ("address" in patch) updatePayload.address = sanitized.address;
-    if ("location" in patch) updatePayload.location = sanitized.location ?? null;
-    if ("tags" in patch) updatePayload.tags = sanitized.tags;
-    if ("internalId" in patch) updatePayload.internalId = sanitized.internalId ?? null;
-    if ("rppVerification" in patch) updatePayload.rppVerification = sanitized.rppVerification ?? "pending";
-    if ("normalizedStatus" in patch) updatePayload.normalizedStatus = sanitized.normalizedStatus ?? null;
+    const updatePayload = buildUpdatePayload(patchResult.value, sanitized);
+    if (Object.keys(updatePayload).length === 0) {
+      return Result.ok(undefined);
+    }
 
-    const updateResult = await this.repo.update(baseDto.id, updatePayload);
-    if (updateResult.isErr()) {
-      return Result.fail(updateResult.error);
+    const persistResult = await this.deps.repo.update(baseSnapshot.id, updatePayload);
+    if (persistResult.isErr()) {
+      return Result.fail(persistResult.error);
     }
 
     return Result.ok(undefined);
   }
+}
+
+function mergeSnapshot(base: PropertySnapshot, patch: ParsedPatch): PropertySnapshot {
+  return {
+    ...base,
+    ...patch,
+    price: patch.price ?? base.price,
+    hoaFee: patch.hoaFee ?? base.hoaFee,
+    address: patch.address ? { ...base.address, ...patch.address } : base.address,
+    location: patch.location ?? base.location ?? null,
+    amenities: patch.amenities ?? base.amenities,
+    tags: patch.tags ?? base.tags,
+  };
+}
+
+function buildUpdatePayload(patch: ParsedPatch, sanitized: PropertySnapshot): UpdatePropertyDTO {
+  const payload: UpdatePropertyDTO = {};
+
+  for (const key of DIRECT_KEYS) {
+    if (key in patch) {
+      payload[key] = sanitized[key] as never;
+    }
+  }
+
+  if ("price" in patch) {
+    payload.price = sanitized.price;
+  }
+  if ("hoaFee" in patch) {
+    payload.hoaFee = sanitized.hoaFee ?? null;
+  }
+  if ("address" in patch) {
+    payload.address = sanitized.address;
+  }
+  if ("location" in patch) {
+    payload.location = sanitized.location ?? null;
+  }
+
+  return payload;
 }

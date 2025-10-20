@@ -1,39 +1,30 @@
+﻿// Caso de uso: programar publicación futura de una propiedad.
+// Delega la validación temporal al dominio.
 import { schedulePublishSchema } from "../../validators/property.schema";
 import type { PropertyRepo } from "../../ports/PropertyRepo";
 import type { Clock } from "../../ports/Clock";
 import { Result } from "../../_shared/result";
+import { parseWith } from "../../_shared/validation";
 import { toDomain } from "../../mappers/property.mapper";
 
 export class SchedulePublish {
-  private readonly repo: PropertyRepo;
-  private readonly clock: Clock;
-
-  constructor(deps: { repo: PropertyRepo; clock: Clock }) {
-    this.repo = deps.repo;
-    this.clock = deps.clock;
-  }
+  constructor(private readonly deps: { repo: PropertyRepo; clock: Clock }) {}
 
   async execute(rawInput: unknown): Promise<Result<void>> {
-    const parsed = schedulePublishSchema.safeParse(rawInput);
-    if (!parsed.success) {
-      return Result.fail(parsed.error);
+    const parsedInput = parseWith(schedulePublishSchema, rawInput);
+    if (parsedInput.isErr()) {
+      return Result.fail(parsedInput.error);
     }
 
-    const propertyResult = await this.repo.getById(parsed.data.id);
+    const propertyResult = await this.deps.repo.getById(parsedInput.value.id);
     if (propertyResult.isErr()) {
       return Result.fail(propertyResult.error);
     }
 
-    try {
-      const entity = toDomain(propertyResult.value, { clock: this.clock });
-      entity.schedulePublication(parsed.data.publishAt);
-      const repoResult = await this.repo.publish(entity.id.toString(), parsed.data.publishAt);
-      if (repoResult.isErr()) {
-        return Result.fail(repoResult.error);
-      }
-      return Result.ok(undefined);
-    } catch (error) {
-      return Result.fail(error);
-    }
+    const entity = toDomain(propertyResult.value, { clock: this.deps.clock });
+    entity.schedulePublication(parsedInput.value.publishAt);
+
+    const repoResult = await this.deps.repo.publish(entity.id.toString(), parsedInput.value.publishAt);
+    return repoResult.isErr() ? Result.fail(repoResult.error) : Result.ok(undefined);
   }
 }

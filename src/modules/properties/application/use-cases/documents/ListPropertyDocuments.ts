@@ -1,33 +1,24 @@
+﻿// Caso de uso: listar documentos ligados a una propiedad.
+// Devuelve DTOs sin modificar.
 import { z } from "zod";
-
 import { propertyIdSchema } from "../../validators/property.schema";
 import type { DocumentRepo } from "../../ports/DocumentRepo";
 import type { DocumentDTO } from "../../dto/DocumentDTO";
 import { Result } from "../../_shared/result";
+import { parseWith } from "../../_shared/validation";
 
-const listDocumentsSchema = z.object({
-  propertyId: propertyIdSchema,
-});
+const listDocumentsSchema = z.object({ propertyId: propertyIdSchema });
 
 export class ListPropertyDocuments {
-  private readonly documents: DocumentRepo;
-
-  constructor(deps: { documents: DocumentRepo }) {
-    this.documents = deps.documents;
-  }
+  constructor(private readonly deps: { documents: DocumentRepo }) {}
 
   async execute(rawInput: unknown): Promise<Result<DocumentDTO[]>> {
-    const parsed = listDocumentsSchema.safeParse(rawInput);
-    if (!parsed.success) {
-      return Result.fail(parsed.error);
+    const parsedInput = parseWith(listDocumentsSchema, rawInput);
+    if (parsedInput.isErr()) {
+      return Result.fail(parsedInput.error);
     }
 
-    const result = await this.documents.listByProperty(parsed.data.propertyId);
-    if (result.isErr()) {
-      return Result.fail(result.error);
-    }
-
-    return Result.ok(result.value);
+    const result = await this.deps.documents.listByProperty(parsedInput.value.propertyId);
+    return result.isErr() ? Result.fail(result.error) : Result.ok(result.value);
   }
 }
-

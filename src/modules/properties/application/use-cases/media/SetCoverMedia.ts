@@ -1,24 +1,19 @@
+﻿// Caso de uso: marcar media como portada.
 import { setCoverMediaSchema } from "../../validators/property.schema";
 import type { MediaStorage } from "../../ports/MediaStorage";
 import { Result } from "../../_shared/result";
+import { parseWith } from "../../_shared/validation";
 
 export class SetCoverMedia {
-  private readonly media: MediaStorage;
-
-  constructor(deps: { media: MediaStorage }) {
-    this.media = deps.media;
-  }
+  constructor(private readonly deps: { media: MediaStorage }) {}
 
   async execute(rawInput: unknown): Promise<Result<void>> {
-    const parsed = setCoverMediaSchema.safeParse(rawInput);
-    if (!parsed.success) {
-      return Result.fail(parsed.error);
+    const parsedInput = parseWith(setCoverMediaSchema, rawInput);
+    if (parsedInput.isErr()) {
+      return Result.fail(parsedInput.error);
     }
 
-    const result = await this.media.setCover(parsed.data.propertyId, parsed.data.mediaId);
-    if (result.isErr()) {
-      return Result.fail(result.error);
-    }
-    return Result.ok(undefined);
+    const result = await this.deps.media.setCover(parsedInput.value.propertyId, parsedInput.value.mediaId);
+    return result.isErr() ? Result.fail(result.error) : Result.ok(undefined);
   }
 }

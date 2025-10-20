@@ -1,33 +1,24 @@
+﻿// Caso de uso: reordenar media asegurando ids únicos.
 import { reorderMediaSchema } from "../../validators/property.schema";
 import type { MediaStorage } from "../../ports/MediaStorage";
 import { Result } from "../../_shared/result";
+import { parseWith } from "../../_shared/validation";
 
 export class ReorderMedia {
-  private readonly media: MediaStorage;
-
-  constructor(deps: { media: MediaStorage }) {
-    this.media = deps.media;
-  }
+  constructor(private readonly deps: { media: MediaStorage }) {}
 
   async execute(rawInput: unknown): Promise<Result<void>> {
-    const parsed = reorderMediaSchema.safeParse(rawInput);
-    if (!parsed.success) {
-      return Result.fail(parsed.error);
+    const parsedInput = parseWith(reorderMediaSchema, rawInput);
+    if (parsedInput.isErr()) {
+      return Result.fail(parsedInput.error);
     }
 
-    const uniqueIds = new Set(parsed.data.orderedIds);
-    if (uniqueIds.size !== parsed.data.orderedIds.length) {
+    const uniqueIds = new Set(parsedInput.value.orderedIds);
+    if (uniqueIds.size !== parsedInput.value.orderedIds.length) {
       return Result.fail(new Error("orderedIds must be unique"));
     }
 
-    const result = await this.media.reorder(
-      parsed.data.propertyId,
-      parsed.data.orderedIds,
-    );
-    if (result.isErr()) {
-      return Result.fail(result.error);
-    }
-
-    return Result.ok(undefined);
+    const result = await this.deps.media.reorder(parsedInput.value.propertyId, parsedInput.value.orderedIds);
+    return result.isErr() ? Result.fail(result.error) : Result.ok(undefined);
   }
 }

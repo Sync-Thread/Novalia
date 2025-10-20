@@ -1,39 +1,30 @@
+// Caso de uso: eliminación lógica de propiedades.
+// Respetar reglas de dominio (soft delete).
 import { deletePropertySchema } from "../../validators/property.schema";
 import type { PropertyRepo } from "../../ports/PropertyRepo";
 import type { Clock } from "../../ports/Clock";
 import { Result } from "../../_shared/result";
+import { parseWith } from "../../_shared/validation";
 import { toDomain } from "../../mappers/property.mapper";
 
 export class DeleteProperty {
-  private readonly repo: PropertyRepo;
-  private readonly clock: Clock;
-
-  constructor(deps: { repo: PropertyRepo; clock: Clock }) {
-    this.repo = deps.repo;
-    this.clock = deps.clock;
-  }
+  constructor(private readonly deps: { repo: PropertyRepo; clock: Clock }) {}
 
   async execute(rawInput: unknown): Promise<Result<void>> {
-    const parsed = deletePropertySchema.safeParse(rawInput);
-    if (!parsed.success) {
-      return Result.fail(parsed.error);
+    const parsedInput = parseWith(deletePropertySchema, rawInput);
+    if (parsedInput.isErr()) {
+      return Result.fail(parsedInput.error);
     }
 
-    const propertyResult = await this.repo.getById(parsed.data.id);
+    const propertyResult = await this.deps.repo.getById(parsedInput.value.id);
     if (propertyResult.isErr()) {
       return Result.fail(propertyResult.error);
     }
 
-    try {
-      const entity = toDomain(propertyResult.value, { clock: this.clock });
-      entity.softDelete(this.clock.now());
-      const repoResult = await this.repo.softDelete(entity.id.toString());
-      if (repoResult.isErr()) {
-        return Result.fail(repoResult.error);
-      }
-      return Result.ok(undefined);
-    } catch (error) {
-      return Result.fail(error);
-    }
+    const entity = toDomain(propertyResult.value, { clock: this.deps.clock });
+    entity.softDelete(this.deps.clock.now());
+
+    const repoResult = await this.deps.repo.softDelete(entity.id.toString());
+    return repoResult.isErr() ? Result.fail(repoResult.error) : Result.ok(undefined);
   }
 }

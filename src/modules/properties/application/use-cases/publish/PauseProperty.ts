@@ -1,43 +1,34 @@
+﻿// Caso de uso: pausar una propiedad publicada.
+// Respeta reglas de dominio para cambiar de estado.
 import { pausePropertySchema } from "../../validators/property.schema";
 import type { PropertyRepo } from "../../ports/PropertyRepo";
 import type { Clock } from "../../ports/Clock";
 import { Result } from "../../_shared/result";
+import { parseWith } from "../../_shared/validation";
 import { toDomain } from "../../mappers/property.mapper";
 
 export class PauseProperty {
-  private readonly repo: PropertyRepo;
-  private readonly clock: Clock;
-
-  constructor(deps: { repo: PropertyRepo; clock: Clock }) {
-    this.repo = deps.repo;
-    this.clock = deps.clock;
-  }
+  constructor(private readonly deps: { repo: PropertyRepo; clock: Clock }) {}
 
   async execute(rawInput: unknown): Promise<Result<void>> {
-    const parsed = pausePropertySchema.safeParse(rawInput);
-    if (!parsed.success) {
-      return Result.fail(parsed.error);
+    const parsedInput = parseWith(pausePropertySchema, rawInput);
+    if (parsedInput.isErr()) {
+      return Result.fail(parsedInput.error);
     }
 
-    const propertyResult = await this.repo.getById(parsed.data.id);
+    const propertyResult = await this.deps.repo.getById(parsedInput.value.id);
     if (propertyResult.isErr()) {
       return Result.fail(propertyResult.error);
     }
 
-    try {
-      const entity = toDomain(propertyResult.value, { clock: this.clock });
-      const previous = entity.status;
-      entity.pause();
-      if (previous === entity.status) {
-        return Result.ok(undefined);
-      }
-      const repoResult = await this.repo.pause(entity.id.toString());
-      if (repoResult.isErr()) {
-        return Result.fail(repoResult.error);
-      }
+    const entity = toDomain(propertyResult.value, { clock: this.deps.clock });
+    const previousStatus = entity.status;
+    entity.pause();
+    if (previousStatus === entity.status) {
       return Result.ok(undefined);
-    } catch (error) {
-      return Result.fail(error);
     }
+
+    const repoResult = await this.deps.repo.pause(entity.id.toString());
+    return repoResult.isErr() ? Result.fail(repoResult.error) : Result.ok(undefined);
   }
 }

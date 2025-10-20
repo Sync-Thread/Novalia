@@ -1,39 +1,32 @@
+﻿// Caso de uso: adjuntar un documento a una propiedad.
+// Valida el payload y delega en el repositorio de documentos.
 import { attachDocumentSchema } from "../../validators/property.schema";
 import type { DocumentRepo } from "../../ports/DocumentRepo";
 import type { PropertyRepo } from "../../ports/PropertyRepo";
 import { Result } from "../../_shared/result";
+import { parseWith } from "../../_shared/validation";
 
 export class AttachDocument {
-  private readonly documents: DocumentRepo;
-  private readonly properties: PropertyRepo;
-
-  constructor(deps: { documents: DocumentRepo; properties: PropertyRepo }) {
-    this.documents = deps.documents;
-    this.properties = deps.properties;
-  }
+  constructor(private readonly deps: { documents: DocumentRepo; properties: PropertyRepo }) {}
 
   async execute(rawInput: unknown): Promise<Result<{ id: string }>> {
-    const parsed = attachDocumentSchema.safeParse(rawInput);
-    if (!parsed.success) {
-      return Result.fail(parsed.error);
+    const parsedInput = parseWith(attachDocumentSchema, rawInput);
+    if (parsedInput.isErr()) {
+      return Result.fail(parsedInput.error);
     }
 
-    const propertyResult = await this.properties.getById(parsed.data.propertyId);
+    const propertyResult = await this.deps.properties.getById(parsedInput.value.propertyId);
     if (propertyResult.isErr()) {
       return Result.fail(propertyResult.error);
     }
 
-    const attachResult = await this.documents.attach(parsed.data.propertyId, {
-      docType: parsed.data.docType,
-      url: parsed.data.url ?? null,
-      s3Key: parsed.data.s3Key ?? null,
-      metadata: parsed.data.metadata,
+    const attachResult = await this.deps.documents.attach(parsedInput.value.propertyId, {
+      docType: parsedInput.value.docType,
+      url: parsedInput.value.url ?? null,
+      s3Key: parsedInput.value.s3Key ?? null,
+      metadata: parsedInput.value.metadata,
     });
 
-    if (attachResult.isErr()) {
-      return Result.fail(attachResult.error);
-    }
-
-    return Result.ok(attachResult.value);
+    return attachResult.isErr() ? Result.fail(attachResult.error) : Result.ok(attachResult.value);
   }
 }

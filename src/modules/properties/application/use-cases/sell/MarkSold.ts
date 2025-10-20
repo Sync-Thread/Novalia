@@ -1,39 +1,30 @@
+﻿// Caso de uso: marcar una propiedad como vendida.
+// Usa el dominio para validar la fecha y persistir el estado.
 import { markSoldSchema } from "../../validators/property.schema";
 import type { PropertyRepo } from "../../ports/PropertyRepo";
 import type { Clock } from "../../ports/Clock";
 import { Result } from "../../_shared/result";
+import { parseWith } from "../../_shared/validation";
 import { toDomain } from "../../mappers/property.mapper";
 
 export class MarkSold {
-  private readonly repo: PropertyRepo;
-  private readonly clock: Clock;
-
-  constructor(deps: { repo: PropertyRepo; clock: Clock }) {
-    this.repo = deps.repo;
-    this.clock = deps.clock;
-  }
+  constructor(private readonly deps: { repo: PropertyRepo; clock: Clock }) {}
 
   async execute(rawInput: unknown): Promise<Result<void>> {
-    const parsed = markSoldSchema.safeParse(rawInput);
-    if (!parsed.success) {
-      return Result.fail(parsed.error);
+    const parsedInput = parseWith(markSoldSchema, rawInput);
+    if (parsedInput.isErr()) {
+      return Result.fail(parsedInput.error);
     }
 
-    const propertyResult = await this.repo.getById(parsed.data.id);
+    const propertyResult = await this.deps.repo.getById(parsedInput.value.id);
     if (propertyResult.isErr()) {
       return Result.fail(propertyResult.error);
     }
 
-    try {
-      const entity = toDomain(propertyResult.value, { clock: this.clock });
-      entity.markSold(parsed.data.soldAt);
-      const repoResult = await this.repo.markSold(entity.id.toString(), parsed.data.soldAt);
-      if (repoResult.isErr()) {
-        return Result.fail(repoResult.error);
-      }
-      return Result.ok(undefined);
-    } catch (error) {
-      return Result.fail(error);
-    }
+    const entity = toDomain(propertyResult.value, { clock: this.deps.clock });
+    entity.markSold(parsedInput.value.soldAt);
+
+    const repoResult = await this.deps.repo.markSold(entity.id.toString(), parsedInput.value.soldAt);
+    return repoResult.isErr() ? Result.fail(repoResult.error) : Result.ok(undefined);
   }
 }
