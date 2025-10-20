@@ -1,6 +1,7 @@
+// Gestor mínimo de medios para propiedades.
+// No tocar lógica de Application/Domain.
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import type { MediaDTO } from "../../application/dto/MediaDTO";
-import styles from "./MediaDropzone.module.css";
 
 export interface MediaDropzoneProps {
   items: MediaDTO[];
@@ -29,8 +30,7 @@ export function MediaDropzone({
   const handleFiles = useCallback(
     (fileList: FileList | null) => {
       if (!fileList || !onUpload) return;
-      const files = Array.from(fileList);
-      onUpload(files);
+      onUpload(Array.from(fileList));
     },
     [onUpload],
   );
@@ -65,25 +65,31 @@ export function MediaDropzone({
     onReorder(reordered.map(item => item.id));
   };
 
-  const dropzoneClass = [
-    styles.dropzone,
-    dragging ? styles.dropzoneDragging : "",
-    uploading ? styles.dropzoneDisabled : "",
-  ]
-    .filter(Boolean)
-    .join(" ");
+  const dropzoneStyle: React.CSSProperties = {
+    border: `2px dashed ${dragging ? "var(--accent)" : "rgba(148,163,184,0.6)"}`,
+    borderRadius: "var(--radius)",
+    padding: "calc(var(--gap) * 1.5)",
+    background: dragging ? "rgba(41,93,255,0.06)" : "var(--surface)",
+    cursor: uploading ? "wait" : "pointer",
+    transition: "background 160ms ease, border-color 160ms ease",
+    textAlign: "center",
+    color: "var(--muted)",
+    fontSize: "0.95rem",
+    display: "grid",
+    gap: "6px",
+  };
 
   return (
-    <div className={styles.wrapper}>
+    <section className="stack" style={{ gap: "var(--gap)" }}>
       <div
-        className={dropzoneClass}
+        style={dropzoneStyle}
         onDragOver={event => {
           event.preventDefault();
           if (!uploading) setDragging(true);
         }}
         onDragLeave={() => setDragging(false)}
         onDrop={handleDrop}
-        onClick={() => inputRef.current?.click()}
+        onClick={() => !uploading && inputRef.current?.click()}
         role="button"
         tabIndex={0}
         onKeyDown={event => {
@@ -93,12 +99,10 @@ export function MediaDropzone({
           }
         }}
       >
-        <p className={styles.dropzoneTitle}>
-          {uploading ? "Subiendo archivos..." : "Arrastra archivos aquí o haz clic para seleccionar"}
-        </p>
-        <p className={styles.dropzoneSubtitle}>
+        <strong>{uploading ? "Subiendo archivos..." : "Arrastra archivos o haz clic para seleccionar"}</strong>
+        <span>
           Acepta imágenes, videos o PDFs. Recomendado mínimo 8 fotos{maxFiles ? ` (máximo ${maxFiles})` : ""}.
-        </p>
+        </span>
       </div>
 
       <input
@@ -113,82 +117,84 @@ export function MediaDropzone({
         }}
       />
 
-      <div className={styles.summary}>
+      <div className="card-meta" style={{ justifyContent: "flex-start", gap: "var(--gap)" }}>
         <span>Fotos: {counts.images}</span>
         <span>Videos: {counts.videos}</span>
         <span>Planos: {counts.floorplans}</span>
       </div>
 
       {items.length > 0 && (
-        <div className={styles.grid}>
+        <div className="grid-responsive">
           {items.map((item, index) => {
             const isCover = item.isCover;
-            const cardClass = [styles.card, isCover ? styles.cardCover : ""].filter(Boolean).join(" ");
             return (
-              <div key={item.id} className={cardClass}>
-                <div className={styles.preview}>
-                  {/* TODO(IMAGEN): Reemplazar por asset real según referencia 'refs/media-grid.png' */}
+              <article key={item.id} className="card" style={{ overflow: "hidden" }}>
+                <div className="card-cover ratio-16x9">
+                  {/* TODO(IMAGEN): Reemplazar placeholder por asset real en docs/ui/properties/refs/ */}
                   {item.url && item.type === "image" ? (
                     <img src={item.url} alt="" />
                   ) : (
-                    <div className={styles.placeholder} aria-hidden="true" />
+                    <div className="placeholder" aria-hidden="true" />
                   )}
-                  {isCover && <span className={styles.coverTag}>Portada</span>}
+                  {isCover && (
+                    <span
+                      className="badge badge-tonal"
+                      style={{ position: "absolute", top: "12px", left: "12px" }}
+                    >
+                      Portada
+                    </span>
+                  )}
                 </div>
-                <div className={styles.cardBody}>
-                  <div className={styles.cardMeta}>
+                <div className="card-body">
+                  <div className="card-meta" style={{ justifyContent: "space-between" }}>
                     <span>Posición {index + 1}</span>
                     <span>{item.type}</span>
                   </div>
-                  <div className={styles.actions}>
+                  <div className="stack" style={{ gap: "6px" }}>
                     <button
                       type="button"
                       onClick={() => onSetCover?.(item.id)}
                       disabled={isCover}
-                      className={[
-                        styles.actionBtn,
-                        isCover ? styles.coverToggleDisabled : styles.coverToggle,
-                      ]
-                        .filter(Boolean)
-                        .join(" ")}
+                      className="btn btn-ghost"
                     >
                       {isCover ? "Portada actual" : "Marcar como portada"}
                     </button>
-                    <div className={styles.actionRow}>
+                    <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
                       <button
                         type="button"
                         onClick={() => move(index, -1)}
                         disabled={!onReorder || index === 0}
-                        className={styles.actionBtn}
+                        className="btn btn-ghost"
                         aria-label={`Mover elemento ${index + 1} hacia arriba`}
                       >
-                        Mover arriba
+                        ↑
                       </button>
                       <button
                         type="button"
                         onClick={() => move(index, 1)}
                         disabled={!onReorder || index === items.length - 1}
-                        className={styles.actionBtn}
+                        className="btn btn-ghost"
                         aria-label={`Mover elemento ${index + 1} hacia abajo`}
                       >
-                        Mover abajo
+                        ↓
                       </button>
                     </div>
                     <button
                       type="button"
                       onClick={() => onRemove?.(item.id)}
-                      className={`${styles.actionBtn} ${styles.danger}`.trim()}
+                      className="btn btn-ghost"
+                      style={{ color: "var(--danger)" }}
                     >
                       Eliminar
                     </button>
                   </div>
                 </div>
-              </div>
+              </article>
             );
           })}
         </div>
       )}
-    </div>
+    </section>
   );
 }
 

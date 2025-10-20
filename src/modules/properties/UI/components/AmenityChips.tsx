@@ -1,4 +1,5 @@
-import styles from "./AmenityChips.module.css";
+// Selector compacto de amenidades para propiedades.
+// No tocar lógica de Application/Domain.
 
 export interface AmenityChip {
   id: string;
@@ -96,14 +97,14 @@ export function AmenityChips({
   };
 
   return (
-    <div className={styles.wrapper}>
+    <div className="stack" style={{ gap: "var(--gap)" }}>
       <div>
         {groups.map(group => (
-          <section key={group.id} aria-labelledby={`amenities-${group.id}`} className={styles.group}>
-            <h3 id={`amenities-${group.id}`} className={styles.groupTitle}>
+          <section key={group.id} aria-labelledby={`amenities-${group.id}`} className="stack" style={{ gap: "8px" }}>
+            <h3 id={`amenities-${group.id}`} className="field-label">
               {group.label}
             </h3>
-            <div className={styles.chips}>
+            <div className="chip-list">
               {group.items.map(item => {
                 const active = selected.includes(item.id);
                 return (
@@ -113,7 +114,7 @@ export function AmenityChips({
                     onClick={() => toggleAmenity(item.id)}
                     disabled={disabled}
                     aria-pressed={active}
-                    className={`${styles.chip} ${active ? styles.chipActive : ""}`.trim()}
+                    className={`chip${active ? " chip-active" : ""}`}
                   >
                     {item.label}
                   </button>
@@ -124,10 +125,8 @@ export function AmenityChips({
         ))}
       </div>
       {onExtraChange && (
-        <div className={styles.extra}>
-          <label htmlFor="amenities-extra" className={styles.extraLabel}>
-            Otras amenidades
-          </label>
+        <label htmlFor="amenities-extra" className="field-group">
+          <span className="field-label">Otras amenidades</span>
           <textarea
             id="amenities-extra"
             placeholder={extraPlaceholder}
@@ -135,9 +134,9 @@ export function AmenityChips({
             onChange={event => onExtraChange(event.target.value)}
             disabled={disabled}
             rows={3}
-            className={styles.extraField}
+            className="textarea"
           />
-        </div>
+        </label>
       )}
     </div>
   );

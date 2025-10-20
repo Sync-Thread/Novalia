@@ -1,5 +1,6 @@
+// Control mínimo para seleccionar fecha y hora.
+// No tocar lógica de Application/Domain.
 import { useMemo } from "react";
-import styles from "./DateTimePicker.module.css";
 
 function toInputValue(value?: string | null) {
   if (!value) return "";
@@ -48,12 +49,10 @@ export function DateTimePicker({
   const helpId = description ? `${id ?? "datetime"}-help` : undefined;
   const errorId = error ? `${id ?? "datetime"}-error` : undefined;
 
-  const controlClass = `${styles.control} ${error ? styles.errorField : ""}`.trim();
-
   return (
-    <label className={styles.wrapper}>
+    <label className="field-group">
       {label && (
-        <span className={styles.labelText}>
+        <span className="field-label">
           {label}
           {required ? " *" : null}
         </span>
@@ -72,15 +71,15 @@ export function DateTimePicker({
           const next = toIsoString(event.target.value);
           onChange?.(next);
         }}
-        className={controlClass}
+        className={`input${error ? " input-error" : ""}`}
       />
       {description && (
-        <span id={helpId} className={styles.description}>
+        <span id={helpId} className="muted" style={{ fontSize: "0.8rem" }}>
           {description}
         </span>
       )}
       {error && (
-        <span id={errorId} className={styles.error}>
+        <span id={errorId} style={{ fontSize: "0.8rem", color: "var(--danger)" }}>
           {error}
         </span>
       )}

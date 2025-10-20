@@ -1,3 +1,5 @@
+// Provider UI para exponer casos de uso de propiedades.
+// No tocar lógica de Application/Domain.
 import {
   type ReactNode,
   createContext,

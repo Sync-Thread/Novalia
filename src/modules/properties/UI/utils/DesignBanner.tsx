@@ -1,5 +1,6 @@
+// Banner temporal para recordar placeholders visuales.
+// No tocar lógica de Application/Domain.
 import React, { useEffect, useMemo, useState } from "react";
-import styles from "./DesignBanner.module.css";
 
 const STORAGE_PREFIX = "novalia:design-banner:";
 
@@ -21,7 +22,7 @@ function safeSetItem(key: string, value: string) {
   try {
     window.localStorage.setItem(key, value);
   } catch {
-    // ignore storage write errors (private mode, etc.)
+    // Ignorar errores de almacenamiento (modo incógnito, etc.).
   }
 }
 
@@ -33,12 +34,11 @@ export function DesignBanner({ note, storageKey, className }: DesignBannerProps)
   });
 
   useEffect(() => {
-    if (!visible) return;
     if (typeof window === "undefined") return;
     if (safeGetItem(key) === "dismissed") {
       setVisible(false);
     }
-  }, [key, visible]);
+  }, [key]);
 
   if (!visible) {
     return null;
@@ -50,20 +50,30 @@ export function DesignBanner({ note, storageKey, className }: DesignBannerProps)
   };
 
   return (
-    <div className={`${styles.banner} ${className ?? ""}`} role="status">
-      <div className={styles.content}>
-        <span className={styles.badge}>TODO</span>
+    <aside
+      role="status"
+      className={`card ${className ?? ""}`}
+      style={{
+        padding: "var(--gap)",
+        borderColor: "rgba(41,93,255,0.2)",
+        background: "rgba(41,93,255,0.08)",
+        display: "flex",
+        flexWrap: "wrap",
+        justifyContent: "space-between",
+        gap: "var(--gap)",
+      }}
+    >
+      <div className="stack" style={{ gap: "6px" }}>
+        <span className="badge badge-tonal">TODO</span>
         <span>{note}</span>
-        <span className={styles.hint}>
+        <span className="muted" style={{ fontSize: "0.85rem" }}>
           Oculta este aviso cuando integres los assets finales y elimines los placeholders.
         </span>
       </div>
-      <div className={styles.actions}>
-        <button type="button" className={styles.dismiss} onClick={handleDismiss}>
-          Ocultar
-        </button>
-      </div>
-    </div>
+      <button type="button" className="btn btn-ghost" onClick={handleDismiss}>
+        Ocultar
+      </button>
+    </aside>
   );
 }
 

@@ -1,11 +1,14 @@
-import { useCallback, useEffect, useState } from "react";
-import type { CSSProperties } from "react";
+// Sheet mínimo para consultar y accionar sobre una propiedad.
+// No tocar lógica de Application/Domain.
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { X } from "lucide-react";
 import type { PropertyDTO } from "../../application/dto/PropertyDTO";
+import type { VerificationStatusDTO } from "../../application/dto/DocumentDTO";
 import type { AuthProfile } from "../../application/ports/AuthService";
 import { usePropertiesActions } from "../hooks/usePropertiesActions";
 import ProgressCircle from "./ProgressCircle";
 import DateTimePicker from "./DateTimePicker";
-import MarkSoldModal from "../modals/MarkSoldModal";
+import MarkSoldModal, { type MarkSoldModalPayload } from "../modals/MarkSoldModal";
 import DeletePropertyModal from "../modals/DeletePropertyModal";
 import { formatCurrency, formatStatus, formatVerification, shortenId } from "../utils/format";
 
@@ -18,6 +21,22 @@ export interface QuickViewSheetProps {
   onEdit?: (propertyId: string) => void;
   onViewPublic?: (property: PropertyDTO) => void;
 }
+
+type RppState = VerificationStatusDTO | "missing";
+
+const STATUS_CLASS: Record<PropertyDTO["status"], string> = {
+  draft: "status",
+  published: "status status-success",
+  sold: "status status-success",
+  archived: "status status-error",
+};
+
+const RPP_TONE: Record<RppState, { label: string; className: string }> = {
+  pending: { label: "RPP pendiente", className: "status status-warn" },
+  verified: { label: "RPP verificado", className: "status status-success" },
+  rejected: { label: "RPP rechazado", className: "status status-error" },
+  missing: { label: "RPP pendiente", className: "status" },
+};
 
 export function QuickViewSheet({
   propertyId,
@@ -36,27 +55,20 @@ export function QuickViewSheet({
     deleteProperty,
     schedulePublish,
     getAuthProfile,
+    loading,
   } = usePropertiesActions();
   const [property, setProperty] = useState<PropertyDTO | null>(initialProperty);
-  const [loading, setLoading] = useState(false);
+  const [loadingDetails, setLoadingDetails] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isFullWidth, setIsFullWidth] = useState(() => window.innerWidth <= 1024);
   const [authProfile, setAuthProfile] = useState<AuthProfile | null>(null);
-  const [showSchedule, setShowSchedule] = useState(false);
+  const [scheduleOpen, setScheduleOpen] = useState(false);
   const [scheduleAt, setScheduleAt] = useState<string | null>(null);
   const [showDelete, setShowDelete] = useState(false);
   const [showMarkSold, setShowMarkSold] = useState(false);
 
-  useEffect(() => {
-    if (!open) return;
-    const listener = () => setIsFullWidth(window.innerWidth <= 1024);
-    window.addEventListener("resize", listener);
-    return () => window.removeEventListener("resize", listener);
-  }, [open]);
-
   const fetchProperty = useCallback(
     async (id: string) => {
-      setLoading(true);
+      setLoadingDetails(true);
       setError(null);
       const result = await getProperty(id);
       if (result.isOk()) {
@@ -65,7 +77,7 @@ export function QuickViewSheet({
       } else {
         setError("No pudimos cargar los detalles de la propiedad.");
       }
-      setLoading(false);
+      setLoadingDetails(false);
     },
     [getProperty],
   );
@@ -81,22 +93,22 @@ export function QuickViewSheet({
           }
         });
       }
-    } else if (!open) {
-      setProperty(null);
+    }
+    if (!open) {
       setError(null);
-      setShowSchedule(false);
+      setScheduleOpen(false);
     }
   }, [authProfile, fetchProperty, getAuthProfile, initialProperty, open, propertyId]);
 
   useEffect(() => {
     if (!open) return;
-    const onKey = (event: KeyboardEvent) => {
+    const handleKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         onClose();
       }
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
   }, [onClose, open]);
 
   const refreshAfterAction = useCallback(async () => {
@@ -110,7 +122,7 @@ export function QuickViewSheet({
     if (!property) return;
     const result = await publishProperty({ id: property.id });
     if (result.isOk()) {
-      void refreshAfterAction();
+      await refreshAfterAction();
     }
   };
 
@@ -118,7 +130,7 @@ export function QuickViewSheet({
     if (!property) return;
     const result = await pauseProperty({ id: property.id });
     if (result.isOk()) {
-      void refreshAfterAction();
+      await refreshAfterAction();
     }
   };
 
@@ -126,18 +138,17 @@ export function QuickViewSheet({
     if (!property || !scheduleAt) return;
     const result = await schedulePublish({ id: property.id, publishAt: new Date(scheduleAt) });
     if (result.isOk()) {
-      setShowSchedule(false);
-      void refreshAfterAction();
+      setScheduleOpen(false);
+      await refreshAfterAction();
     }
   };
 
-  const handleMarkSold = async ({ soldAt, note }: { soldAt: string; note?: string }) => {
+  const handleMarkSold = async ({ soldAt }: MarkSoldModalPayload) => {
     if (!property) return;
     const result = await markSold({ id: property.id, soldAt: new Date(soldAt) });
     if (result.isOk()) {
       setShowMarkSold(false);
-      void refreshAfterAction();
-      void note;
+      await refreshAfterAction();
     }
   };
 
@@ -151,488 +162,176 @@ export function QuickViewSheet({
     }
   };
 
+  const rppInfo = useMemo(() => {
+    const key: RppState = property?.rppVerification ?? "missing";
+    return RPP_TONE[key];
+  }, [property?.rppVerification]);
+
   if (!open) {
     return null;
   }
 
   return (
     <>
-      <div
-        role="presentation"
-        onClick={onClose}
-        style={{
-          position: "fixed",
-          inset: 0,
-          background: "rgba(15,23,42,0.25)",
-          zIndex: 900,
-          backdropFilter: "blur(2px)",
-        }}
-      />
-      <aside
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="quickview-title"
-        style={{
-          position: "fixed",
-          top: 0,
-          right: 0,
-          bottom: 0,
-          width: isFullWidth ? "100%" : 520,
-          maxWidth: "100%",
-          background: "#fff",
-          boxShadow: "-18px 0 40px rgba(15,23,42,0.14)",
-          borderTopLeftRadius: 24,
-          borderBottomLeftRadius: 24,
-          padding: "28px 32px 24px",
-          zIndex: 905,
-          display: "flex",
-          flexDirection: "column",
-          overflowY: "auto",
-        }}
-      >
-        <header
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "flex-start",
-            gap: 12,
-            marginBottom: 18,
-          }}
-        >
-          <div style={{ flex: 1 }}>
-            <h2
-              id="quickview-title"
-              style={{
-                margin: 0,
-                fontSize: 22,
-                fontWeight: 700,
-                color: "#0f172a",
-                lineHeight: 1.3,
-              }}
-            >
-              {property?.title ?? "Propiedad"}
-            </h2>
-            {property && (
-              <button
-                type="button"
-                onClick={() => navigator.clipboard.writeText(property.id)}
-                style={{
-                  marginTop: 6,
-                  border: "none",
-                  background: "transparent",
-                  color: "#64748b",
-                  fontSize: 12,
-                  cursor: "pointer",
-                }}
-              >
-                Copiar ID {shortenId(property.id)}
-              </button>
-            )}
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            style={{
-              border: "none",
-              background: "rgba(148,163,184,0.18)",
-              borderRadius: 999,
-              width: 36,
-              height: 36,
-              cursor: "pointer",
-              fontSize: 18,
-              color: "#475569",
-            }}
-            aria-label="Cerrar"
-          >
-            ×
+      <div className="sheet" role="dialog" aria-modal="true" aria-labelledby="quickview-title">
+        <div aria-hidden="true" onClick={onClose} />
+        <section className="sheet-panel">
+          <button type="button" onClick={onClose} className="btn btn-ghost btn-icon sheet-close" aria-label="Cerrar">
+            <X size={18} />
           </button>
-        </header>
 
-        {loading && (
-          <div style={{ padding: "32px 0", textAlign: "center", color: "#64748b" }}>
-            Cargando detalles…
-          </div>
-        )}
-
-        {!loading && error && (
-          <div
-            role="alert"
-            style={{
-              background: "rgba(248,113,113,0.15)",
-              color: "#b91c1c",
-              padding: "12px 16px",
-              borderRadius: 12,
-              marginBottom: 18,
-              fontSize: 14,
-            }}
-          >
-            {error}
-          </div>
-        )}
-
-        {property && !loading && (
-          <>
-            <section
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr auto",
-                gap: 16,
-                alignItems: "center",
-                marginBottom: 20,
-              }}
-            >
-              <div>
-                <div
-                  style={{
-                    fontSize: 26,
-                    fontWeight: 700,
-                    color: "#1d4ed8",
-                  }}
-                >
-                  {formatCurrency(property.price.amount, property.price.currency)}
-                </div>
-                <div
-                  style={{
-                    fontSize: 14,
-                    color: "#475569",
-                    marginTop: 4,
-                  }}
-                >
-                  {property.address.city}, {property.address.state} · {property.propertyType}
-                </div>
-                <div
-                  style={{
-                    fontSize: 12,
-                    color: "#94a3b8",
-                    marginTop: 4,
-                  }}
-                >
-                  {formatStatus(property.status)}
-                </div>
+          <header className="stack" style={{ gap: "12px" }}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "12px", alignItems: "center" }}>
+              <h2 id="quickview-title" style={{ fontSize: "1.2rem", fontWeight: 600 }}>
+                {property?.title ?? "Propiedad"}
+              </h2>
+              {property && <span className={STATUS_CLASS[property.status] ?? "status"}>{formatStatus(property.status)}</span>}
+              <span className={rppInfo.className}>{rppInfo.label}</span>
+            </div>
+            {property && (
+              <div className="card-meta" style={{ gap: "12px" }}>
+                <span>ID {shortenId(property.id)}</span>
+                <span>{property.address.city}, {property.address.state}</span>
+                <span>{formatCurrency(property.price.amount, property.price.currency)}</span>
               </div>
-              <div style={{ textAlign: "right" }}>
-                <ProgressCircle value={property.completenessScore} size={72} />
-                <span
-                  style={{
-                    display: "inline-block",
-                    marginTop: 6,
-                    fontSize: 12,
-                    color: "#94a3b8",
-                  }}
-                >
-                  {formatVerification(property.rppVerification)}
-                </span>
+            )}
+            {authProfile && (
+              <div className="card-meta">
+                <span>Miembro: {authProfile.name}</span>
+                <span>KYC: {authProfile.kycStatus}</span>
               </div>
-            </section>
+            )}
+          </header>
 
-            <section
-              style={{
-                borderRadius: 16,
-                border: "1px solid rgba(15,23,42,0.08)",
-                padding: "16px 18px",
-                marginBottom: 16,
-              }}
-            >
-              <h3
-                style={{
-                  margin: 0,
-                  fontSize: 15,
-                  fontWeight: 600,
-                  color: "#0f172a",
-                  marginBottom: 10,
-                }}
-              >
-                Calidad & Revisión
-              </h3>
-              <ul
-                style={{
-                  margin: 0,
-                  paddingLeft: 18,
-                  fontSize: 13,
-                  color: "#475569",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 6,
-                }}
-              >
-                <li>
-                  {authProfile?.kycStatus === "verified" ? "✓" : "•"} KYC verificado
-                </li>
-                <li>
-                  {property.completenessScore >= 80 ? "✓" : "•"} Completitud ≥ 80%
-                </li>
-                <li>{property.rppVerification === "verified" ? "✓" : "•"} Documento RPP cargado</li>
-                <li>{property.price.amount > 0 ? "✓" : "•"} Precio, tipo y ubicación definidos</li>
-              </ul>
-            </section>
-
-            <section
-              style={{
-                borderRadius: 16,
-                border: "1px solid rgba(15,23,42,0.08)",
-                padding: "16px 18px",
-                marginBottom: 16,
-              }}
-            >
-              <h3
-                style={{
-                  margin: 0,
-                  fontSize: 15,
-                  fontWeight: 600,
-                  color: "#0f172a",
-                  marginBottom: 10,
-                }}
-              >
-                Actividad
-              </h3>
-              <div style={{ display: "flex", gap: 12, fontSize: 13, color: "#475569" }}>
-                <span>👀 Vistas: {property.tags.length}</span>
-                <span>☎️ Leads: {property.tags.length % 4}</span>
-                <span>💬 Chats: {property.tags.length % 3}</span>
-              </div>
-            </section>
-
-            <section
-              style={{
-                borderRadius: 16,
-                border: "1px solid rgba(15,23,42,0.08)",
-                padding: "16px 18px",
-                marginBottom: 16,
-              }}
-            >
-              <h3
-                style={{
-                  margin: 0,
-                  fontSize: 15,
-                  fontWeight: 600,
-                  color: "#0f172a",
-                  marginBottom: 10,
-                }}
-              >
-                Documentos & Media
-              </h3>
-              <div style={{ display: "flex", gap: 12, fontSize: 13, color: "#475569" }}>
-                <span>Fotos: —</span>
-                <span>Videos: —</span>
-                <span>Planos: —</span>
-              </div>
-            </section>
-          </>
-        )}
-
-        <div style={{ marginTop: "auto" }}>
-          {property && (
-            <FooterActions
-              property={property}
-              showSchedule={showSchedule}
-              setShowSchedule={setShowSchedule}
-              scheduleAt={scheduleAt}
-              setScheduleAt={setScheduleAt}
-              onPublish={handlePublish}
-              onPause={handlePause}
-              onSchedule={handleSchedule}
-              onEdit={() => property && onEdit?.(property.id)}
-              onViewPortal={() => property && onViewPublic?.(property)}
-              onMarkSold={() => setShowMarkSold(true)}
-              onDelete={() => setShowDelete(true)}
-            />
+          {error && (
+            <div role="alert" className="card" style={{ padding: "12px", background: "rgba(248,113,113,0.12)", borderColor: "var(--danger)", color: "var(--danger)" }}>
+              {error}
+            </div>
           )}
-        </div>
-      </aside>
+
+          {loadingDetails && <span className="muted">Cargando detalles...</span>}
+
+          {property && (
+            <div className="stack" style={{ gap: "var(--gap)" }}>
+              <section className="card" style={{ padding: "var(--gap)" }}>
+                <div style={{ display: "flex", gap: "var(--gap)", flexWrap: "wrap" }}>
+                  <ProgressCircle value={property.completenessScore} ariaLabel="Completitud" />
+                  <div className="stack" style={{ gap: "6px" }}>
+                    <span className="muted">Completitud del perfil</span>
+                    <span style={{ fontWeight: 600 }}>{formatStatus(property.status)}</span>
+                    <span className="muted">Documentos: {formatVerification(property.rppVerification ?? "pending")}</span>
+                  </div>
+                </div>
+                <div className="card-meta" style={{ marginTop: "var(--gap)" }}>
+                  <span>Recámaras: {property.bedrooms ?? 0}</span>
+                  <span>Baños: {property.bathrooms ?? 0}</span>
+                  <span>Estacionamientos: {property.parkingSpots ?? 0}</span>
+                </div>
+              </section>
+
+              <section className="stack" style={{ gap: "12px" }}>
+                <h3 style={{ fontSize: "1rem", fontWeight: 600 }}>Acciones rápidas</h3>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "12px" }}>
+                  <button type="button" className="btn btn-primary" onClick={() => property && onEdit?.(property.id)}>
+                    Abrir en panel
+                  </button>
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={() => property && onViewPublic?.(property)}
+                  >
+                    Ver publicación
+                  </button>
+                  {property.status === "draft" && (
+                    <button
+                      type="button"
+                      className="btn"
+                      onClick={handlePublish}
+                      disabled={loading.publishProperty}
+                    >
+                      {loading.publishProperty ? "Publicando..." : "Publicar ahora"}
+                    </button>
+                  )}
+                  {property.status === "published" && (
+                    <button
+                      type="button"
+                      className="btn"
+                      onClick={handlePause}
+                      disabled={loading.pauseProperty}
+                    >
+                      {loading.pauseProperty ? "Pausando..." : "Pausar"}
+                    </button>
+                  )}
+                  {property.status !== "sold" && (
+                    <button type="button" className="btn" onClick={() => setShowMarkSold(true)}>
+                      Marcar como vendida
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    onClick={() => setShowDelete(true)}
+                    style={{ color: "var(--danger)" }}
+                  >
+                    Eliminar
+                  </button>
+                </div>
+              </section>
+
+              {property.status === "draft" && (
+                <section className="card" style={{ padding: "var(--gap)" }}>
+                  <div className="stack" style={{ gap: "12px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <h3 style={{ fontSize: "1rem", fontWeight: 600 }}>Programar publicación</h3>
+                      <button type="button" className="btn btn-ghost" onClick={() => setScheduleOpen(prev => !prev)}>
+                        {scheduleOpen ? "Cerrar" : "Configurar"}
+                      </button>
+                    </div>
+                    {scheduleOpen && (
+                      <>
+                        <DateTimePicker
+                          label="Fecha y hora"
+                          value={scheduleAt}
+                          onChange={setScheduleAt}
+                          required
+                        />
+                        <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end" }}>
+                          <button
+                            type="button"
+                            className="btn btn-primary"
+                            onClick={handleSchedule}
+                            disabled={!scheduleAt || loading.schedulePublish}
+                          >
+                            {loading.schedulePublish ? "Guardando..." : "Guardar programación"}
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </section>
+              )}
+            </div>
+          )}
+        </section>
+      </div>
+
       <DeletePropertyModal
         open={showDelete}
         onClose={() => setShowDelete(false)}
         onConfirm={handleDelete}
+        loading={loading.deleteProperty}
         propertyTitle={property?.title}
       />
-      <MarkSoldModal open={showMarkSold} onClose={() => setShowMarkSold(false)} onConfirm={handleMarkSold} />
+
+      <MarkSoldModal
+        open={showMarkSold}
+        onClose={() => setShowMarkSold(false)}
+        onConfirm={handleMarkSold}
+        loading={loading.markSold}
+        defaultDate={property?.publishedAt ?? undefined}
+      />
     </>
   );
 }
 
-interface FooterProps {
-  property: PropertyDTO;
-  showSchedule: boolean;
-  setShowSchedule: (value: boolean) => void;
-  scheduleAt: string | null;
-  setScheduleAt: (value: string | null) => void;
-  onPublish: () => void;
-  onPause: () => void;
-  onSchedule: () => void;
-  onEdit: () => void;
-  onViewPortal?: () => void;
-  onMarkSold: () => void;
-  onDelete: () => void;
-}
-
-function FooterActions({
-  property,
-  showSchedule,
-  setShowSchedule,
-  scheduleAt,
-  setScheduleAt,
-  onPublish,
-  onPause,
-  onSchedule,
-  onEdit,
-  onViewPortal,
-  onMarkSold,
-  onDelete,
-}: FooterProps) {
-  const status = property.status;
-  return (
-    <div
-      style={{
-        position: "sticky",
-        bottom: 0,
-        background: "#fff",
-        paddingTop: 16,
-        borderTop: "1px solid rgba(15,23,42,0.06)",
-        display: "flex",
-        flexDirection: "column",
-        gap: 12,
-      }}
-    >
-      {showSchedule && (
-        <div
-          style={{
-            padding: "12px 14px",
-            borderRadius: 12,
-            background: "rgba(41,93,255,0.08)",
-            display: "flex",
-            flexDirection: "column",
-            gap: 10,
-          }}
-        >
-          <DateTimePicker label="Programar publicación" value={scheduleAt} onChange={setScheduleAt} />
-          <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
-            <button
-              type="button"
-              onClick={() => setShowSchedule(false)}
-              style={{
-                border: "none",
-                background: "transparent",
-                color: "#475569",
-                fontSize: 13,
-                cursor: "pointer",
-              }}
-            >
-              Cancelar
-            </button>
-            <button
-              type="button"
-              onClick={onSchedule}
-              disabled={!scheduleAt}
-              style={{
-                background: "#295DFF",
-                color: "#fff",
-                border: "none",
-                borderRadius: 10,
-                padding: "10px 16px",
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: scheduleAt ? "pointer" : "not-allowed",
-                opacity: scheduleAt ? 1 : 0.6,
-              }}
-            >
-              Programar
-            </button>
-          </div>
-        </div>
-      )}
-      <div
-        style={{
-          display: "flex",
-          gap: 10,
-          flexWrap: "wrap",
-        }}
-      >
-        {status === "draft" && (
-          <>
-            <button style={primaryBtnStyle} type="button" onClick={onPublish}>
-              Publicar
-            </button>
-            <button style={ghostBtnStyle} type="button" onClick={() => setShowSchedule(true)}>
-              Programar
-            </button>
-            <button style={ghostBtnStyle} type="button" onClick={onEdit}>
-              Editar
-            </button>
-            <button style={dangerBtnStyle} type="button" onClick={onDelete}>
-              Eliminar
-            </button>
-          </>
-        )}
-        {status === "published" && (
-          <>
-            <button style={ghostBtnStyle} type="button" onClick={onPause}>
-              Pausar
-            </button>
-            <button style={ghostBtnStyle} type="button" onClick={onEdit}>
-              Editar
-            </button>
-            <button style={ghostBtnStyle} type="button" onClick={onMarkSold}>
-              Marcar vendida
-            </button>
-            <button style={ghostBtnStyle} type="button" onClick={onViewPortal}>
-              Ver en portal
-            </button>
-            <button style={dangerBtnStyle} type="button" onClick={onDelete}>
-              Eliminar
-            </button>
-          </>
-        )}
-        {status === "sold" && (
-          <>
-            <button style={ghostBtnStyle} type="button" onClick={onViewPortal}>
-              Ver publicación
-            </button>
-            <button style={ghostBtnStyle} type="button" onClick={onEdit}>
-              Editar
-            </button>
-            <button style={dangerBtnStyle} type="button" onClick={onDelete}>
-              Eliminar
-            </button>
-          </>
-        )}
-      </div>
-    </div>
-  );
-}
-
-const primaryBtnStyle: CSSProperties = {
-  flex: 1,
-  minWidth: 120,
-  borderRadius: 10,
-  border: "none",
-  background: "#295DFF",
-  color: "#fff",
-  padding: "12px 16px",
-  fontSize: 14,
-  fontWeight: 600,
-  cursor: "pointer",
-  boxShadow: "0 12px 28px rgba(41,93,255,0.18)",
-};
-
-const ghostBtnStyle: CSSProperties = {
-  flex: 1,
-  minWidth: 120,
-  borderRadius: 10,
-  border: "1px solid rgba(15,23,42,0.12)",
-  background: "#fff",
-  color: "#1e293b",
-  padding: "12px 16px",
-  fontSize: 14,
-  fontWeight: 500,
-  cursor: "pointer",
-};
-
-const dangerBtnStyle: CSSProperties = {
-  ...ghostBtnStyle,
-  color: "#b91c1c",
-  borderColor: "rgba(239,68,68,0.3)",
-};
-
 export default QuickViewSheet;
-
-

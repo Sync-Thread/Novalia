@@ -1,3 +1,5 @@
+// Página principal de listado de propiedades.
+// No tocar lógica de Application/Domain.
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { PropertiesProvider } from "../containers/PropertiesProvider";
@@ -9,10 +11,9 @@ import PropertyCard, { type PropertyCardAction } from "../components/PropertyCar
 import QuickViewSheet from "../components/QuickViewSheet";
 import MarkSoldModal from "../modals/MarkSoldModal";
 import DeletePropertyModal from "../modals/DeletePropertyModal";
+import DesignBanner from "../utils/DesignBanner";
 import type { PropertyDTO } from "../../application/dto/PropertyDTO";
 import { formatCurrency, formatDate, formatStatus, formatVerification } from "../utils/format";
-import DesignBanner from "../utils/DesignBanner";
-import styles from "./MyPropertiesPage.module.css";
 
 export default function MyPropertiesPage() {
   return (
@@ -26,8 +27,14 @@ function MyPropertiesPageContent() {
   const navigate = useNavigate();
   const { filters, items, loading, error, setFilters, refresh, setPage, page, pageSize, total, cache, getCachedById } =
     usePropertyList();
-  const actions = usePropertiesActions();
-  const { getAuthProfile } = actions;
+  const {
+    getAuthProfile,
+    publishProperty,
+    pauseProperty,
+    markSold,
+    deleteProperty,
+    loading: actionLoading,
+  } = usePropertiesActions();
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [authProfileStatus, setAuthProfileStatus] = useState<"verified" | "pending" | "rejected">("pending");
   const [quickViewOpen, setQuickViewOpen] = useState(false);
@@ -63,7 +70,7 @@ function MyPropertiesPageContent() {
 
   const handleReset = () => {
     setViewMode("grid");
-    setFilters(() => ({
+    setFilters({
       q: undefined,
       status: "all",
       propertyType: undefined,
@@ -72,7 +79,9 @@ function MyPropertiesPageContent() {
       priceMin: undefined,
       priceMax: undefined,
       sortBy: "recent",
-    }));
+      page: 1,
+      pageSize,
+    });
   };
 
   const handleAction = (action: PropertyCardAction, property: PropertyDTO) => {
@@ -85,23 +94,21 @@ function MyPropertiesPageContent() {
         navigate(`/properties/${property.id}/admin`);
         break;
       case "publish":
-        void actions.publishProperty({ id: property.id }).then(result => {
+        void publishProperty({ id: property.id }).then(result => {
           if (result.isOk()) void refresh();
         });
         break;
       case "pause":
-        void actions.pauseProperty({ id: property.id }).then(result => {
+        void pauseProperty({ id: property.id }).then(result => {
           if (result.isOk()) void refresh();
         });
         break;
       case "mark_sold":
         setMarkSoldFor(property);
         break;
-      case "view_public": {
-        const path = `/p/${property.id}`;
-        window.open(path, "_blank", "noopener,noreferrer");
+      case "view_public":
+        window.open(`/p/${property.id}`, "_blank", "noopener,noreferrer");
         break;
-      }
       case "delete":
         setDeleteFor(property);
         break;
@@ -112,67 +119,57 @@ function MyPropertiesPageContent() {
 
   const selectedProperty = selectedId ? getCachedById(selectedId) : null;
 
-  const counts = useMemo(() => {
-    const aggregate = { total: cache.size, drafts: 0, published: 0, sold: 0 };
+  const stats = useMemo(() => {
+    const aggregate = { total: cache.size, draft: 0, published: 0, sold: 0 };
     cache.forEach(prop => {
-      if (prop.status === "draft") aggregate.drafts += 1;
+      if (prop.status === "draft") aggregate.draft += 1;
       if (prop.status === "published") aggregate.published += 1;
       if (prop.status === "sold") aggregate.sold += 1;
     });
     return aggregate;
   }, [cache]);
 
-  const statItems = [
-    { id: "borradores", label: "Borradores", value: counts.drafts },
-    { id: "publicadas", label: "Publicadas", value: counts.published },
-    { id: "vendidas", label: "Vendidas", value: counts.sold },
-    { id: "total", label: "Total", value: counts.total },
-  ];
-
   return (
-    <main className={styles.page}>
-      <div className={styles.bannerStack}>
-        <DesignBanner
-          note="Esta vista replica la referencia 'dashboard-grid.png'. Sustituye los placeholders de imagen y remueve este banner al integrar assets y lógica final."
-          storageKey="properties-dashboard-banner"
-        />
-        <header className={styles.header}>
-          <nav className={styles.breadcrumbs} aria-label="Breadcrumb">
-            <span>Dashboard</span>
-            <span aria-hidden="true">/</span>
-            <span>Mis propiedades</span>
-          </nav>
-          <div className={styles.titleRow}>
-            <h1 className={styles.title}>Mis propiedades</h1>
-            <button type="button" onClick={() => navigate("/properties/new")} className={styles.newButton}>
-              Nueva propiedad
-            </button>
-          </div>
-          <section className={styles.stats} aria-label="Resumen de propiedades">
-            {statItems.map(item => (
-              <div key={item.id} className={styles.statCard}>
-                <span className={styles.statLabel}>{item.label}</span>
-                <span className={styles.statValue}>{item.value}</span>
-              </div>
-            ))}
-          </section>
-        </header>
-      </div>
+    <main className="container stack" style={{ gap: "var(--gap)" }}>
+      <DesignBanner
+        note="Vista temporal de dashboard: sustituye placeholders e integra assets finales antes de liberar UI."
+        storageKey="properties-dashboard-banner"
+      />
 
-      {authProfileStatus !== "verified" && <KycBanner visible message="Para publicar propiedades necesitas tu KYC (INE) verificado." />}
+      <header className="card" style={{ padding: "var(--gap)", display: "flex", flexDirection: "column", gap: "var(--gap)" }}>
+        <nav aria-label="Breadcrumb" className="card-meta" style={{ gap: "8px" }}>
+          <span>Dashboard</span>
+          <span aria-hidden="true">/</span>
+          <span>Mis propiedades</span>
+        </nav>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--gap)", justifyContent: "space-between", alignItems: "center" }}>
+          <h1 style={{ fontSize: "1.6rem", fontWeight: 600 }}>Mis propiedades</h1>
+          <button type="button" onClick={() => navigate("/properties/new")} className="btn btn-primary">
+            Nueva propiedad
+          </button>
+        </div>
+        <section aria-label="Resumen de propiedades" style={{ display: "grid", gap: "12px", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))" }}>
+          <StatCard label="Borradores" value={stats.draft} />
+          <StatCard label="Publicadas" value={stats.published} />
+          <StatCard label="Vendidas" value={stats.sold} />
+          <StatCard label="Total" value={stats.total} />
+        </section>
+      </header>
 
-      <div className={styles.filtersArea}>
-        <FiltersBar values={filterValues} onChange={handleFilterChange} onReset={handleReset} disabled={loading} />
-      </div>
+      {authProfileStatus !== "verified" && (
+        <KycBanner visible message="Para publicar propiedades necesitas tu KYC (INE) verificado." />
+      )}
+
+      <FiltersBar values={filterValues} onChange={handleFilterChange} onReset={handleReset} disabled={loading} />
 
       {error && (
-        <div role="alert" className={styles.error}>
+        <div role="alert" className="card" style={{ padding: "var(--gap)", borderColor: "var(--danger)", color: "var(--danger)" }}>
           {error}
         </div>
       )}
 
       {viewMode === "grid" ? (
-        <section className={styles.grid} aria-live="polite">
+        <section className="grid-responsive" aria-live="polite">
           {items.map(item => (
             <PropertyCard key={item.id} property={item} onAction={handleAction} />
           ))}
@@ -200,13 +197,14 @@ function MyPropertiesPageContent() {
         onConfirm={({ soldAt }) => {
           const prop = markSoldFor;
           if (!prop) return;
-          void actions.markSold({ id: prop.id, soldAt: new Date(soldAt) }).then(result => {
+          void markSold({ id: prop.id, soldAt: new Date(soldAt) }).then(result => {
             if (result.isOk()) {
               setMarkSoldFor(null);
               void refresh();
             }
           });
         }}
+        loading={actionLoading.markSold}
         defaultDate={markSoldFor?.soldAt ?? undefined}
       />
 
@@ -217,23 +215,35 @@ function MyPropertiesPageContent() {
         onConfirm={() => {
           const prop = deleteFor;
           if (!prop) return;
-          void actions.deleteProperty({ id: prop.id }).then(result => {
+          void deleteProperty({ id: prop.id }).then(result => {
             if (result.isOk()) {
               setDeleteFor(null);
               void refresh();
             }
           });
         }}
+        loading={actionLoading.deleteProperty}
       />
     </main>
   );
 }
 
+function StatCard({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="card" style={{ padding: "var(--gap)", gap: "4px" }}>
+      <span className="muted" style={{ fontSize: "0.85rem" }}>
+        {label}
+      </span>
+      <strong style={{ fontSize: "1.2rem" }}>{value}</strong>
+    </div>
+  );
+}
+
 function EmptyState({ message, onReset }: { message: string; onReset: () => void }) {
   return (
-    <div className={styles.emptyCard}>
+    <div className="card" style={{ padding: "var(--gap)", textAlign: "center", gap: "12px" }}>
       <p>{message}</p>
-      <button type="button" onClick={onReset} className={styles.emptyButton}>
+      <button type="button" onClick={onReset} className="btn">
         Limpiar filtros
       </button>
     </div>
@@ -250,13 +260,13 @@ function PropertyListTable({
   onAction: (action: PropertyCardAction, property: PropertyDTO) => void;
 }) {
   if (!loading && items.length === 0) {
-    return <div className={styles.tableEmpty}>No hay propiedades en esta vista.</div>;
+    return <div className="card" style={{ padding: "var(--gap)" }}>No hay propiedades en esta vista.</div>;
   }
 
   return (
-    <div className={styles.tableWrapper}>
-      <table className={styles.table}>
-        <thead className={styles.tableHead}>
+    <div className="card" style={{ overflowX: "auto" }}>
+      <table className="table">
+        <thead>
           <tr>
             {["Propiedad", "Estado", "Tipo", "Precio", "Ubicación", "Publicada", "Completitud", "RPP", "Acciones"].map(header => (
               <th key={header}>{header}</th>
@@ -265,22 +275,24 @@ function PropertyListTable({
         </thead>
         <tbody>
           {items.map(property => (
-            <tr key={property.id} className={styles.row}>
-              <td className={styles.cell}>
+            <tr key={property.id}>
+              <td>
                 <strong>{property.title}</strong>
-                <span className={styles.cellMeta}>{property.id}</span>
+                <div className="muted" style={{ fontSize: "0.8rem" }}>
+                  {property.id}
+                </div>
               </td>
-              <td className={styles.cell}>{formatStatus(property.status)}</td>
-              <td className={styles.cell}>{property.propertyType}</td>
-              <td className={styles.cell}>{formatCurrency(property.price.amount, property.price.currency)}</td>
-              <td className={styles.cell}>
+              <td>{formatStatus(property.status)}</td>
+              <td>{property.propertyType}</td>
+              <td>{formatCurrency(property.price.amount, property.price.currency)}</td>
+              <td>
                 {property.address.city}, {property.address.state}
               </td>
-              <td className={styles.cell}>{property.publishedAt ? formatDate(property.publishedAt) : "-"}</td>
-              <td className={styles.cell}>{Math.round(property.completenessScore)}%</td>
-              <td className={styles.cell}>{formatVerification(property.rppVerification ?? null)}</td>
-              <td className={styles.cell}>
-                <button type="button" onClick={() => onAction("quick_view", property)} className={styles.tableAction}>
+              <td>{property.publishedAt ? formatDate(property.publishedAt) : "-"}</td>
+              <td>{Math.round(property.completenessScore)}%</td>
+              <td>{formatVerification(property.rppVerification ?? "pending")}</td>
+              <td>
+                <button type="button" onClick={() => onAction("quick_view", property)} className="btn btn-ghost">
                   Acciones
                 </button>
               </td>
@@ -305,19 +317,27 @@ function Pagination({
 }) {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   return (
-    <div className={styles.pagination}>
-      <span>
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        flexWrap: "wrap",
+        gap: "var(--gap)",
+      }}
+    >
+      <span className="muted">
         Página {page} de {totalPages}
       </span>
-      <div className={styles.paginationControls}>
-        <button type="button" onClick={() => onChange(Math.max(1, page - 1))} disabled={page === 1} className={styles.paginationBtn}>
+      <div style={{ display: "flex", gap: "12px" }}>
+        <button type="button" onClick={() => onChange(Math.max(1, page - 1))} disabled={page === 1} className="btn">
           Anterior
         </button>
         <button
           type="button"
           onClick={() => onChange(Math.min(totalPages, page + 1))}
           disabled={page >= totalPages}
-          className={styles.paginationBtn}
+          className="btn"
         >
           Siguiente
         </button>

@@ -1,3 +1,5 @@
+// Hook: puente simple a use case.
+// No tocar lógica de Application/Domain.
 import { useCallback, useMemo, useState } from "react";
 import { Result } from "../../application";
 import type {

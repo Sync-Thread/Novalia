@@ -1,10 +1,24 @@
+// Tarjeta principal para listar propiedades en el panel.
+// No tocar lógica de Application/Domain.
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Bath, Bed, Car, CheckCircle, Eye, MessageCircle, MoreHorizontal, Pencil, Pause, Share2, Trash2, Upload, Users } from "lucide-react";
+import {
+  Bath,
+  Bed,
+  Car,
+  CheckCircle,
+  Eye,
+  MessageCircle,
+  MoreHorizontal,
+  Pencil,
+  Pause,
+  Share2,
+  Trash2,
+  Users,
+} from "lucide-react";
 import type { PropertyDTO } from "../../application/dto/PropertyDTO";
 import type { VerificationStatusDTO } from "../../application/dto/DocumentDTO";
 import { formatCurrency, formatDate, formatStatus } from "../utils/format";
 import ProgressCircle from "./ProgressCircle";
-import styles from "./PropertyCard.module.css";
 
 export type PropertyCardAction =
   | "quick_view"
@@ -30,18 +44,42 @@ export interface PropertyCardProps {
   enableQuickView?: boolean;
 }
 
-const statusStyles: Record<string, { bg: string; color: string }> = {
-  draft: { bg: "rgba(148, 163, 184, 0.25)", color: "#475569" },
-  published: { bg: "rgba(34, 197, 94, 0.18)", color: "#047857" },
-  sold: { bg: "rgba(59, 130, 246, 0.18)", color: "#1d4ed8" },
-  archived: { bg: "rgba(148, 163, 184, 0.25)", color: "#475569" },
+type RppStatus = VerificationStatusDTO | "missing";
+
+const STATUS_CLASS: Record<PropertyDTO["status"], string> = {
+  draft: "status",
+  published: "status status-success",
+  sold: "status status-success",
+  archived: "status status-error",
 };
 
-const rppStyles: Record<VerificationStatusDTO | "missing", { bg: string; color: string; label: string }> = {
-  pending: { bg: "rgba(234,179,8,0.18)", color: "#b45309", label: "RPP pendiente" },
-  verified: { bg: "rgba(16,185,129,0.18)", color: "#047857", label: "RPP verificado" },
-  rejected: { bg: "rgba(248,113,113,0.18)", color: "#b91c1c", label: "RPP rechazado" },
-  missing: { bg: "rgba(148,163,184,0.2)", color: "#475569", label: "RPP pendiente" },
+const RPP_CLASS: Record<RppStatus, { label: string; tone: string }> = {
+  pending: { label: "RPP pendiente", tone: "status status-warn" },
+  verified: { label: "RPP verificado", tone: "status status-success" },
+  rejected: { label: "RPP rechazado", tone: "status status-error" },
+  missing: { label: "RPP pendiente", tone: "status" },
+};
+
+const BASE_ACTIONS: PropertyCardAction[] = ["quick_view", "edit", "publish", "pause", "mark_sold", "view_public", "delete"];
+
+const ACTION_LABEL: Record<PropertyCardAction, string> = {
+  quick_view: "Vista rápida",
+  edit: "Editar",
+  publish: "Publicar",
+  pause: "Pausar",
+  mark_sold: "Marcar como vendida",
+  view_public: "Ver publicación",
+  delete: "Eliminar",
+};
+
+const ACTION_ICON: Record<PropertyCardAction, React.ReactNode> = {
+  quick_view: <Eye size={16} />,
+  edit: <Pencil size={16} />,
+  publish: <CheckCircle size={16} />,
+  pause: <Pause size={16} />,
+  mark_sold: <CheckCircle size={16} />,
+  view_public: <Share2 size={16} />,
+  delete: <Trash2 size={16} />,
 };
 
 export function PropertyCard({
@@ -58,215 +96,169 @@ export function PropertyCard({
   const menuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    const handler = (event: MouseEvent) => {
+    if (!menuOpen) return;
+    const handle = (event: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         setMenuOpen(false);
       }
     };
-    if (menuOpen) {
-      document.addEventListener("mousedown", handler);
-    }
-    return () => document.removeEventListener("mousedown", handler);
+    window.addEventListener("pointerdown", handle);
+    return () => window.removeEventListener("pointerdown", handle);
   }, [menuOpen]);
 
-  const rppStatus = useMemo<keyof typeof rppStyles>(() => property.rppVerification ?? "missing", [property.rppVerification]);
+  const rppStatus = useMemo<RppStatus>(() => property.rppVerification ?? "missing", [property.rppVerification]);
+  const availableActions = useMemo(() => BASE_ACTIONS.filter(action => !hideActions?.includes(action)), [hideActions]);
 
-  const availableActions = useMemo<PropertyCardAction[]>(() => {
-    const base: PropertyCardAction[] = ["quick_view", "edit", "publish", "pause", "mark_sold", "view_public", "delete"];
-    return base.filter(action => !hideActions?.includes(action));
-  }, [hideActions]);
-
-  const actionDisabled = (action: PropertyCardAction) => disabledActions?.[action];
-  const actionLoading = (action: PropertyCardAction) => loadingActions?.[action];
+  const isActionDisabled = (action: PropertyCardAction) => Boolean(disabledActions?.[action]);
+  const isActionLoading = (action: PropertyCardAction) => Boolean(loadingActions?.[action]);
 
   const trigger = (action: PropertyCardAction) => {
-    if (actionDisabled(action) || actionLoading(action)) return;
+    if (isActionDisabled(action) || isActionLoading(action)) return;
     setMenuOpen(false);
     onAction?.(action, property);
   };
 
-  const statusStyle = statusStyles[property.status] ?? statusStyles.draft;
+  const publishedLabel = property.publishedAt
+    ? `Publicada el ${formatDate(property.publishedAt)}`
+    : `Creada el ${formatDate(property.createdAt)}`;
+
+  const menuItems = [
+    {
+      action: "quick_view" as const,
+      hidden: !enableQuickView,
+    },
+    { action: "edit" as const },
+    { action: "publish" as const, hidden: property.status !== "draft" },
+    { action: "pause" as const, hidden: property.status !== "published" },
+    { action: "mark_sold" as const, hidden: property.status === "sold" },
+    { action: "view_public" as const },
+    { action: "delete" as const },
+  ].filter(item => availableActions.includes(item.action) && !item.hidden);
 
   return (
-    <article className={styles.card}>
+    <article className="card" style={{ overflow: "hidden" }}>
       <button
         type="button"
         onClick={() => enableQuickView && trigger("quick_view")}
-        className={styles.coverButton}
+        className="card-cover"
         aria-label="Abrir vista rápida"
+        disabled={!enableQuickView}
+        style={{ cursor: enableQuickView ? "pointer" : "default" }}
       >
-        <div className={styles.statusChips}>
-          <span className={styles.chip} style={{ background: statusStyle.bg, color: statusStyle.color }}>
-            {formatStatus(property.status)}
-          </span>
+        <div style={{ position: "absolute", top: "12px", left: "12px", display: "flex", gap: "8px", flexWrap: "wrap" }}>
+          <span className={STATUS_CLASS[property.status] ?? "status"}>{formatStatus(property.status)}</span>
+          <span className={RPP_CLASS[rppStatus].tone}>{RPP_CLASS[rppStatus].label}</span>
         </div>
-        <span className={`${styles.chip} ${styles.chipVerification}`} style={{ background: rppStyles[rppStatus].bg, color: rppStyles[rppStatus].color }}>
-          {rppStyles[rppStatus].label}
-        </span>
-        <div className={styles.preview}>
-          {/* TODO(IMAGEN): Reemplazar por asset real según referencia 'refs/property-card.png' */}
-          {coverUrl ? <img src={coverUrl} alt="" className={styles.coverMedia} /> : <div className={styles.placeholder} aria-hidden="true" />}
+        <div className="ratio-16x9">
+          {/* TODO(IMAGEN): Reemplazar placeholder por asset real en docs/ui/properties/refs/ */}
+          {coverUrl ? <img src={coverUrl} alt="" /> : <div className="placeholder" aria-hidden="true" />}
         </div>
       </button>
 
-      <div className={styles.content}>
-        <header className={styles.header}>
-          <div className={styles.titleBlock}>
-            <h3 className={styles.title}>{property.title}</h3>
-            <span className={styles.price}>{formatCurrency(property.price.amount, property.price.currency)}</span>
-            <span className={styles.location}>
+      <div className="card-body">
+        <header style={{ display: "flex", justifyContent: "space-between", gap: "var(--gap)", alignItems: "flex-start" }}>
+          <div className="stack" style={{ gap: "6px" }}>
+            <h3 style={{ fontSize: "1.05rem", fontWeight: 600 }}>{property.title}</h3>
+            <span style={{ fontSize: "1.1rem", fontWeight: 700 }}>{formatCurrency(property.price.amount, property.price.currency)}</span>
+            <span className="muted" style={{ fontSize: "0.9rem" }}>
               {property.address.city}, {property.address.state}
             </span>
           </div>
-          <div className={styles.progressWrap}>
-            <span className={styles.progressLabel}>Completitud</span>
-            <ProgressCircle value={property.completenessScore} size={60} />
+          <div className="stack" style={{ alignItems: "center", gap: "4px" }}>
+            <span className="muted" style={{ fontSize: "0.75rem" }}>
+              Completitud
+            </span>
+            <ProgressCircle value={property.completenessScore} size={56} />
           </div>
         </header>
 
-        <div className={styles.meta}>
-          <InfoChip icon={<Bed size={14} />} label={`${property.bedrooms ?? 0} rec`} />
-          <InfoChip icon={<Bath size={14} />} label={`${property.bathrooms ?? 0} baños`} />
-          <InfoChip icon={<Car size={14} />} label={`${property.parkingSpots ?? 0} est`} />
-        </div>
-
-        <footer className={styles.footer}>
-          <span className={styles.timestamp}>
-            {property.publishedAt ? `Publicada el ${formatDate(property.publishedAt)}` : `Creada el ${formatDate(property.createdAt)}`}
+        <div className="card-meta">
+          <span className="pill">
+            <Bed size={16} />
+            {property.bedrooms ?? 0} rec
           </span>
-          <div className={styles.metrics}>
-            {metrics && (
-              <>
-                <span className={styles.metric}>
-                  <Eye size={14} />
-                  {metrics.views ?? 0}
-                </span>
-                <span className={styles.metric}>
-                  <Users size={14} />
-                  {metrics.leads ?? 0}
-                </span>
-                <span className={styles.metric}>
-                  <MessageCircle size={14} />
-                  {metrics.chats ?? 0}
-                </span>
-              </>
-            )}
-            <div className={styles.menu} ref={menuRef}>
-              <button
-                type="button"
-                aria-haspopup="menu"
-                aria-expanded={menuOpen}
-                onClick={() => setMenuOpen(prev => !prev)}
-                className={styles.menuTrigger}
-              >
-                <MoreHorizontal size={18} />
-              </button>
-              {menuOpen && (
-                <div role="menu" className={styles.menuContent}>
-                  {availableActions.includes("quick_view") && (
-                    <MenuItem
-                      icon={<Eye size={16} />}
-                      label="Vista rápida"
-                      disabled={!enableQuickView || actionDisabled("quick_view")}
-                      loading={actionLoading("quick_view")}
-                      onClick={() => trigger("quick_view")}
-                    />
-                  )}
-                  {availableActions.includes("edit") && (
-                    <MenuItem
-                      icon={<Pencil size={16} />}
-                      label="Editar"
-                      disabled={actionDisabled("edit")}
-                      loading={actionLoading("edit")}
-                      onClick={() => trigger("edit")}
-                    />
-                  )}
-                  {availableActions.includes("publish") && property.status === "draft" && (
-                    <MenuItem
-                      icon={<CheckCircle size={16} />}
-                      label="Publicar"
-                      disabled={actionDisabled("publish")}
-                      loading={actionLoading("publish")}
-                      onClick={() => trigger("publish")}
-                    />
-                  )}
-                  {availableActions.includes("pause") && property.status === "published" && (
-                    <MenuItem
-                      icon={<Pause size={16} />}
-                      label="Pausar"
-                      disabled={actionDisabled("pause")}
-                      loading={actionLoading("pause")}
-                      onClick={() => trigger("pause")}
-                    />
-                  )}
-                  {availableActions.includes("mark_sold") && property.status !== "sold" && (
-                    <MenuItem
-                      icon={<Upload size={16} />}
-                      label="Marcar como vendida"
-                      disabled={actionDisabled("mark_sold")}
-                      loading={actionLoading("mark_sold")}
-                      onClick={() => trigger("mark_sold")}
-                    />
-                  )}
-                  {availableActions.includes("view_public") && property.status === "published" && (
-                    <MenuItem
-                      icon={<Share2 size={16} />}
-                      label="Ver en portal"
-                      disabled={actionDisabled("view_public")}
-                      loading={actionLoading("view_public")}
-                      onClick={() => trigger("view_public")}
-                    />
-                  )}
-                  {availableActions.includes("delete") && (
-                    <MenuItem
-                      icon={<Trash2 size={16} />}
-                      label="Eliminar"
-                      destructive
-                      disabled={actionDisabled("delete")}
-                      loading={actionLoading("delete")}
-                      onClick={() => trigger("delete")}
-                    />
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-        </footer>
+          <span className="pill">
+            <Bath size={16} />
+            {property.bathrooms ?? 0} baños
+          </span>
+          <span className="pill">
+            <Car size={16} />
+            {property.parkingSpots ?? 0} est
+          </span>
+        </div>
       </div>
+
+      <footer className="card-footer">
+        <span>{publishedLabel}</span>
+        <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+          {metrics && (
+            <>
+              <span className="muted" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <Eye size={16} />
+                {metrics.views ?? 0}
+              </span>
+              <span className="muted" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <Users size={16} />
+                {metrics.leads ?? 0}
+              </span>
+              <span className="muted" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <MessageCircle size={16} />
+                {metrics.chats ?? 0}
+              </span>
+            </>
+          )}
+          <div ref={menuRef} style={{ position: "relative" }}>
+            <button
+              type="button"
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
+              onClick={() => setMenuOpen(prev => !prev)}
+              className="btn btn-ghost btn-icon"
+            >
+              <MoreHorizontal size={18} />
+            </button>
+            {menuOpen && (
+              <div
+                role="menu"
+                style={{
+                  position: "absolute",
+                  right: 0,
+                  top: "calc(100% + 8px)",
+                  minWidth: "220px",
+                  background: "var(--bg)",
+                  border: `1px solid var(--border)`,
+                  borderRadius: "var(--radius)",
+                  boxShadow: "var(--shadow)",
+                  display: "flex",
+                  flexDirection: "column",
+                  padding: "8px",
+                  zIndex: 10,
+                }}
+              >
+                {menuItems.map(item => {
+                  const action = item.action;
+                  const loading = isActionLoading(action);
+                  return (
+                    <button
+                      key={action}
+                      type="button"
+                      role="menuitem"
+                      onClick={() => trigger(action)}
+                      disabled={isActionDisabled(action) || loading}
+                      className="btn btn-ghost"
+                      style={{ justifyContent: "flex-start" }}
+                    >
+                      {ACTION_ICON[action]}
+                      {loading ? "Procesando..." : ACTION_LABEL[action]}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      </footer>
     </article>
-  );
-}
-
-function InfoChip({ icon, label }: { icon: React.ReactNode; label: string }) {
-  return (
-    <span className={styles.infoChip}>
-      {icon}
-      {label}
-    </span>
-  );
-}
-
-interface MenuItemProps {
-  icon: React.ReactNode;
-  label: string;
-  onClick: () => void;
-  disabled?: boolean;
-  loading?: boolean;
-  destructive?: boolean;
-}
-
-function MenuItem({ icon, label, onClick, disabled, loading, destructive }: MenuItemProps) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled || loading}
-      role="menuitem"
-      className={`${styles.menuItem} ${destructive ? styles.menuDanger : ""}`.trim()}
-    >
-      {icon}
-      <span>{loading ? "Procesando..." : label}</span>
-    </button>
   );
 }
 

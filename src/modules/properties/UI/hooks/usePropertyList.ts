@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+// Hook: puente simple a use case.
+// No tocar lógica de Application/Domain.
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { PropertyDTO, Page } from "../../application/dto/PropertyDTO";
 import type { ListFiltersInput } from "../../application/validators/filters.schema";
 import { usePropertiesActions } from "./usePropertiesActions";
@@ -186,8 +188,6 @@ export function usePropertyList(initial: Partial<PropertyListFilters> = {}): Pro
 
   const loading = loadingState.listProperties;
 
-  const items = useMemo(() => pageData.items, [pageData.items]);
-
   const getCachedById = useCallback(
     (id: string) => {
       return cache.get(id) ?? null;
@@ -199,7 +199,7 @@ export function usePropertyList(initial: Partial<PropertyListFilters> = {}): Pro
 
   return {
     filters,
-    items,
+    items: pageData.items,
     page: pageData.page,
     total: pageData.total,
     pageSize: pageData.pageSize,

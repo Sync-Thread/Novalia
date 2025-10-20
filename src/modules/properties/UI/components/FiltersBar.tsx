@@ -1,8 +1,9 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+// Barra de filtros simple para listado de propiedades.
+// No tocar lógica de Application/Domain.
+import React, { useCallback, useEffect, useState } from "react";
 import { Grid, List, RotateCcw } from "lucide-react";
 import type { PropertyListFilters, PropertyStatusFilter } from "../hooks/usePropertyList";
 import type { ListFiltersInput } from "../../application/validators/filters.schema";
-import styles from "./FiltersBar.module.css";
 
 export type ViewMode = "grid" | "list";
 
@@ -66,7 +67,7 @@ export function FiltersBar({ values, onChange, onReset, disabled }: FiltersBarPr
       priceMin: values.priceMin?.toString() ?? "",
       priceMax: values.priceMax?.toString() ?? "",
     });
-  }, [values.q, values.city, values.state, values.priceMin, values.priceMax]);
+  }, [values]);
 
   const handleSubmit = useCallback(
     (event: React.FormEvent) => {
@@ -82,49 +83,50 @@ export function FiltersBar({ values, onChange, onReset, disabled }: FiltersBarPr
     [local, onChange],
   );
 
-  const resetDisabled = useMemo(() => {
-    const hasFilters =
-      (values.q ?? "") !== "" ||
-      values.status !== "all" ||
-      (values.propertyType ?? "") !== "" ||
-      (values.city ?? "") !== "" ||
-      (values.state ?? "") !== "" ||
-      typeof values.priceMin === "number" ||
-      typeof values.priceMax === "number" ||
-      values.sortBy !== "recent";
-    return !hasFilters || disabled;
-  }, [disabled, values]);
+  const hasFilters =
+    (values.q ?? "") !== "" ||
+    values.status !== "all" ||
+    (values.propertyType ?? "") !== "" ||
+    (values.city ?? "") !== "" ||
+    (values.state ?? "") !== "" ||
+    typeof values.priceMin === "number" ||
+    typeof values.priceMax === "number" ||
+    values.sortBy !== "recent";
+  const resetDisabled = disabled || !hasFilters;
 
   return (
-    <form className={styles.filtersBar} onSubmit={handleSubmit}>
-      <div className={styles.filtersGrid}>
-        <label className={styles.field}>
-          <span className={styles.label}>Buscar</span>
+    <form
+      onSubmit={handleSubmit}
+      className="toolbar"
+      style={{ flexDirection: "column", alignItems: "stretch", gap: "var(--gap)" }}
+    >
+      <div
+        className="grid"
+        style={{
+          gap: "var(--gap)",
+          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+        }}
+      >
+        <label className="field-group">
+          <span className="field-label">Buscar</span>
           <input
             type="search"
-            placeholder="Buscar por t\u00edtulo o ID"
+            placeholder="Buscar por título o ID"
             value={local.q}
             onChange={event => setLocal(prev => ({ ...prev, q: event.target.value }))}
-            onBlur={event =>
-              onChange({
-                q: event.target.value.trim() || undefined,
-              })
-            }
+            onBlur={event => onChange({ q: event.target.value.trim() || undefined })}
             disabled={disabled}
-            className={styles.control}
+            className="input"
           />
         </label>
-        <label className={styles.field}>
-          <span className={styles.label}>Estado</span>
+
+        <label className="field-group">
+          <span className="field-label">Estado</span>
           <select
             value={values.status}
-            onChange={event =>
-              onChange({
-                status: event.target.value as PropertyStatusFilter,
-              })
-            }
+            onChange={event => onChange({ status: event.target.value as PropertyStatusFilter })}
             disabled={disabled}
-            className={styles.control}
+            className="select"
           >
             {statusOptions.map(option => (
               <option key={option.value} value={option.value}>
@@ -133,17 +135,14 @@ export function FiltersBar({ values, onChange, onReset, disabled }: FiltersBarPr
             ))}
           </select>
         </label>
-        <label className={styles.field}>
-          <span className={styles.label}>Tipo</span>
+
+        <label className="field-group">
+          <span className="field-label">Tipo</span>
           <select
             value={values.propertyType ?? ""}
-            onChange={event =>
-              onChange({
-                propertyType: event.target.value || undefined,
-              })
-            }
+            onChange={event => onChange({ propertyType: event.target.value || undefined })}
             disabled={disabled}
-            className={styles.control}
+            className="select"
           >
             {propertyTypeOptions.map(option => (
               <option key={option.value} value={option.value}>
@@ -152,30 +151,33 @@ export function FiltersBar({ values, onChange, onReset, disabled }: FiltersBarPr
             ))}
           </select>
         </label>
-        <label className={styles.field}>
-          <span className={styles.label}>Ciudad</span>
+
+        <label className="field-group">
+          <span className="field-label">Ciudad</span>
           <input
             type="text"
             value={local.city}
             onChange={event => setLocal(prev => ({ ...prev, city: event.target.value }))}
             onBlur={event => onChange({ city: event.target.value.trim() || undefined })}
             disabled={disabled}
-            className={styles.control}
+            className="input"
           />
         </label>
-        <label className={styles.field}>
-          <span className={styles.label}>Estado</span>
+
+        <label className="field-group">
+          <span className="field-label">Estado</span>
           <input
             type="text"
             value={local.state}
             onChange={event => setLocal(prev => ({ ...prev, state: event.target.value }))}
             onBlur={event => onChange({ state: event.target.value.trim() || undefined })}
             disabled={disabled}
-            className={styles.control}
+            className="input"
           />
         </label>
-        <label className={styles.field}>
-          <span className={styles.label}>Precio m\u00edn. (MXN)</span>
+
+        <label className="field-group">
+          <span className="field-label">Precio mín. (MXN)</span>
           <input
             type="number"
             min={0}
@@ -183,11 +185,12 @@ export function FiltersBar({ values, onChange, onReset, disabled }: FiltersBarPr
             onChange={event => setLocal(prev => ({ ...prev, priceMin: event.target.value }))}
             onBlur={event => onChange({ priceMin: parseNumber(event.target.value) })}
             disabled={disabled}
-            className={styles.control}
+            className="input"
           />
         </label>
-        <label className={styles.field}>
-          <span className={styles.label}>Precio m\u00e1x. (MXN)</span>
+
+        <label className="field-group">
+          <span className="field-label">Precio máx. (MXN)</span>
           <input
             type="number"
             min={0}
@@ -195,20 +198,17 @@ export function FiltersBar({ values, onChange, onReset, disabled }: FiltersBarPr
             onChange={event => setLocal(prev => ({ ...prev, priceMax: event.target.value }))}
             onBlur={event => onChange({ priceMax: parseNumber(event.target.value) })}
             disabled={disabled}
-            className={styles.control}
+            className="input"
           />
         </label>
-        <label className={styles.field}>
-          <span className={styles.label}>Ordenar por</span>
+
+        <label className="field-group">
+          <span className="field-label">Ordenar por</span>
           <select
             value={values.sortBy}
-            onChange={event =>
-              onChange({
-                sortBy: event.target.value as ListFiltersInput["sortBy"],
-              })
-            }
+            onChange={event => onChange({ sortBy: event.target.value as ListFiltersInput["sortBy"] })}
             disabled={disabled}
-            className={styles.control}
+            className="select"
           >
             {sortOptions.map(option => (
               <option key={option.value} value={option.value}>
@@ -219,16 +219,23 @@ export function FiltersBar({ values, onChange, onReset, disabled }: FiltersBarPr
         </label>
       </div>
 
-      <div className={styles.footer}>
-        <div className={styles.viewSelector}>
-          <span>Vista</span>
-          <div role="group" aria-label="Cambiar vista" className={styles.viewGroup}>
+      <div
+        className="stack"
+        style={{
+          gap: "var(--gap)",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: "var(--gap)", flexWrap: "wrap" }}>
+          <span className="field-label" style={{ margin: 0 }}>
+            Vista
+          </span>
+          <div role="group" aria-label="Cambiar vista" className="chip-list">
             <button
               type="button"
               onClick={() => onChange({ viewMode: "grid" })}
               disabled={disabled}
               aria-pressed={values.viewMode === "grid"}
-              className={styles.viewButton}
+              className={`chip${values.viewMode === "grid" ? " chip-active" : ""}`}
             >
               <Grid size={16} strokeWidth={2} />
               <span>Grid</span>
@@ -238,18 +245,19 @@ export function FiltersBar({ values, onChange, onReset, disabled }: FiltersBarPr
               onClick={() => onChange({ viewMode: "list" })}
               disabled={disabled}
               aria-pressed={values.viewMode === "list"}
-              className={styles.viewButton}
+              className={`chip${values.viewMode === "list" ? " chip-active" : ""}`}
             >
               <List size={16} strokeWidth={2} />
               <span>Lista</span>
             </button>
           </div>
         </div>
-        <div className={styles.actions}>
-          <button type="submit" disabled={disabled} className={styles.applyBtn}>
+
+        <div style={{ display: "flex", gap: "var(--gap)", flexWrap: "wrap" }}>
+          <button type="submit" disabled={disabled} className="btn btn-primary">
             Aplicar filtros
           </button>
-          <button type="button" onClick={onReset} disabled={resetDisabled} aria-label="Limpiar filtros" className={styles.resetBtn}>
+          <button type="button" onClick={onReset} disabled={resetDisabled} className="btn btn-ghost">
             <RotateCcw size={16} strokeWidth={2} />
             Limpiar
           </button>

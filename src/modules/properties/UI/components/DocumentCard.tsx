@@ -1,7 +1,8 @@
+// Tarjeta simple para documentos requeridos en propiedades.
+// No tocar lógica de Application/Domain.
 import React, { useId, useRef } from "react";
 import type { DocumentDTO, DocumentTypeDTO, VerificationStatusDTO } from "../../application/dto/DocumentDTO";
 import { formatDate, formatVerification } from "../utils/format";
-import styles from "./DocumentCard.module.css";
 
 const typeLabels: Record<DocumentTypeDTO, string> = {
   rpp_certificate: "Certificado RPP",
@@ -11,10 +12,10 @@ const typeLabels: Record<DocumentTypeDTO, string> = {
   other: "Otro",
 };
 
-const verificationStyles: Record<VerificationStatusDTO, { bg: string; color: string }> = {
-  pending: { bg: "rgba(234,179,8,0.15)", color: "#B45309" },
-  verified: { bg: "rgba(16,185,129,0.18)", color: "#047857" },
-  rejected: { bg: "rgba(248,113,113,0.18)", color: "#B91C1C" },
+const verificationTone: Record<VerificationStatusDTO, string> = {
+  pending: "status status-warn",
+  verified: "status status-success",
+  rejected: "status status-error",
 };
 
 export interface DocumentCardProps {
@@ -48,76 +49,64 @@ export function DocumentCard({
   const shouldAllowVerification = allowVerification ?? docType === "rpp_certificate";
 
   return (
-    <div className={styles.card} aria-live="polite">
-      <div className={styles.header}>
-        <div className={styles.titleBlock}>
-          <h4 className={styles.title}>{typeLabels[docType]}</h4>
-          <p className={styles.subtitle}>{isUploaded ? "Documento cargado" : "Sin documento adjunto"}</p>
-        </div>
-        <div className={styles.meta}>
-          {isUploaded && document?.verification && (
-            <span
-              className={styles.statusTag}
-              style={{
-                background: verificationStyles[document.verification].bg,
-                color: verificationStyles[document.verification].color,
-              }}
-            >
-              {formatVerification(document.verification)}
-            </span>
-          )}
-          <span className={styles.timestamp}>
-            {isUploaded && document?.createdAt ? `Subido el ${formatDate(document.createdAt)}` : "Pendiente"}
-          </span>
-        </div>
-      </div>
+    <article className="card" aria-live="polite">
+      <div className="card-body">
+        <header className="stack" style={{ gap: "8px" }}>
+          <div>
+            <h4 style={{ fontSize: "1rem", fontWeight: 600 }}>{typeLabels[docType]}</h4>
+            <p className="muted" style={{ fontSize: "0.9rem" }}>
+              {isUploaded ? "Documento cargado" : "Sin documento adjunto"}
+            </p>
+          </div>
+          <div className="card-meta" style={{ justifyContent: "space-between" }}>
+            {isUploaded && document?.verification && (
+              <span className={verificationTone[document.verification]}>{formatVerification(document.verification)}</span>
+            )}
+            <span>{isUploaded && document?.createdAt ? `Subido el ${formatDate(document.createdAt)}` : "Pendiente"}</span>
+          </div>
+        </header>
 
-      <div className={styles.actions}>
-        <button
-          type="button"
-          onClick={() => fileInputRef.current?.click()}
-          disabled={uploading}
-          className={styles.primaryBtn}
-          style={{ opacity: uploading ? 0.6 : 1 }}
-        >
-          {uploading ? "Subiendo..." : isUploaded ? "Reemplazar archivo" : "Adjuntar archivo"}
-        </button>
-        {isUploaded && onView && document?.url && (
-          <button type="button" onClick={() => onView(document)} className={styles.secondaryBtn}>
-            Ver documento
-          </button>
-        )}
-        {isUploaded && onDelete && (
+        <div className="stack" style={{ gap: "8px" }}>
           <button
             type="button"
-            onClick={onDelete}
-            disabled={deleting}
-            className={`${styles.secondaryBtn} ${styles.danger}`.trim()}
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            className="btn btn-primary"
           >
-            {deleting ? "Eliminando..." : "Eliminar"}
+            {uploading ? "Subiendo..." : isUploaded ? "Reemplazar archivo" : "Adjuntar archivo"}
           </button>
+          {isUploaded && onView && document?.url && (
+            <button type="button" onClick={() => onView(document)} className="btn">
+              Ver documento
+            </button>
+          )}
+          {isUploaded && onDelete && (
+            <button type="button" onClick={onDelete} disabled={deleting} className="btn btn-ghost" style={{ color: "var(--danger)" }}>
+              {deleting ? "Eliminando..." : "Eliminar"}
+            </button>
+          )}
+        </div>
+
+        {shouldAllowVerification && isUploaded && onVerify && (
+          <div className="stack" style={{ gap: "6px" }}>
+            <label htmlFor={`${baseId}-verification`} className="field-label">
+              Estado de verificación
+            </label>
+            <select
+              id={`${baseId}-verification`}
+              defaultValue={document?.verification ?? "pending"}
+              onChange={event => onVerify(event.target.value as VerificationStatusDTO)}
+              disabled={verifying}
+              className="select"
+            >
+              <option value="pending">Pendiente</option>
+              <option value="verified">Verificado</option>
+              <option value="rejected">Rechazado</option>
+            </select>
+            {verifying && <span className="muted" style={{ fontSize: "0.8rem" }}>Actualizando...</span>}
+          </div>
         )}
       </div>
-
-      {shouldAllowVerification && isUploaded && onVerify && (
-        <div className={styles.verifyRow}>
-          <label htmlFor={`${baseId}-verification`} className={styles.verifyLabel}>
-            Estado de verificación
-          </label>
-          <select
-            id={`${baseId}-verification`}
-            defaultValue={document?.verification ?? "pending"}
-            onChange={event => onVerify(event.target.value as VerificationStatusDTO)}
-            disabled={verifying}
-            className={styles.select}
-          >
-            <option value="pending">Pendiente</option>
-            <option value="verified">Verificado</option>
-            <option value="rejected">Rechazado</option>
-          </select>
-          {verifying && <span className={styles.verifyHint}>Actualizando...</span>}
-        </div>
-      )}
 
       <input
         ref={fileInputRef}
@@ -132,7 +121,7 @@ export function DocumentCard({
           }
         }}
       />
-    </div>
+    </article>
   );
 }
 
