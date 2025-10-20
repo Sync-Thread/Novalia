@@ -1,5 +1,3 @@
-// Página principal de listado de propiedades.
-// No tocar lógica de Application/Domain.
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { PropertiesProvider } from "../containers/PropertiesProvider";
@@ -14,6 +12,7 @@ import DeletePropertyModal from "../modals/DeletePropertyModal";
 import DesignBanner from "../utils/DesignBanner";
 import type { PropertyDTO } from "../../application/dto/PropertyDTO";
 import { formatCurrency, formatDate, formatStatus, formatVerification } from "../utils/format";
+import styles from "./MyPropertiesPage.module.css";
 
 export default function MyPropertiesPage() {
   return (
@@ -27,26 +26,18 @@ function MyPropertiesPageContent() {
   const navigate = useNavigate();
   const { filters, items, loading, error, setFilters, refresh, setPage, page, pageSize, total, cache, getCachedById } =
     usePropertyList();
-  const {
-    getAuthProfile,
-    publishProperty,
-    pauseProperty,
-    markSold,
-    deleteProperty,
-    loading: actionLoading,
-  } = usePropertiesActions();
+  const actions = usePropertiesActions();
+  const { getAuthProfile } = actions;
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
-  const [authProfileStatus, setAuthProfileStatus] = useState<"verified" | "pending" | "rejected">("pending");
-  const [quickViewOpen, setQuickViewOpen] = useState(false);
+  const [authStatus, setAuthStatus] = useState<"verified" | "pending" | "rejected">("pending");
+  const [quickOpen, setQuickOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [markSoldFor, setMarkSoldFor] = useState<PropertyDTO | null>(null);
   const [deleteFor, setDeleteFor] = useState<PropertyDTO | null>(null);
 
   useEffect(() => {
     void getAuthProfile().then(result => {
-      if (result.isOk()) {
-        setAuthProfileStatus(result.value.kycStatus);
-      }
+      if (result.isOk()) setAuthStatus(result.value.kycStatus);
     });
   }, [getAuthProfile]);
 
@@ -58,11 +49,21 @@ function MyPropertiesPageContent() {
     [filters, viewMode],
   );
 
+  const stats = useMemo(() => {
+    const acc = { total: cache.size, draft: 0, published: 0, sold: 0 };
+    cache.forEach(property => {
+      if (property.status === "draft") acc.draft += 1;
+      if (property.status === "published") acc.published += 1;
+      if (property.status === "sold") acc.sold += 1;
+    });
+    return acc;
+  }, [cache]);
+
   const handleFilterChange = (patch: Partial<FiltersBarValues>) => {
     if ("viewMode" in patch && patch.viewMode) {
       setViewMode(patch.viewMode);
     }
-    const { viewMode: _viewMode, ...rest } = patch;
+    const { viewMode: _omit, ...rest } = patch;
     if (Object.keys(rest).length > 0) {
       setFilters(rest);
     }
@@ -88,18 +89,18 @@ function MyPropertiesPageContent() {
     switch (action) {
       case "quick_view":
         setSelectedId(property.id);
-        setQuickViewOpen(true);
+        setQuickOpen(true);
         break;
       case "edit":
         navigate(`/properties/${property.id}/admin`);
         break;
       case "publish":
-        void publishProperty({ id: property.id }).then(result => {
+        void actions.publishProperty({ id: property.id }).then(result => {
           if (result.isOk()) void refresh();
         });
         break;
       case "pause":
-        void pauseProperty({ id: property.id }).then(result => {
+        void actions.pauseProperty({ id: property.id }).then(result => {
           if (result.isOk()) void refresh();
         });
         break;
@@ -119,61 +120,56 @@ function MyPropertiesPageContent() {
 
   const selectedProperty = selectedId ? getCachedById(selectedId) : null;
 
-  const stats = useMemo(() => {
-    const aggregate = { total: cache.size, draft: 0, published: 0, sold: 0 };
-    cache.forEach(prop => {
-      if (prop.status === "draft") aggregate.draft += 1;
-      if (prop.status === "published") aggregate.published += 1;
-      if (prop.status === "sold") aggregate.sold += 1;
-    });
-    return aggregate;
-  }, [cache]);
-
   return (
-    <main className="container stack" style={{ gap: "var(--gap)" }}>
+    <main className={styles.pagina}>
       <DesignBanner
-        note="Vista temporal de dashboard: sustituye placeholders e integra assets finales antes de liberar UI."
-        storageKey="properties-dashboard-banner"
+        note="Esta vista replica la referencia de dashboard de propiedades. Sustituye placeholders y remueve el banner cuando integres assets finales."
+        storageId="properties-dashboard"
       />
 
-      <header className="card" style={{ padding: "var(--gap)", display: "flex", flexDirection: "column", gap: "var(--gap)" }}>
-        <nav aria-label="Breadcrumb" className="card-meta" style={{ gap: "8px" }}>
+      <header className={styles.cabecera}>
+        <nav className={styles.migas} aria-label="Ruta de navegación">
           <span>Dashboard</span>
-          <span aria-hidden="true">/</span>
+          <span>/</span>
           <span>Mis propiedades</span>
         </nav>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--gap)", justifyContent: "space-between", alignItems: "center" }}>
-          <h1 style={{ fontSize: "1.6rem", fontWeight: 600 }}>Mis propiedades</h1>
-          <button type="button" onClick={() => navigate("/properties/new")} className="btn btn-primary">
+        <div className={styles.tituloFila}>
+          <h1 className={styles.titulo}>Mis propiedades</h1>
+          <button type="button" onClick={() => navigate("/properties/new")} className={styles.btnPrincipal}>
             Nueva propiedad
           </button>
         </div>
-        <section aria-label="Resumen de propiedades" style={{ display: "grid", gap: "12px", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))" }}>
-          <StatCard label="Borradores" value={stats.draft} />
-          <StatCard label="Publicadas" value={stats.published} />
-          <StatCard label="Vendidas" value={stats.sold} />
-          <StatCard label="Total" value={stats.total} />
+        <section className={styles.resumen} aria-label="Resumen de propiedades">
+          <ResumenCard label="Borradores" value={stats.draft} />
+          <ResumenCard label="Publicadas" value={stats.published} />
+          <ResumenCard label="Vendidas" value={stats.sold} />
+          <ResumenCard label="Total" value={stats.total} />
         </section>
       </header>
 
-      {authProfileStatus !== "verified" && (
-        <KycBanner visible message="Para publicar propiedades necesitas tu KYC (INE) verificado." />
-      )}
+      {authStatus !== "verified" && <KycBanner visible />}
 
       <FiltersBar values={filterValues} onChange={handleFilterChange} onReset={handleReset} disabled={loading} />
 
       {error && (
-        <div role="alert" className="card" style={{ padding: "var(--gap)", borderColor: "var(--danger)", color: "var(--danger)" }}>
+        <div role="alert" className={styles.alerta}>
           {error}
         </div>
       )}
 
       {viewMode === "grid" ? (
-        <section className="grid-responsive" aria-live="polite">
-          {items.map(item => (
-            <PropertyCard key={item.id} property={item} onAction={handleAction} />
+        <section className={styles.lista} aria-live="polite">
+          {items.map(property => (
+            <PropertyCard key={property.id} property={property} onAction={handleAction} />
           ))}
-          {items.length === 0 && !loading && <EmptyState onReset={handleReset} message="No encontramos propiedades con esos filtros." />}
+          {!loading && items.length === 0 && (
+            <div className={styles.vacio}>
+              <p>No encontramos propiedades con esos filtros.</p>
+              <button type="button" onClick={handleReset} className={styles.btnPrincipal}>
+                Limpiar filtros
+              </button>
+            </div>
+          )}
         </section>
       ) : (
         <PropertyListTable items={items} loading={loading} onAction={handleAction} />
@@ -184,8 +180,8 @@ function MyPropertiesPageContent() {
       <QuickViewSheet
         propertyId={selectedId}
         initialProperty={selectedProperty ?? undefined}
-        open={quickViewOpen}
-        onClose={() => setQuickViewOpen(false)}
+        open={quickOpen}
+        onClose={() => setQuickOpen(false)}
         onRefresh={refresh}
         onEdit={id => navigate(`/properties/${id}/admin`)}
         onViewPublic={prop => window.open(`/p/${prop.id}`, "_blank", "noopener,noreferrer")}
@@ -194,58 +190,45 @@ function MyPropertiesPageContent() {
       <MarkSoldModal
         open={Boolean(markSoldFor)}
         onClose={() => setMarkSoldFor(null)}
+        defaultDate={markSoldFor?.soldAt ?? undefined}
+        loading={actions.loading.markSold}
         onConfirm={({ soldAt }) => {
-          const prop = markSoldFor;
-          if (!prop) return;
-          void markSold({ id: prop.id, soldAt: new Date(soldAt) }).then(result => {
+          const property = markSoldFor;
+          if (!property) return;
+          void actions.markSold({ id: property.id, soldAt: new Date(soldAt) }).then(result => {
             if (result.isOk()) {
               setMarkSoldFor(null);
               void refresh();
             }
           });
         }}
-        loading={actionLoading.markSold}
-        defaultDate={markSoldFor?.soldAt ?? undefined}
       />
 
       <DeletePropertyModal
         open={Boolean(deleteFor)}
         propertyTitle={deleteFor?.title}
         onClose={() => setDeleteFor(null)}
+        loading={actions.loading.deleteProperty}
         onConfirm={() => {
-          const prop = deleteFor;
-          if (!prop) return;
-          void deleteProperty({ id: prop.id }).then(result => {
+          const property = deleteFor;
+          if (!property) return;
+          void actions.deleteProperty({ id: property.id }).then(result => {
             if (result.isOk()) {
               setDeleteFor(null);
               void refresh();
             }
           });
         }}
-        loading={actionLoading.deleteProperty}
       />
     </main>
   );
 }
 
-function StatCard({ label, value }: { label: string; value: number }) {
+function ResumenCard({ label, value }: { label: string; value: number }) {
   return (
-    <div className="card" style={{ padding: "var(--gap)", gap: "4px" }}>
-      <span className="muted" style={{ fontSize: "0.85rem" }}>
-        {label}
-      </span>
-      <strong style={{ fontSize: "1.2rem" }}>{value}</strong>
-    </div>
-  );
-}
-
-function EmptyState({ message, onReset }: { message: string; onReset: () => void }) {
-  return (
-    <div className="card" style={{ padding: "var(--gap)", textAlign: "center", gap: "12px" }}>
-      <p>{message}</p>
-      <button type="button" onClick={onReset} className="btn">
-        Limpiar filtros
-      </button>
+    <div className={styles.tarjeta}>
+      <span className={styles.tarjetaLabel}>{label}</span>
+      <span className={styles.tarjetaValor}>{value}</span>
     </div>
   );
 }
@@ -260,12 +243,12 @@ function PropertyListTable({
   onAction: (action: PropertyCardAction, property: PropertyDTO) => void;
 }) {
   if (!loading && items.length === 0) {
-    return <div className="card" style={{ padding: "var(--gap)" }}>No hay propiedades en esta vista.</div>;
+    return <div className={styles.vacio}>No hay propiedades en esta vista.</div>;
   }
 
   return (
-    <div className="card" style={{ overflowX: "auto" }}>
-      <table className="table">
+    <div className={styles.tabla}>
+      <table className={styles.tablaTable}>
         <thead>
           <tr>
             {["Propiedad", "Estado", "Tipo", "Precio", "Ubicación", "Publicada", "Completitud", "RPP", "Acciones"].map(header => (
@@ -278,9 +261,7 @@ function PropertyListTable({
             <tr key={property.id}>
               <td>
                 <strong>{property.title}</strong>
-                <div className="muted" style={{ fontSize: "0.8rem" }}>
-                  {property.id}
-                </div>
+                <div style={{ fontSize: 12, color: "var(--text-500, #64748b)" }}>{property.id}</div>
               </td>
               <td>{formatStatus(property.status)}</td>
               <td>{property.propertyType}</td>
@@ -292,7 +273,7 @@ function PropertyListTable({
               <td>{Math.round(property.completenessScore)}%</td>
               <td>{formatVerification(property.rppVerification ?? "pending")}</td>
               <td>
-                <button type="button" onClick={() => onAction("quick_view", property)} className="btn btn-ghost">
+                <button type="button" onClick={() => onAction("quick_view", property)} className={styles.tablaBtn}>
                   Acciones
                 </button>
               </td>
@@ -317,27 +298,19 @@ function Pagination({
 }) {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   return (
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        flexWrap: "wrap",
-        gap: "var(--gap)",
-      }}
-    >
-      <span className="muted">
+    <div className={styles.paginacion}>
+      <span>
         Página {page} de {totalPages}
       </span>
-      <div style={{ display: "flex", gap: "12px" }}>
-        <button type="button" onClick={() => onChange(Math.max(1, page - 1))} disabled={page === 1} className="btn">
+      <div className={styles.paginacionControles}>
+        <button type="button" onClick={() => onChange(Math.max(1, page - 1))} disabled={page === 1} className={styles.paginacionBtn}>
           Anterior
         </button>
         <button
           type="button"
           onClick={() => onChange(Math.min(totalPages, page + 1))}
           disabled={page >= totalPages}
-          className="btn"
+          className={styles.paginacionBtn}
         >
           Siguiente
         </button>

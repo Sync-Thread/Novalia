@@ -1,6 +1,5 @@
-// Indicador circular de avance en propiedades.
-// No tocar lógica de Application/Domain.
 import { useMemo } from "react";
+import styles from "./ProgressCircle.module.css";
 
 export interface ProgressThresholds {
   warn: number;
@@ -20,6 +19,9 @@ const DEFAULT_THRESHOLDS: ProgressThresholds = {
   good: 80,
 };
 
+/**
+ * Círculo de progreso compacto para el puntaje de completitud.
+ */
 export function ProgressCircle({
   value,
   size = 64,
@@ -39,7 +41,7 @@ export function ProgressCircle({
   }, [clamped, thresholds.good, thresholds.warn]);
 
   return (
-    <div className="progress-circle" aria-label={ariaLabel} role="img" style={{ width: size, height: size }}>
+    <div className={styles.contenedor} aria-label={ariaLabel} role="img" style={{ width: size, height: size }}>
       <svg width={size} height={size} aria-hidden="true">
         <circle stroke="#E2E8F0" fill="transparent" strokeWidth={strokeWidth} r={radius} cx={size / 2} cy={size / 2} />
         <circle
@@ -56,11 +58,9 @@ export function ProgressCircle({
           style={{ transition: "stroke-dashoffset 240ms ease, stroke 240ms ease" }}
         />
       </svg>
-      <span>{Math.round(clamped)}%</span>
+      <span className={styles.valor}>{Math.round(clamped)}%</span>
     </div>
   );
 }
 
 export default ProgressCircle;
-
-

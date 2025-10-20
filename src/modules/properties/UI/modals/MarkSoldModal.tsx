@@ -1,8 +1,7 @@
-// Modal para registrar la fecha de venta.
-// No tocar lógica de Application/Domain.
 import { useEffect, useState } from "react";
 import Modal from "../components/Modal";
 import DateTimePicker from "../components/DateTimePicker";
+import styles from "./MarkSoldModal.module.css";
 
 export interface MarkSoldModalPayload {
   soldAt: string;
@@ -17,6 +16,9 @@ export interface MarkSoldModalProps {
   defaultDate?: string;
 }
 
+/**
+ * Modal para marcar una propiedad como vendida. Solo maqueta inputs y botones.
+ */
 export function MarkSoldModal({ open, onClose, onConfirm, loading, defaultDate }: MarkSoldModalProps) {
   const [soldAt, setSoldAt] = useState<string | null>(defaultDate ?? new Date().toISOString());
   const [note, setNote] = useState("");
@@ -28,7 +30,7 @@ export function MarkSoldModal({ open, onClose, onConfirm, loading, defaultDate }
     }
   }, [defaultDate, open]);
 
-  const canSubmit = Boolean(soldAt);
+  const canSubmit = Boolean(soldAt) && !loading;
 
   return (
     <Modal
@@ -36,34 +38,33 @@ export function MarkSoldModal({ open, onClose, onConfirm, loading, defaultDate }
       onClose={onClose}
       title="Marcar como vendida"
       actions={
-        <>
-          <button type="button" onClick={onClose} className="btn">
+        <div className={styles.acciones}>
+          <button type="button" onClick={onClose} className={styles.boton}>
             Cancelar
           </button>
           <button
             type="button"
             onClick={() => soldAt && onConfirm({ soldAt, note: note.trim() || undefined })}
-            disabled={!canSubmit || loading}
-            className="btn btn-primary"
+            disabled={!canSubmit}
+            className={`${styles.boton} ${styles.botonPrincipal}`}
           >
             {loading ? "Guardando..." : "Confirmar venta"}
           </button>
-        </>
+        </div>
       }
     >
-      <p>
-        Indica la fecha en que se concretó la venta para actualizar el historial de la propiedad.
-      </p>
-      <DateTimePicker label="Fecha y hora de venta" value={soldAt} onChange={setSoldAt} required />
-      <label className="field-group">
-        <span className="field-label">Nota (opcional)</span>
+      <p className={styles.texto}>Indica la fecha en que se concretó la venta para actualizar el historial.</p>
+      <DateTimePicker label="Fecha y hora de venta" value={soldAt} onChange={setSoldAt} required disabled={loading} />
+      <label className={styles.nota}>
+        <span>Nota (opcional)</span>
         <textarea
           value={note}
           onChange={event => setNote(event.target.value)}
           maxLength={200}
           rows={3}
           placeholder="Información adicional sobre la venta..."
-          className="textarea"
+          className={styles.textarea}
+          disabled={loading}
         />
       </label>
     </Modal>

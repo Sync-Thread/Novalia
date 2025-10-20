@@ -1,6 +1,5 @@
-// Modal para confirmar eliminación de propiedad.
-// No tocar lógica de Application/Domain.
 import Modal from "../components/Modal";
+import styles from "./DeletePropertyModal.module.css";
 
 export interface DeletePropertyModalProps {
   open: boolean;
@@ -10,6 +9,9 @@ export interface DeletePropertyModalProps {
   propertyTitle?: string;
 }
 
+/**
+ * Modal de confirmación para eliminar la propiedad. Solo estiliza los botones y textos.
+ */
 export function DeletePropertyModal({ open, onClose, onConfirm, loading, propertyTitle }: DeletePropertyModalProps) {
   return (
     <Modal
@@ -17,22 +19,21 @@ export function DeletePropertyModal({ open, onClose, onConfirm, loading, propert
       onClose={onClose}
       title="Eliminar propiedad"
       actions={
-        <>
-          <button type="button" onClick={onClose} className="btn">
+        <div className={styles.acciones}>
+          <button type="button" onClick={onClose} className={styles.boton}>
             Cancelar
           </button>
-          <button type="button" onClick={onConfirm} disabled={loading} className="btn btn-primary" style={{ background: "var(--danger)", borderColor: "var(--danger)" }}>
+          <button type="button" onClick={onConfirm} disabled={loading} className={`${styles.boton} ${styles.botonPeligro}`}>
             {loading ? "Eliminando..." : "Eliminar"}
           </button>
-        </>
+        </div>
       }
     >
-      <p>
-        Esta acción enviará <strong>{propertyTitle ?? "la propiedad"}</strong> a la papelera y dejará de mostrarse en el portal.
+      <p className={styles.texto}>
+        Esta acción enviará <strong>{propertyTitle ?? "la propiedad"}</strong> a la papelera y dejará de mostrarse en el
+        portal.
       </p>
-      <p className="muted" style={{ fontSize: "0.85rem" }}>
-        Podrás recuperarla desde el panel de propiedades eliminadas.
-      </p>
+      <p className={styles.nota}>Podrás recuperarla desde el panel de propiedades eliminadas.</p>
     </Modal>
   );
 }

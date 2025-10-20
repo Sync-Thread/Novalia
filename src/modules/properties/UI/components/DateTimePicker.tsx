@@ -1,22 +1,21 @@
-// Control mínimo para seleccionar fecha y hora.
-// No tocar lógica de Application/Domain.
 import { useMemo } from "react";
+import styles from "./DateTimePicker.module.css";
 
-function toInputValue(value?: string | null) {
+const toInputValue = (value?: string | null) => {
   if (!value) return "";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
   const offset = date.getTimezoneOffset();
   const local = new Date(date.getTime() - offset * 60000);
   return local.toISOString().slice(0, 16);
-}
+};
 
-function toIsoString(value: string): string | null {
+const toIsoString = (value: string): string | null => {
   if (!value) return null;
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return null;
   return date.toISOString();
-}
+};
 
 export interface DateTimePickerProps {
   id?: string;
@@ -31,6 +30,9 @@ export interface DateTimePickerProps {
   onChange?: (value: string | null) => void;
 }
 
+/**
+ * Input para fecha y hora. Ajusta estilos sin modificar validaciones ni conversiones existentes.
+ */
 export function DateTimePicker({
   id,
   label,
@@ -50,9 +52,9 @@ export function DateTimePicker({
   const errorId = error ? `${id ?? "datetime"}-error` : undefined;
 
   return (
-    <label className="field-group">
+    <label className={styles.grupo}>
       {label && (
-        <span className="field-label">
+        <span className={styles.etiqueta}>
           {label}
           {required ? " *" : null}
         </span>
@@ -67,19 +69,16 @@ export function DateTimePicker({
         disabled={disabled}
         aria-describedby={[helpId, errorId].filter(Boolean).join(" ") || undefined}
         aria-invalid={Boolean(error)}
-        onChange={event => {
-          const next = toIsoString(event.target.value);
-          onChange?.(next);
-        }}
-        className={`input${error ? " input-error" : ""}`}
+        onChange={event => onChange?.(toIsoString(event.target.value))}
+        className={`${styles.control} ${error ? styles.error : ""}`.trim()}
       />
       {description && (
-        <span id={helpId} className="muted" style={{ fontSize: "0.8rem" }}>
+        <span id={helpId} className={styles.ayuda}>
           {description}
         </span>
       )}
       {error && (
-        <span id={errorId} style={{ fontSize: "0.8rem", color: "var(--danger)" }}>
+        <span id={errorId} className={styles.mensajeError}>
           {error}
         </span>
       )}
@@ -88,5 +87,3 @@ export function DateTimePicker({
 }
 
 export default DateTimePicker;
-
-

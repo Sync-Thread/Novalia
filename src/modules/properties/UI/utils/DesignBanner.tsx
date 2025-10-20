@@ -1,76 +1,45 @@
-// Banner temporal para recordar placeholders visuales.
-// No tocar lógica de Application/Domain.
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
+import styles from "./DesignBanner.module.css";
 
-const STORAGE_PREFIX = "novalia:design-banner:";
+const STORAGE_KEY = "novalia:design-banner:";
 
 export interface DesignBannerProps {
   note: string;
-  storageKey?: string;
-  className?: string;
+  storageId: string;
 }
 
-function safeGetItem(key: string): string | null {
-  try {
-    return window.localStorage.getItem(key);
-  } catch {
-    return null;
-  }
-}
-
-function safeSetItem(key: string, value: string) {
-  try {
-    window.localStorage.setItem(key, value);
-  } catch {
-    // Ignorar errores de almacenamiento (modo incógnito, etc.).
-  }
-}
-
-export function DesignBanner({ note, storageKey, className }: DesignBannerProps) {
-  const key = useMemo(() => `${STORAGE_PREFIX}${storageKey ?? note}`, [note, storageKey]);
+/**
+ * Banner temporal para recordar dónde falta conectar lógica o reemplazar assets.
+ * Se puede ocultar por vista y el estado queda guardado en localStorage.
+ */
+export function DesignBanner({ note, storageId }: DesignBannerProps) {
+  const key = useMemo(() => `${STORAGE_KEY}${storageId}`, [storageId]);
   const [visible, setVisible] = useState(() => {
-    if (typeof window === "undefined") return true;
-    return safeGetItem(key) !== "dismissed";
+    try {
+      return window.localStorage.getItem(key) !== "hidden";
+    } catch {
+      return true;
+    }
   });
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (safeGetItem(key) === "dismissed") {
-      setVisible(false);
-    }
-  }, [key]);
+  if (!visible) return null;
 
-  if (!visible) {
-    return null;
-  }
-
-  const handleDismiss = () => {
+  const hideBanner = () => {
     setVisible(false);
-    safeSetItem(key, "dismissed");
+    try {
+      window.localStorage.setItem(key, "hidden");
+    } catch {
+      // Ignoramos errores de almacenamiento privado.
+    }
   };
 
   return (
-    <aside
-      role="status"
-      className={`card ${className ?? ""}`}
-      style={{
-        padding: "var(--gap)",
-        borderColor: "rgba(41,93,255,0.2)",
-        background: "rgba(41,93,255,0.08)",
-        display: "flex",
-        flexWrap: "wrap",
-        justifyContent: "space-between",
-        gap: "var(--gap)",
-      }}
-    >
-      <div className="stack" style={{ gap: "6px" }}>
-        <span className="badge badge-tonal">TODO</span>
+    <aside className={styles.banner} role="status">
+      <div className={styles.note}>
+        <span className={styles.pill}>TODO</span>
         <span>{note}</span>
-        <span className="muted" style={{ fontSize: "0.85rem" }}>
-          Oculta este aviso cuando integres los assets finales y elimines los placeholders.
-        </span>
       </div>
-      <button type="button" className="btn btn-ghost" onClick={handleDismiss}>
+      <button type="button" className={styles.dismiss} onClick={hideBanner}>
         Ocultar
       </button>
     </aside>

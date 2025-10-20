@@ -1,5 +1,4 @@
-// Selector compacto de amenidades para propiedades.
-// No tocar lógica de Application/Domain.
+import styles from "./AmenityChips.module.css";
 
 export interface AmenityChip {
   id: string;
@@ -26,7 +25,7 @@ export const DEFAULT_AMENITY_GROUPS: AmenityGroup[] = [
     id: "exterior",
     label: "Exterior",
     items: [
-      { id: "garden", label: "Jard\u00edn" },
+      { id: "garden", label: "Jardín" },
       { id: "terrace", label: "Terraza" },
       { id: "grill", label: "Asador" },
     ],
@@ -42,11 +41,11 @@ export const DEFAULT_AMENITY_GROUPS: AmenityGroup[] = [
   },
   {
     id: "comunes",
-    label: "\u00c1reas comunes",
+    label: "Áreas comunes",
     items: [
       { id: "pool", label: "Alberca" },
       { id: "gym", label: "Gimnasio" },
-      { id: "events_room", label: "Sal\u00f3n de eventos" },
+      { id: "events_room", label: "Salón de eventos" },
     ],
   },
   {
@@ -54,8 +53,8 @@ export const DEFAULT_AMENITY_GROUPS: AmenityGroup[] = [
     label: "Sustentabilidad",
     items: [
       { id: "solar_panels", label: "Paneles solares" },
-      { id: "rain_harvest", label: "Captaci\u00f3n pluvial" },
-      { id: "led_lights", label: "Iluminaci\u00f3n LED" },
+      { id: "rain_harvest", label: "Captación pluvial" },
+      { id: "led_lights", label: "Iluminación LED" },
     ],
   },
   {
@@ -79,6 +78,9 @@ export interface AmenityChipsProps {
   disabled?: boolean;
 }
 
+/**
+ * Selector de amenidades con chips. Solo maqueta; no altera la lógica de selección.
+ */
 export function AmenityChips({
   selected,
   onChange,
@@ -97,36 +99,33 @@ export function AmenityChips({
   };
 
   return (
-    <div className="stack" style={{ gap: "var(--gap)" }}>
+    <div className={styles.grupo}>
       <div>
         {groups.map(group => (
-          <section key={group.id} aria-labelledby={`amenities-${group.id}`} className="stack" style={{ gap: "8px" }}>
-            <h3 id={`amenities-${group.id}`} className="field-label">
+          <section key={group.id} className={styles.bloque} aria-labelledby={`amenities-${group.id}`}>
+            <h3 id={`amenities-${group.id}`} className={styles.titulo}>
               {group.label}
             </h3>
-            <div className="chip-list">
-              {group.items.map(item => {
-                const active = selected.includes(item.id);
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => toggleAmenity(item.id)}
-                    disabled={disabled}
-                    aria-pressed={active}
-                    className={`chip${active ? " chip-active" : ""}`}
-                  >
-                    {item.label}
-                  </button>
-                );
-              })}
+            <div className={styles.chips}>
+              {group.items.map(item => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => toggleAmenity(item.id)}
+                  disabled={disabled}
+                  aria-pressed={selected.includes(item.id)}
+                  className={styles.chip}
+                >
+                  {item.label}
+                </button>
+              ))}
             </div>
           </section>
         ))}
       </div>
       {onExtraChange && (
-        <label htmlFor="amenities-extra" className="field-group">
-          <span className="field-label">Otras amenidades</span>
+        <label htmlFor="amenities-extra" className={styles.texto}>
+          <span className={styles.titulo}>Otras amenidades</span>
           <textarea
             id="amenities-extra"
             placeholder={extraPlaceholder}
@@ -134,7 +133,7 @@ export function AmenityChips({
             onChange={event => onExtraChange(event.target.value)}
             disabled={disabled}
             rows={3}
-            className="textarea"
+            className={styles.input}
           />
         </label>
       )}

@@ -1,7 +1,6 @@
-// Gestor mínimo de medios para propiedades.
-// No tocar lógica de Application/Domain.
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import type { MediaDTO } from "../../application/dto/MediaDTO";
+import styles from "./MediaDropzone.module.css";
 
 export interface MediaDropzoneProps {
   items: MediaDTO[];
@@ -14,6 +13,9 @@ export interface MediaDropzoneProps {
   accept?: string;
 }
 
+/**
+ * Dropzone y rejilla de medios. Controla solo estilo y accesibilidad, manteniendo la lógica de props.
+ */
 export function MediaDropzone({
   items,
   onUpload,
@@ -57,32 +59,18 @@ export function MediaDropzone({
 
   const move = (index: number, direction: -1 | 1) => {
     if (!onReorder) return;
-    const newIndex = index + direction;
-    if (newIndex < 0 || newIndex >= items.length) return;
-    const reordered = [...items];
-    const [moved] = reordered.splice(index, 1);
-    reordered.splice(newIndex, 0, moved);
-    onReorder(reordered.map(item => item.id));
-  };
-
-  const dropzoneStyle: React.CSSProperties = {
-    border: `2px dashed ${dragging ? "var(--accent)" : "rgba(148,163,184,0.6)"}`,
-    borderRadius: "var(--radius)",
-    padding: "calc(var(--gap) * 1.5)",
-    background: dragging ? "rgba(41,93,255,0.06)" : "var(--surface)",
-    cursor: uploading ? "wait" : "pointer",
-    transition: "background 160ms ease, border-color 160ms ease",
-    textAlign: "center",
-    color: "var(--muted)",
-    fontSize: "0.95rem",
-    display: "grid",
-    gap: "6px",
+    const target = index + direction;
+    if (target < 0 || target >= items.length) return;
+    const next = [...items];
+    const [moved] = next.splice(index, 1);
+    next.splice(target, 0, moved);
+    onReorder(next.map(item => item.id));
   };
 
   return (
-    <section className="stack" style={{ gap: "var(--gap)" }}>
+    <section className={styles.contenedor}>
       <div
-        style={dropzoneStyle}
+        className={`${styles.dropzone} ${dragging ? styles.dropzoneActivo : ""}`.trim()}
         onDragOver={event => {
           event.preventDefault();
           if (!uploading) setDragging(true);
@@ -101,7 +89,8 @@ export function MediaDropzone({
       >
         <strong>{uploading ? "Subiendo archivos..." : "Arrastra archivos o haz clic para seleccionar"}</strong>
         <span>
-          Acepta imágenes, videos o PDFs. Recomendado mínimo 8 fotos{maxFiles ? ` (máximo ${maxFiles})` : ""}.
+          Acepta imágenes, videos o PDFs. Recomendado mínimo 8 fotos
+          {maxFiles ? ` (máximo ${maxFiles})` : ""}.
         </span>
       </div>
 
@@ -117,74 +106,62 @@ export function MediaDropzone({
         }}
       />
 
-      <div className="card-meta" style={{ justifyContent: "flex-start", gap: "var(--gap)" }}>
+      <div className={styles.resumen}>
         <span>Fotos: {counts.images}</span>
         <span>Videos: {counts.videos}</span>
         <span>Planos: {counts.floorplans}</span>
       </div>
 
       {items.length > 0 && (
-        <div className="grid-responsive">
+        <div className={styles.rejilla}>
           {items.map((item, index) => {
             const isCover = item.isCover;
             return (
-              <article key={item.id} className="card" style={{ overflow: "hidden" }}>
-                <div className="card-cover ratio-16x9">
-                  {/* TODO(IMAGEN): Reemplazar placeholder por asset real en docs/ui/properties/refs/ */}
+              <article key={item.id} className={styles.tarjeta}>
+                <div className={styles.preview}>
+                  {/* TODO(IMAGEN): Reemplazar placeholder por asset real según docs/ui/properties/refs/ */}
                   {item.url && item.type === "image" ? (
                     <img src={item.url} alt="" />
                   ) : (
-                    <div className="placeholder" aria-hidden="true" />
+                    <div className={styles.placeholder} aria-hidden="true" />
                   )}
-                  {isCover && (
-                    <span
-                      className="badge badge-tonal"
-                      style={{ position: "absolute", top: "12px", left: "12px" }}
-                    >
-                      Portada
-                    </span>
-                  )}
+                  {isCover && <span className={styles.cover}>Portada</span>}
                 </div>
-                <div className="card-body">
-                  <div className="card-meta" style={{ justifyContent: "space-between" }}>
+                <div className={styles.cuerpo}>
+                  <div className={styles.meta}>
                     <span>Posición {index + 1}</span>
                     <span>{item.type}</span>
                   </div>
-                  <div className="stack" style={{ gap: "6px" }}>
+                  <div className={styles.acciones}>
                     <button
                       type="button"
                       onClick={() => onSetCover?.(item.id)}
                       disabled={isCover}
-                      className="btn btn-ghost"
+                      className={`${styles.boton} ${styles.botonDestacado}`}
                     >
                       {isCover ? "Portada actual" : "Marcar como portada"}
                     </button>
-                    <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                    <div className={styles.fila}>
                       <button
                         type="button"
                         onClick={() => move(index, -1)}
                         disabled={!onReorder || index === 0}
-                        className="btn btn-ghost"
+                        className={styles.boton}
                         aria-label={`Mover elemento ${index + 1} hacia arriba`}
                       >
-                        ↑
+                        Arriba
                       </button>
                       <button
                         type="button"
                         onClick={() => move(index, 1)}
                         disabled={!onReorder || index === items.length - 1}
-                        className="btn btn-ghost"
+                        className={styles.boton}
                         aria-label={`Mover elemento ${index + 1} hacia abajo`}
                       >
-                        ↓
+                        Abajo
                       </button>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => onRemove?.(item.id)}
-                      className="btn btn-ghost"
-                      style={{ color: "var(--danger)" }}
-                    >
+                    <button type="button" onClick={() => onRemove?.(item.id)} className={`${styles.boton} ${styles.botonPeligro}`}>
                       Eliminar
                     </button>
                   </div>
