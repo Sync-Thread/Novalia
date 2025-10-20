@@ -1,11 +1,12 @@
-﻿import React, { useId, useRef } from "react";
+import React, { useId, useRef } from "react";
 import type { DocumentDTO, DocumentTypeDTO, VerificationStatusDTO } from "../../application/dto/DocumentDTO";
 import { formatDate, formatVerification } from "../utils/format";
+import styles from "./DocumentCard.module.css";
 
 const typeLabels: Record<DocumentTypeDTO, string> = {
   rpp_certificate: "Certificado RPP",
   deed: "Escritura",
-  id_doc: "IdentificaciÃ³n",
+  id_doc: "Identificación",
   floorplan: "Plano",
   other: "Otro",
 };
@@ -47,56 +48,17 @@ export function DocumentCard({
   const shouldAllowVerification = allowVerification ?? docType === "rpp_certificate";
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: 14,
-        padding: "18px 20px",
-        borderRadius: 16,
-        border: "1px solid rgba(15,23,42,0.08)",
-        background: "#fff",
-        boxShadow: "0 12px 28px rgba(15,23,42,0.08)",
-        fontFamily: "'Inter', system-ui, sans-serif",
-      }}
-      aria-live="polite"
-    >
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16 }}>
-        <div>
-          <h4
-            style={{
-              margin: 0,
-              fontSize: 15,
-              fontWeight: 600,
-              color: "#0f172a",
-            }}
-          >
-            {typeLabels[docType]}
-          </h4>
-          <p
-            style={{
-              margin: "4px 0 0",
-              fontSize: 13,
-              color: "#64748b",
-            }}
-          >
-            {isUploaded ? "Documento cargado" : "Sin documento adjunto"}
-          </p>
+    <div className={styles.card} aria-live="polite">
+      <div className={styles.header}>
+        <div className={styles.titleBlock}>
+          <h4 className={styles.title}>{typeLabels[docType]}</h4>
+          <p className={styles.subtitle}>{isUploaded ? "Documento cargado" : "Sin documento adjunto"}</p>
         </div>
-        <div
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 8,
-          }}
-        >
+        <div className={styles.meta}>
           {isUploaded && document?.verification && (
             <span
+              className={styles.statusTag}
               style={{
-                fontSize: 12,
-                fontWeight: 600,
-                padding: "4px 10px",
-                borderRadius: 999,
                 background: verificationStyles[document.verification].bg,
                 color: verificationStyles[document.verification].color,
               }}
@@ -104,35 +66,24 @@ export function DocumentCard({
               {formatVerification(document.verification)}
             </span>
           )}
-          <span
-            style={{
-              fontSize: 12,
-              color: "#94a3b8",
-            }}
-          >
-            {isUploaded ? `Subido el ${formatDate(document?.createdAt)}` : "Pendiente"}
+          <span className={styles.timestamp}>
+            {isUploaded && document?.createdAt ? `Subido el ${formatDate(document.createdAt)}` : "Pendiente"}
           </span>
         </div>
       </div>
 
-      <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+      <div className={styles.actions}>
         <button
           type="button"
           onClick={() => fileInputRef.current?.click()}
           disabled={uploading}
-          style={{
-            ...primaryButtonStyle,
-            opacity: uploading ? 0.6 : 1,
-          }}
+          className={styles.primaryBtn}
+          style={{ opacity: uploading ? 0.6 : 1 }}
         >
-          {uploading ? "Subiendoâ€¦" : isUploaded ? "Reemplazar archivo" : "Adjuntar archivo"}
+          {uploading ? "Subiendo..." : isUploaded ? "Reemplazar archivo" : "Adjuntar archivo"}
         </button>
         {isUploaded && onView && document?.url && (
-          <button
-            type="button"
-            onClick={() => onView(document)}
-            style={secondaryButtonStyle}
-          >
+          <button type="button" onClick={() => onView(document)} className={styles.secondaryBtn}>
             Ver documento
           </button>
         )}
@@ -141,43 +92,30 @@ export function DocumentCard({
             type="button"
             onClick={onDelete}
             disabled={deleting}
-            style={{
-              ...secondaryButtonStyle,
-              color: "#b91c1c",
-              borderColor: "rgba(239,68,68,0.4)",
-            }}
+            className={`${styles.secondaryBtn} ${styles.danger}`.trim()}
           >
-            {deleting ? "Eliminandoâ€¦" : "Eliminar"}
+            {deleting ? "Eliminando..." : "Eliminar"}
           </button>
         )}
       </div>
 
       {shouldAllowVerification && isUploaded && onVerify && (
-        <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-          <label
-            htmlFor={`${baseId}-verification`}
-            style={{ fontSize: 13, fontWeight: 500, color: "#475569" }}
-          >
-            Estado de verificaciÃ³n
+        <div className={styles.verifyRow}>
+          <label htmlFor={`${baseId}-verification`} className={styles.verifyLabel}>
+            Estado de verificación
           </label>
           <select
             id={`${baseId}-verification`}
             defaultValue={document?.verification ?? "pending"}
             onChange={event => onVerify(event.target.value as VerificationStatusDTO)}
             disabled={verifying}
-            style={{
-              borderRadius: 10,
-              border: "1px solid rgba(148,163,184,0.5)",
-              padding: "8px 12px",
-              fontSize: 13,
-              fontFamily: "'Inter', system-ui, sans-serif",
-            }}
+            className={styles.select}
           >
             <option value="pending">Pendiente</option>
             <option value="verified">Verificado</option>
             <option value="rejected">Rechazado</option>
           </select>
-          {verifying && <span style={{ fontSize: 12, color: "#64748b" }}>Actualizandoâ€¦</span>}
+          {verifying && <span className={styles.verifyHint}>Actualizando...</span>}
         </div>
       )}
 
@@ -198,28 +136,4 @@ export function DocumentCard({
   );
 }
 
-const primaryButtonStyle: React.CSSProperties = {
-  background: "#295DFF",
-  color: "#fff",
-  border: "none",
-  borderRadius: 10,
-  padding: "10px 18px",
-  fontSize: 14,
-  fontWeight: 600,
-  cursor: "pointer",
-  boxShadow: "0 10px 24px rgba(41,93,255,0.18)",
-};
-
-const secondaryButtonStyle: React.CSSProperties = {
-  background: "#fff",
-  color: "#1e293b",
-  border: "1px solid rgba(148,163,184,0.5)",
-  borderRadius: 10,
-  padding: "10px 16px",
-  fontSize: 13,
-  fontWeight: 500,
-  cursor: "pointer",
-};
-
 export default DocumentCard;
-

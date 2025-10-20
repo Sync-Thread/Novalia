@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { PropertiesProvider } from "../containers/PropertiesProvider";
 import { usePropertyList } from "../hooks/usePropertyList";
@@ -11,6 +11,8 @@ import MarkSoldModal from "../modals/MarkSoldModal";
 import DeletePropertyModal from "../modals/DeletePropertyModal";
 import type { PropertyDTO } from "../../application/dto/PropertyDTO";
 import { formatCurrency, formatDate, formatStatus, formatVerification } from "../utils/format";
+import DesignBanner from "../utils/DesignBanner";
+import styles from "./MyPropertiesPage.module.css";
 
 export default function MyPropertiesPage() {
   return (
@@ -120,89 +122,61 @@ function MyPropertiesPageContent() {
     return aggregate;
   }, [cache]);
 
+  const statItems = [
+    { id: "borradores", label: "Borradores", value: counts.drafts },
+    { id: "publicadas", label: "Publicadas", value: counts.published },
+    { id: "vendidas", label: "Vendidas", value: counts.sold },
+    { id: "total", label: "Total", value: counts.total },
+  ];
+
   return (
-    <main
-      style={{
-        padding: "32px 48px",
-        display: "flex",
-        flexDirection: "column",
-        gap: 24,
-        fontFamily: "'Inter', system-ui, sans-serif",
-      }}
-    >
-      <header style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        <nav style={{ fontSize: 13, color: "#94a3b8" }}>Dashboard / Mis propiedades</nav>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <h1
-            style={{
-              margin: 0,
-              fontSize: 28,
-              fontWeight: 700,
-              color: "#0f172a",
-            }}
-          >
-            Mis propiedades
-          </h1>
-          <button
-            type="button"
-            onClick={() => navigate("/properties/new")}
-            style={{
-              border: "none",
-              background: "#295DFF",
-              color: "#fff",
-              padding: "12px 20px",
-              borderRadius: 12,
-              fontSize: 14,
-              fontWeight: 600,
-              cursor: "pointer",
-              boxShadow: "0 14px 32px rgba(41,93,255,0.22)",
-            }}
-          >
-            Nueva propiedad
-          </button>
-        </div>
-        <div style={{ display: "flex", gap: 18, fontSize: 13, color: "#475569" }}>
-          <strong>{counts.total} propiedades</strong>
-          <span>Borradores: {counts.drafts}</span>
-          <span>Publicadas: {counts.published}</span>
-          <span>Vendidas: {counts.sold}</span>
-        </div>
-      </header>
+    <main className={styles.page}>
+      <div className={styles.bannerStack}>
+        <DesignBanner
+          note="Esta vista replica la referencia 'dashboard-grid.png'. Sustituye los placeholders de imagen y remueve este banner al integrar assets y lógica final."
+          storageKey="properties-dashboard-banner"
+        />
+        <header className={styles.header}>
+          <nav className={styles.breadcrumbs} aria-label="Breadcrumb">
+            <span>Dashboard</span>
+            <span aria-hidden="true">/</span>
+            <span>Mis propiedades</span>
+          </nav>
+          <div className={styles.titleRow}>
+            <h1 className={styles.title}>Mis propiedades</h1>
+            <button type="button" onClick={() => navigate("/properties/new")} className={styles.newButton}>
+              Nueva propiedad
+            </button>
+          </div>
+          <section className={styles.stats} aria-label="Resumen de propiedades">
+            {statItems.map(item => (
+              <div key={item.id} className={styles.statCard}>
+                <span className={styles.statLabel}>{item.label}</span>
+                <span className={styles.statValue}>{item.value}</span>
+              </div>
+            ))}
+          </section>
+        </header>
+      </div>
 
-      <KycBanner visible={authProfileStatus !== "verified"} />
+      {authProfileStatus !== "verified" && <KycBanner visible message="Para publicar propiedades necesitas tu KYC (INE) verificado." />}
 
-      <FiltersBar values={filterValues} onChange={handleFilterChange} onReset={handleReset} disabled={loading} />
+      <div className={styles.filtersArea}>
+        <FiltersBar values={filterValues} onChange={handleFilterChange} onReset={handleReset} disabled={loading} />
+      </div>
 
       {error && (
-        <div
-          role="alert"
-          style={{
-            borderRadius: 12,
-            border: "1px solid rgba(248,113,113,0.3)",
-            background: "rgba(248,113,113,0.1)",
-            color: "#b91c1c",
-            padding: "14px 16px",
-            fontSize: 14,
-          }}
-        >
+        <div role="alert" className={styles.error}>
           {error}
         </div>
       )}
 
       {viewMode === "grid" ? (
-        <section
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
-            gap: 20,
-          }}
-        >
+        <section className={styles.grid} aria-live="polite">
           {items.map(item => (
             <PropertyCard key={item.id} property={item} onAction={handleAction} />
           ))}
-          {items.length === 0 && !loading && (
-            <EmptyState onReset={handleReset} message="No encontramos propiedades con esos filtros." />
-          )}
+          {items.length === 0 && !loading && <EmptyState onReset={handleReset} message="No encontramos propiedades con esos filtros." />}
         </section>
       ) : (
         <PropertyListTable items={items} loading={loading} onAction={handleAction} />
@@ -257,32 +231,9 @@ function MyPropertiesPageContent() {
 
 function EmptyState({ message, onReset }: { message: string; onReset: () => void }) {
   return (
-    <div
-      style={{
-        gridColumn: "1 / -1",
-        textAlign: "center",
-        borderRadius: 16,
-        border: "1px dashed rgba(148,163,184,0.4)",
-        padding: "48px 24px",
-        color: "#64748b",
-        fontSize: 15,
-      }}
-    >
+    <div className={styles.emptyCard}>
       <p>{message}</p>
-      <button
-        type="button"
-        onClick={onReset}
-        style={{
-          border: "none",
-          background: "#295DFF",
-          color: "#fff",
-          padding: "10px 18px",
-          borderRadius: 10,
-          fontSize: 14,
-          cursor: "pointer",
-          boxShadow: "0 12px 24px rgba(41,93,255,0.18)",
-        }}
-      >
+      <button type="button" onClick={onReset} className={styles.emptyButton}>
         Limpiar filtros
       </button>
     </div>
@@ -299,62 +250,37 @@ function PropertyListTable({
   onAction: (action: PropertyCardAction, property: PropertyDTO) => void;
 }) {
   if (!loading && items.length === 0) {
-    return (
-      <div style={{ borderRadius: 16, border: "1px solid rgba(148,163,184,0.35)", padding: 24, color: "#64748b" }}>
-        No hay propiedades en esta vista.
-      </div>
-    );
+    return <div className={styles.tableEmpty}>No hay propiedades en esta vista.</div>;
   }
+
   return (
-    <div
-      style={{
-        borderRadius: 16,
-        border: "1px solid rgba(148,163,184,0.25)",
-        overflow: "hidden",
-      }}
-    >
-      <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "'Inter', system-ui, sans-serif" }}>
-        <thead style={{ background: "rgba(15,23,42,0.04)", textAlign: "left" }}>
+    <div className={styles.tableWrapper}>
+      <table className={styles.table}>
+        <thead className={styles.tableHead}>
           <tr>
-            {["Propiedad", "Estado", "Tipo", "Precio", "Ubicaci\u00F3n", "Publicada", "Completitud", "RPP", "Acciones"].map(
-              header => (
-                <th key={header} style={{ padding: "12px 16px", fontSize: 12, color: "#475569" }}>
-                  {header}
-                </th>
-              ),
-            )}
+            {["Propiedad", "Estado", "Tipo", "Precio", "Ubicación", "Publicada", "Completitud", "RPP", "Acciones"].map(header => (
+              <th key={header}>{header}</th>
+            ))}
           </tr>
         </thead>
         <tbody>
           {items.map(property => (
-            <tr key={property.id} style={{ borderTop: "1px solid rgba(148,163,184,0.15)" }}>
-              <td style={tdStyle}>
-                <div style={{ fontWeight: 600, color: "#0f172a" }}>{property.title}</div>
-                <div style={{ fontSize: 12, color: "#94a3b8" }}>{property.id}</div>
+            <tr key={property.id} className={styles.row}>
+              <td className={styles.cell}>
+                <strong>{property.title}</strong>
+                <span className={styles.cellMeta}>{property.id}</span>
               </td>
-              <td style={tdStyle}>{formatStatus(property.status)}</td>
-              <td style={tdStyle}>{property.propertyType}</td>
-              <td style={tdStyle}>{formatCurrency(property.price.amount, property.price.currency)}</td>
-              <td style={tdStyle}>
+              <td className={styles.cell}>{formatStatus(property.status)}</td>
+              <td className={styles.cell}>{property.propertyType}</td>
+              <td className={styles.cell}>{formatCurrency(property.price.amount, property.price.currency)}</td>
+              <td className={styles.cell}>
                 {property.address.city}, {property.address.state}
               </td>
-              <td style={tdStyle}>{property.publishedAt ? formatDate(property.publishedAt) : "-"}</td>
-              <td style={tdStyle}>{Math.round(property.completenessScore)}%</td>
-              <td style={tdStyle}>{formatVerification(property.rppVerification ?? null)}</td>
-              <td style={tdStyle}>
-                <button
-                  type="button"
-                  onClick={() => onAction("quick_view", property)}
-                  style={{
-                    border: "none",
-                    background: "rgba(41,93,255,0.12)",
-                    color: "#295DFF",
-                    padding: "6px 12px",
-                    borderRadius: 8,
-                    fontSize: 12,
-                    cursor: "pointer",
-                  }}
-                >
+              <td className={styles.cell}>{property.publishedAt ? formatDate(property.publishedAt) : "-"}</td>
+              <td className={styles.cell}>{Math.round(property.completenessScore)}%</td>
+              <td className={styles.cell}>{formatVerification(property.rppVerification ?? null)}</td>
+              <td className={styles.cell}>
+                <button type="button" onClick={() => onAction("quick_view", property)} className={styles.tableAction}>
                   Acciones
                 </button>
               </td>
@@ -365,12 +291,6 @@ function PropertyListTable({
     </div>
   );
 }
-
-const tdStyle: React.CSSProperties = {
-  padding: "12px 16px",
-  fontSize: 13,
-  color: "#475569",
-};
 
 function Pagination({
   page,
@@ -385,29 +305,19 @@ function Pagination({
 }) {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   return (
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        paddingTop: 16,
-        borderTop: "1px solid rgba(148,163,184,0.2)",
-        fontSize: 13,
-        color: "#475569",
-      }}
-    >
+    <div className={styles.pagination}>
       <span>
         Página {page} de {totalPages}
       </span>
-      <div style={{ display: "flex", gap: 12 }}>
-        <button type="button" onClick={() => onChange(Math.max(1, page - 1))} disabled={page === 1} style={paginationBtnStyle}>
+      <div className={styles.paginationControls}>
+        <button type="button" onClick={() => onChange(Math.max(1, page - 1))} disabled={page === 1} className={styles.paginationBtn}>
           Anterior
         </button>
         <button
           type="button"
           onClick={() => onChange(Math.min(totalPages, page + 1))}
           disabled={page >= totalPages}
-          style={paginationBtnStyle}
+          className={styles.paginationBtn}
         >
           Siguiente
         </button>
@@ -415,12 +325,3 @@ function Pagination({
     </div>
   );
 }
-
-const paginationBtnStyle: React.CSSProperties = {
-  borderRadius: 8,
-  border: "1px solid rgba(148,163,184,0.4)",
-  background: "#fff",
-  color: "#1e293b",
-  padding: "8px 12px",
-  cursor: "pointer",
-};

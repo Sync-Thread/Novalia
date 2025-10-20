@@ -1,3 +1,4 @@
+import styles from "./AmenityChips.module.css";
 
 export interface AmenityChip {
   id: string;
@@ -24,7 +25,7 @@ export const DEFAULT_AMENITY_GROUPS: AmenityGroup[] = [
     id: "exterior",
     label: "Exterior",
     items: [
-      { id: "garden", label: "Jardín" },
+      { id: "garden", label: "Jard\u00edn" },
       { id: "terrace", label: "Terraza" },
       { id: "grill", label: "Asador" },
     ],
@@ -40,11 +41,11 @@ export const DEFAULT_AMENITY_GROUPS: AmenityGroup[] = [
   },
   {
     id: "comunes",
-    label: "Áreas comunes",
+    label: "\u00c1reas comunes",
     items: [
       { id: "pool", label: "Alberca" },
       { id: "gym", label: "Gimnasio" },
-      { id: "events_room", label: "Salón de eventos" },
+      { id: "events_room", label: "Sal\u00f3n de eventos" },
     ],
   },
   {
@@ -52,8 +53,8 @@ export const DEFAULT_AMENITY_GROUPS: AmenityGroup[] = [
     label: "Sustentabilidad",
     items: [
       { id: "solar_panels", label: "Paneles solares" },
-      { id: "rain_harvest", label: "Captación pluvial" },
-      { id: "led_lights", label: "Iluminación LED" },
+      { id: "rain_harvest", label: "Captaci\u00f3n pluvial" },
+      { id: "led_lights", label: "Iluminaci\u00f3n LED" },
     ],
   },
   {
@@ -83,7 +84,7 @@ export function AmenityChips({
   groups,
   extraValue,
   onExtraChange,
-  extraPlaceholder = "Escribe amenidades adicionales…",
+  extraPlaceholder = "Escribe amenidades adicionales...",
   disabled,
 }: AmenityChipsProps) {
   const toggleAmenity = (id: string) => {
@@ -95,40 +96,14 @@ export function AmenityChips({
   };
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: 20,
-        fontFamily: "'Inter', system-ui, sans-serif",
-      }}
-    >
-      <div
-        style={{
-          display: "grid",
-          gap: 16,
-        }}
-      >
+    <div className={styles.wrapper}>
+      <div>
         {groups.map(group => (
-          <section key={group.id} aria-labelledby={`amenities-${group.id}`}>
-            <h3
-              id={`amenities-${group.id}`}
-              style={{
-                fontSize: 14,
-                fontWeight: 600,
-                color: "#1e293b",
-                marginBottom: 10,
-              }}
-            >
+          <section key={group.id} aria-labelledby={`amenities-${group.id}`} className={styles.group}>
+            <h3 id={`amenities-${group.id}`} className={styles.groupTitle}>
               {group.label}
             </h3>
-            <div
-              style={{
-                display: "flex",
-                gap: 8,
-                flexWrap: "wrap",
-              }}
-            >
+            <div className={styles.chips}>
               {group.items.map(item => {
                 const active = selected.includes(item.id);
                 return (
@@ -138,18 +113,7 @@ export function AmenityChips({
                     onClick={() => toggleAmenity(item.id)}
                     disabled={disabled}
                     aria-pressed={active}
-                    style={{
-                      padding: "8px 14px",
-                      borderRadius: 999,
-                      border: active ? "1px solid rgba(41,93,255,0.4)" : "1px solid rgba(148,163,184,0.4)",
-                      background: active ? "rgba(41,93,255,0.12)" : "#fff",
-                      color: active ? "#1d4ed8" : "#475569",
-                      fontSize: 13,
-                      fontWeight: 500,
-                      cursor: disabled ? "not-allowed" : "pointer",
-                      boxShadow: active ? "0 8px 18px rgba(41,93,255,0.15)" : "none",
-                      transition: "all 0.2s ease",
-                    }}
+                    className={`${styles.chip} ${active ? styles.chipActive : ""}`.trim()}
                   >
                     {item.label}
                   </button>
@@ -160,15 +124,8 @@ export function AmenityChips({
         ))}
       </div>
       {onExtraChange && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          <label
-            htmlFor="amenities-extra"
-            style={{
-              fontSize: 14,
-              fontWeight: 600,
-              color: "#1e293b",
-            }}
-          >
+        <div className={styles.extra}>
+          <label htmlFor="amenities-extra" className={styles.extraLabel}>
             Otras amenidades
           </label>
           <textarea
@@ -178,15 +135,7 @@ export function AmenityChips({
             onChange={event => onExtraChange(event.target.value)}
             disabled={disabled}
             rows={3}
-            style={{
-              borderRadius: 12,
-              border: "1px solid rgba(148,163,184,0.5)",
-              padding: "12px 14px",
-              fontSize: 14,
-              fontFamily: "'Inter', system-ui, sans-serif",
-              resize: "vertical",
-              boxShadow: "0 1px 2px rgba(15, 23, 42, 0.08)",
-            }}
+            className={styles.extraField}
           />
         </div>
       )}
@@ -195,4 +144,3 @@ export function AmenityChips({
 }
 
 export default AmenityChips;
-

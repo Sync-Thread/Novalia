@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import styles from "./DateTimePicker.module.css";
 
 function toInputValue(value?: string | null) {
   if (!value) return "";
@@ -47,19 +48,12 @@ export function DateTimePicker({
   const helpId = description ? `${id ?? "datetime"}-help` : undefined;
   const errorId = error ? `${id ?? "datetime"}-error` : undefined;
 
+  const controlClass = `${styles.control} ${error ? styles.errorField : ""}`.trim();
+
   return (
-    <label
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: 6,
-        fontFamily: "'Inter', system-ui, sans-serif",
-        fontSize: 14,
-        color: "#0f172a",
-      }}
-    >
+    <label className={styles.wrapper}>
       {label && (
-        <span style={{ fontWeight: 600 }}>
+        <span className={styles.labelText}>
           {label}
           {required ? " *" : null}
         </span>
@@ -78,31 +72,15 @@ export function DateTimePicker({
           const next = toIsoString(event.target.value);
           onChange?.(next);
         }}
-        style={{
-          borderRadius: 12,
-          border: `1px solid ${error ? "#f87171" : "#cbd5f5"}`,
-          padding: "12px 14px",
-          fontSize: 15,
-          fontFamily: "'Inter', system-ui, sans-serif",
-          boxShadow: "0 1px 2px rgba(15, 23, 42, 0.08)",
-          transition: "border 0.2s ease, box-shadow 0.2s ease",
-        }}
-        onFocus={event => {
-          event.currentTarget.style.border = `1px solid #295DFF`;
-          event.currentTarget.style.boxShadow = "0 0 0 3px rgba(41,93,255,0.18)";
-        }}
-        onBlur={event => {
-          event.currentTarget.style.border = `1px solid ${error ? "#f87171" : "#cbd5f5"}`;
-          event.currentTarget.style.boxShadow = "0 1px 2px rgba(15, 23, 42, 0.08)";
-        }}
+        className={controlClass}
       />
       {description && (
-        <span id={helpId} style={{ color: "#64748b", fontSize: 13 }}>
+        <span id={helpId} className={styles.description}>
           {description}
         </span>
       )}
       {error && (
-        <span id={errorId} style={{ color: "#ef4444", fontSize: 13 }}>
+        <span id={errorId} className={styles.error}>
           {error}
         </span>
       )}

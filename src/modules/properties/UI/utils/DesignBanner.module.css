@@ -1,0 +1,65 @@
+.banner {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 16px;
+  padding: 16px 20px;
+  border-radius: 12px;
+  border: 1px dashed rgba(41, 93, 255, 0.4);
+  background:
+    linear-gradient(135deg, rgba(41, 93, 255, 0.06), rgba(41, 93, 255, 0));
+  color: #1e293b;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 14px;
+  align-items: center;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(41, 93, 255, 0.12);
+  color: #295dff;
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.dismiss {
+  border: none;
+  background: transparent;
+  color: #295dff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 8px;
+}
+
+.dismiss:focus-visible {
+  outline: 2px solid rgba(41, 93, 255, 0.5);
+  outline-offset: 2px;
+}
+
+.hint {
+  color: #475569;
+  font-size: 13px;
+}
+
+.hidden {
+  display: none;
+}

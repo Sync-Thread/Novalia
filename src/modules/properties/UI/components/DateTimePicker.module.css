@@ -1,0 +1,49 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 14px;
+  color: #0f172a;
+}
+
+.labelText {
+  font-weight: 600;
+}
+
+.control {
+  border-radius: 12px;
+  border: 1px solid #cbd5f5;
+  padding: 12px 14px;
+  font-size: 15px;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.control:focus-visible {
+  outline: none;
+  border-color: #295dff;
+  box-shadow: 0 0 0 3px rgba(41, 93, 255, 0.18);
+}
+
+.control:disabled {
+  background: rgba(148, 163, 184, 0.1);
+  cursor: not-allowed;
+}
+
+.errorField {
+  border-color: #f87171;
+  box-shadow: 0 1px 2px rgba(239, 68, 68, 0.25);
+}
+
+.description {
+  color: #64748b;
+  font-size: 13px;
+}
+
+.error {
+  color: #ef4444;
+  font-size: 13px;
+  font-weight: 500;
+}

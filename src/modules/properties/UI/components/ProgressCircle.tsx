@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import styles from "./ProgressCircle.module.css";
 
 export interface ProgressThresholds {
   warn: number;
@@ -37,28 +38,9 @@ export function ProgressCircle({
   }, [clamped, thresholds.good, thresholds.warn]);
 
   return (
-    <div
-      style={{
-        position: "relative",
-        width: size,
-        height: size,
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        fontFamily: "'Inter', system-ui, sans-serif",
-      }}
-      aria-label={ariaLabel}
-      role="img"
-    >
+    <div className={styles.wrapper} aria-label={ariaLabel} role="img" style={{ width: size, height: size }}>
       <svg width={size} height={size}>
-        <circle
-          stroke="#E2E8F0"
-          fill="transparent"
-          strokeWidth={strokeWidth}
-          r={radius}
-          cx={size / 2}
-          cy={size / 2}
-        />
+        <circle stroke="#E2E8F0" fill="transparent" strokeWidth={strokeWidth} r={radius} cx={size / 2} cy={size / 2} />
         <circle
           stroke={tone}
           fill="transparent"
@@ -73,16 +55,7 @@ export function ProgressCircle({
           style={{ transition: "stroke-dashoffset 240ms ease, stroke 240ms ease" }}
         />
       </svg>
-      <span
-        style={{
-          position: "absolute",
-          fontSize: 14,
-          fontWeight: 600,
-          color: "#0f172a",
-        }}
-      >
-        {Math.round(clamped)}%
-      </span>
+      <span className={styles.value}>{Math.round(clamped)}%</span>
     </div>
   );
 }
