@@ -377,11 +377,11 @@ function PublishWizard() {
     documents.find((doc) => doc.docType === type) ?? null;
 
   const steps = [
-    { id: "basics", title: "Basicos", subtitle: "Informacion y descripcion" },
-    { id: "location", title: "Ubicacion", subtitle: "Direccion y mapa" },
-    { id: "amenities", title: "Amenidades", subtitle: "Comodidades" },
-    { id: "media", title: "Multimedia", subtitle: "Fotos y videos" },
-    { id: "publish", title: "Publicar", subtitle: "Revision final" },
+    { id: "basics", title: "Basicos", subtitle: "Datos clave" },
+    { id: "location", title: "Ubicacion", subtitle: "Zona" },
+    { id: "amenities", title: "Amenidades", subtitle: "Extras" },
+    { id: "media", title: "Multimedia", subtitle: "Fotos" },
+    { id: "publish", title: "Publicar", subtitle: "Revision" },
   ] as const;
 
   const requirements = useMemo(() => {
@@ -470,14 +470,17 @@ function PublishWizard() {
                   className="wizard-field__control"
                   type="number"
                   min={0}
-                  value={form.priceAmount}
-                  onChange={(event) =>
+                  step="1"
+                  inputMode="decimal"
+                  value={form.priceAmount === 0 ? "" : form.priceAmount}
+                  onChange={(event) => {
+                    const raw = event.target.value;
                     setForm((prev) => ({
                       ...prev,
-                      priceAmount: Number(event.target.value),
-                    }))
-                  }
-                  placeholder="0"
+                      priceAmount: raw === "" ? 0 : Number(raw),
+                    }));
+                  }}
+                  placeholder="Ej: 2450000"
                 />
               </label>
               <label className="wizard-field">

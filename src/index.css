@@ -841,9 +841,10 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
   background: transparent;
   outline: none;
   font-size: 14px;
-  font-weight: 600;
-  padding-right: 20px;
-  color: inherit;
+  font-weight: 500;
+  padding: 4px 28px 4px 8px;
+  min-width: 120px;
+  color: #0f172a;
   cursor: pointer;
   appearance: none;
   -webkit-appearance: none;
@@ -1093,6 +1094,14 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
   color: #475569;
   gap: 6px;
 }
+.wizard__step-text {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  text-align: center;
+  line-height: 1.2;
+}
 .wizard__step-line {
   position: absolute;
   top: 18px;
@@ -1210,11 +1219,13 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
   -moz-appearance: none;
   background-image: linear-gradient(45deg, transparent 50%, rgba(41, 93, 255, 0.6) 50%),
     linear-gradient(135deg, rgba(41, 93, 255, 0.6) 50%, transparent 50%);
-  background-position: calc(100% - 20px) calc(50% + 2px), calc(100% - 14px) calc(50% + 2px);
-  background-size: 6px 6px, 6px 6px;
+  background-position: calc(100% - 22px) calc(50% - 2px), calc(100% - 14px) calc(50% - 2px);
+  background-size: 7px 7px, 7px 7px;
   background-repeat: no-repeat;
   padding-right: 32px;
+  cursor: pointer;
 }
+.wizard-field__control--select::-ms-expand { display: none; }
 .wizard-field__control--textarea {
   resize: vertical;
   min-height: 160px;

@@ -8,6 +8,10 @@
   overflow: hidden;
   font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
   transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+  width: 100%;
+  max-width: 360px;
+  min-height: 100%;
+  margin: 0 auto;
 }
 
 .tarjeta:hover {
@@ -21,10 +25,13 @@
   border: none;
   padding: 0;
   cursor: pointer;
+  display: block;
+  width: 100%;
 }
 
 .portada:disabled {
   cursor: default;
+  opacity: 0.6;
 }
 
 .cinta {
@@ -153,6 +160,7 @@
   padding: 0 20px 18px;
   font-size: 12px;
   color: var(--text-500, #64748b);
+  flex-wrap: wrap;
 }
 
 .metricas {
@@ -161,62 +169,12 @@
   align-items: center;
 }
 
-.menu {
-  position: relative;
-}
-
-.menuBtn {
-  border: none;
-  background: rgba(148, 163, 184, 0.16);
-  padding: 6px;
-  border-radius: 999px;
-  cursor: pointer;
-}
-
-.menuContenido {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
-  min-width: 200px;
-  border-radius: 14px;
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  background: #ffffff;
-  box-shadow: 0 24px 48px rgba(15, 23, 42, 0.16);
-  display: flex;
-  flex-direction: column;
-  padding: 6px;
-  z-index: 10;
-}
-
-.menuItem {
-  border: none;
-  background: transparent;
-  display: flex;
+.metricas span {
+  display: inline-flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  border-radius: 10px;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--text-700, #334155);
-  cursor: pointer;
-}
-
-.menuItem:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.menuItem:not(:disabled):hover {
-  background: rgba(41, 93, 255, 0.08);
-  color: #295dff;
-}
-
-.menuItemPeligro {
-  color: var(--danger, #ef4444);
-}
-
-.menuItemPeligro:not(:disabled):hover {
-  background: rgba(239, 68, 68, 0.12);
-  color: #b91c1c;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.14);
+  color: var(--text-600, #475569);
 }

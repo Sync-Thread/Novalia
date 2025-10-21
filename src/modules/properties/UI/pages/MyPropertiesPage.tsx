@@ -186,15 +186,7 @@ function MyPropertiesPageContent() {
       )}
 
       {viewMode === "grid" ? (
-        <section
-          className={styles.lista}
-          aria-live="polite"
-          style={{
-            // "width": "100%",
-            display: "initial",
-          }}
-          // className={styles.lista} aria-live="polite"
-        >
+        <section className={styles.lista} aria-live="polite">
           {items.map((property) => (
             <PropertyCard
               key={property.id}
