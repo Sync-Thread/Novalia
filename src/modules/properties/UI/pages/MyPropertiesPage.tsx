@@ -170,7 +170,7 @@ function MyPropertiesPageContent() {
         </section>
       </header>
 
-      {authStatus !== "verified" && <KycBanner visible />}
+      {authStatus !== "verified" && <KycBanner visible actionHref="/kyc" />}
 
       <FiltersBar
         values={filterValues}
