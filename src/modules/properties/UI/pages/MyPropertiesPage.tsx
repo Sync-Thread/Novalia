@@ -121,7 +121,7 @@ function MyPropertiesPageContent() {
   const selectedProperty = selectedId ? getCachedById(selectedId) : null;
 
   return (
-    <main className={styles.pagina}>
+    <main className={`${styles.pagina} app-container`}>
       <DesignBanner
         note="Esta vista replica la referencia de dashboard de propiedades. Sustituye placeholders y remueve el banner cuando integres assets finales."
         storageId="properties-dashboard"

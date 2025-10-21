@@ -195,7 +195,8 @@ export function QuickViewSheet({
           <>
             <section className={styles.bloque}>
               <h3>Resumen</h3>
-              <div className={styles.grid}>
+              {/* Distribución a 2 columnas: igual a diseño de referencia. No tocar lógica. */}
+              <div className={`${styles.grid} form-grid`}>
                 <span>Tipo: {property.propertyType}</span>
                 <span>Habitaciones: {property.bedrooms ?? 0}</span>
                 <span>Baños: {property.bathrooms ?? 0}</span>
@@ -207,7 +208,7 @@ export function QuickViewSheet({
 
             <section className={styles.bloque}>
               <h3>Documentos y verificación</h3>
-              <div className={styles.grid}>
+              <div className={`${styles.grid} form-grid`}>
                 <span>RPP: {formatVerification(property.rppVerification ?? null)}</span>
                 <span>Media cargada: {property.media.length}</span>
                 <span>Documentos: {property.documents.length}</span>
@@ -217,7 +218,7 @@ export function QuickViewSheet({
             {authProfile && (
               <section className={styles.bloque}>
                 <h3>Owner</h3>
-                <div className={styles.grid}>
+                <div className={`${styles.grid} form-grid`}>
                   <span>{authProfile.name}</span>
                   <span>{authProfile.email}</span>
                 </div>

@@ -66,7 +66,13 @@ export class SupabaseAuthService implements AuthService {
         .maybeSingle();
 
       profileError = error ?? null;
-      profile = (data as { org_id: string | null } | null) ?? null;
+      profile = (data as {
+        org_id: string | null;
+        full_name: string | null;
+        email: string | null;
+        phone: string | null;
+        role_hint: string | null;
+      } | null) ?? null;
 
       if (error || profile) {
         break;

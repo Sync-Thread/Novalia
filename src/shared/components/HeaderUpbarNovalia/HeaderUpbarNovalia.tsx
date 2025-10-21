@@ -724,7 +724,7 @@ export default function HeaderUpbarNovalia({
   return (
     <>
       <header className={`upbar${isMobile ? " upbar--mobile" : ""}`} role="navigation" aria-label="Barra superior Novalia">
-        <div className="upbar-inner">
+        <div className="app-container upbar-inner">
           <div className="upbar-left">
             <Link className="upbar-brand" to={role === "visitor" ? "/" : "/dashboard"} aria-label="Ir al inicio">
               <img src={logoSvg} alt="" aria-hidden="true" />

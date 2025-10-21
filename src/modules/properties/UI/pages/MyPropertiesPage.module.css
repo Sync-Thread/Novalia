@@ -1,10 +1,9 @@
 .pagina {
   display: flex;
   flex-direction: column;
-  gap: 24px;
-  padding: 32px 48px;
-  background: var(--bg, #f8fafc);
-  font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  gap: var(--gap-lg, 24px);
+  padding: var(--gap-lg, 24px) 0;
+  background: var(--surface, #f8fafc);
 }
 
 .cabecera {
@@ -168,10 +167,6 @@
 }
 
 @media (max-width: 1024px) {
-  .pagina {
-    padding: 28px 24px;
-  }
-
   .tituloFila {
     flex-direction: column;
     align-items: flex-start;
@@ -183,10 +178,6 @@
 }
 
 @media (max-width: 640px) {
-  .pagina {
-    padding: 24px 18px;
-  }
-
   .lista {
     grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   }

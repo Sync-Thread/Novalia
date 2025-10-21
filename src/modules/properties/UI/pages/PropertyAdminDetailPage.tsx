@@ -227,45 +227,71 @@ function PropertyAdminDetail() {
   const findDoc = (type: DocumentTypeDTO) => documents.find(doc => doc.docType === type) ?? null;
 
   if (!id) {
-    return <p style={{ padding: 32 }}>Selecciona una propiedad válida.</p>;
+    return (
+      <div className="app-container app-section">
+        <p>Selecciona una propiedad válida.</p>
+      </div>
+    );
   }
 
   return (
-    <main className="container stack" style={{ gap: "var(--gap)" }}>
+    <main className="property-admin app-container">
       <DesignBanner
         note="Panel compacto: edita datos mínimos, revisa media y gestiona documentos antes de publicar."
         storageKey="properties-admin-compact"
       />
 
       {property && (
-        <header className="card" style={{ padding: "var(--gap)", display: "flex", flexDirection: "column", gap: "12px" }}>
-          <nav className="card-meta" aria-label="Breadcrumb" style={{ gap: "8px" }}>
-            <button type="button" className="btn btn-ghost" onClick={() => navigate("/properties")}>Mis propiedades</button>
+        <header className="form-section property-admin__header">
+          <nav className="property-admin__breadcrumb" aria-label="Breadcrumb">
+            <button type="button" className="btn btn-ghost" onClick={() => navigate("/properties")}>
+              Mis propiedades
+            </button>
             <span aria-hidden="true">/</span>
             <span>{property.title}</span>
           </nav>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "var(--gap)" }}>
-            <div className="stack" style={{ gap: "4px" }}>
-              <h1 style={{ fontSize: "1.6rem", fontWeight: 600 }}>{property.title}</h1>
-              <span className="muted">{formatCurrency(property.price.amount, property.price.currency)}</span>
-              <span className="muted">{formatStatus(property.status)} • Creada {formatDate(property.createdAt ?? "")}</span>
+          <div className="property-admin__headline">
+            <div className="property-admin__summary">
+              <h1 className="property-admin__title">{property.title}</h1>
+              <p className="property-admin__meta">{formatCurrency(property.price.amount, property.price.currency)}</p>
+              <p className="property-admin__meta">
+                {formatStatus(property.status)} • Creada {formatDate(property.createdAt ?? "")}
+              </p>
             </div>
-            <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
-              <button type="button" className="btn" onClick={() => setQuickView(true)}>Vista rápida</button>
-              {property.status === "draft" && <button type="button" className="btn btn-primary" onClick={handlePublish}>Publicar</button>}
-              {property.status === "published" && <button type="button" className="btn" onClick={handlePause}>Pausar</button>}
-              <button type="button" className="btn" onClick={() => setMarkSoldOpen(true)}>Marcar vendida</button>
-              <button type="button" className="btn btn-ghost" style={{ color: "var(--danger)" }} onClick={() => setDeleteOpen(true)}>Eliminar</button>
+            <div className="property-admin__actions">
+              <button type="button" className="btn" onClick={() => setQuickView(true)}>
+                Vista rapida
+              </button>
+              {property.status === "draft" && (
+                <button type="button" className="btn btn-primary" onClick={handlePublish}>
+                  Publicar
+                </button>
+              )}
+              {property.status === "published" && (
+                <button type="button" className="btn" onClick={handlePause}>
+                  Pausar
+                </button>
+              )}
+              <button type="button" className="btn" onClick={() => setMarkSoldOpen(true)}>
+                Marcar vendida
+              </button>
+              <button type="button" className="btn btn-ghost property-admin__danger" onClick={() => setDeleteOpen(true)}>
+                Eliminar
+              </button>
             </div>
           </div>
         </header>
       )}
 
-      <section className="card" style={{ padding: "var(--gap)", display: "flex", flexDirection: "column", gap: "var(--gap)" }}>
-        <h2 style={{ fontSize: "1.2rem", fontWeight: 600 }}>Datos básicos</h2>
-        <div className="grid" style={{ gap: "var(--gap)", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
+      // Distribución a 2 columnas: igual a diseño de referencia. No tocar lógica.
+      <section className="form-section">
+        <header className="wizard-card__header">
+          <h2 className="form-section__title">Datos basicos</h2>
+          <p className="form-section__subtitle">Actualiza la informacion clave de la propiedad.</p>
+        </header>
+        <div className="form-grid">
           <label className="field-group">
-            <span className="field-label">Título</span>
+            <span className="field-label">Titulo</span>
             <input className="input" value={form.title} onChange={event => setForm(prev => ({ ...prev, title: event.target.value }))} />
           </label>
           <label className="field-group">
@@ -290,57 +316,75 @@ function PropertyAdminDetail() {
             <span className="field-label">Estado</span>
             <input className="input" value={form.state} onChange={event => setForm(prev => ({ ...prev, state: event.target.value }))} />
           </label>
+          <label className="field-group form-col-2">
+            <span className="field-label">Descripcion</span>
+            <textarea className="textarea" rows={4} value={form.description} onChange={event => setForm(prev => ({ ...prev, description: event.target.value }))} />
+          </label>
+          <div className="form-col-2">
+            <AmenityChips
+              groups={DEFAULT_AMENITY_GROUPS}
+              selected={form.amenities}
+              onChange={next => setForm(prev => ({ ...prev, amenities: next }))}
+              extraValue={form.amenitiesExtra}
+              onExtraChange={value => setForm(prev => ({ ...prev, amenitiesExtra: value }))}
+            />
+          </div>
         </div>
-        <label className="field-group">
-          <span className="field-label">Descripción</span>
-          <textarea className="textarea" rows={4} value={form.description} onChange={event => setForm(prev => ({ ...prev, description: event.target.value }))} />
-        </label>
-        <AmenityChips
-          groups={DEFAULT_AMENITY_GROUPS}
-          selected={form.amenities}
-          onChange={next => setForm(prev => ({ ...prev, amenities: next }))}
-          extraValue={form.amenitiesExtra}
-          onExtraChange={value => setForm(prev => ({ ...prev, amenitiesExtra: value }))}
-        />
-        <button type="button" className="btn btn-primary" onClick={handleSave} disabled={saving}>
-          {saving ? "Guardando..." : "Guardar cambios"}
-        </button>
-        {message && <span className="muted">{message}</span>}
+        <div className="property-admin__form-actions">
+          <button type="button" className="btn btn-primary" onClick={handleSave} disabled={saving}>
+            {saving ? "Guardando..." : "Guardar cambios"}
+          </button>
+          {message && <span className="muted">{message}</span>}
+        </div>
       </section>
 
-      <section className="card" style={{ padding: "var(--gap)", display: "flex", flexDirection: "column", gap: "var(--gap)" }}>
-        <h2 style={{ fontSize: "1.2rem", fontWeight: 600 }}>Media</h2>
-        <MediaDropzone
-          items={mediaItems}
-          onUpload={handleUploadMedia}
-          onRemove={handleRemoveMedia}
-          onSetCover={handleSetCover}
-          onReorder={handleReorderMedia}
-        />
+      <section className="form-section">
+        <header className="wizard-card__header">
+          <h2 className="form-section__title">Media</h2>
+          <p className="form-section__subtitle">Gestiona la galeria de la propiedad.</p>
+        </header>
+        <div className="form-grid">
+          <div className="form-col-2">
+            <MediaDropzone
+              items={mediaItems}
+              onUpload={handleUploadMedia}
+              onRemove={handleRemoveMedia}
+              onSetCover={handleSetCover}
+              onReorder={handleReorderMedia}
+            />
+          </div>
+        </div>
       </section>
 
-      <section className="card" style={{ padding: "var(--gap)", display: "flex", flexDirection: "column", gap: "var(--gap)" }}>
-        <h2 style={{ fontSize: "1.2rem", fontWeight: 600 }}>Documentos</h2>
-        {(["rpp_certificate", "deed", "id_doc"] as DocumentTypeDTO[]).map(type => (
-          <DocumentCard
-            key={type}
-            docType={type}
-            document={findDoc(type)}
-            onUpload={file => attachDoc(type, file)}
-            onDelete={() => {
-              const doc = findDoc(type);
-              if (doc) deleteDoc(doc);
-            }}
-            onVerify={status => {
-              const doc = findDoc(type);
-              if (doc) verifyDoc(doc, status);
-            }}
-            allowVerification={type === "rpp_certificate"}
-          />
-        ))}
-        <span className="muted" style={{ fontSize: "0.85rem" }}>
-          Estado del RPP: {formatVerification(findDoc("rpp_certificate")?.verification ?? "pending")}
-        </span>
+      <section className="form-section">
+        <header className="wizard-card__header">
+          <h2 className="form-section__title">Documentos</h2>
+          <p className="form-section__subtitle">Adjunta y revisa los archivos requeridos.</p>
+        </header>
+        <div className="form-grid">
+          <div className="wizard-docs form-col-2">
+            {(["rpp_certificate", "deed", "id_doc"] as DocumentTypeDTO[]).map(type => (
+              <DocumentCard
+                key={type}
+                docType={type}
+                document={findDoc(type)}
+                onUpload={file => attachDoc(type, file)}
+                onDelete={() => {
+                  const doc = findDoc(type);
+                  if (doc) deleteDoc(doc);
+                }}
+                onVerify={status => {
+                  const doc = findDoc(type);
+                  if (doc) verifyDoc(doc, status);
+                }}
+                allowVerification={type === "rpp_certificate"}
+              />
+            ))}
+          </div>
+          <span className="wizard-note form-col-2">
+            Estado del RPP: {formatVerification(findDoc("rpp_certificate")?.verification ?? "pending")}
+          </span>
+        </div>
       </section>
 
       {property && (
