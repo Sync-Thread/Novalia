@@ -82,9 +82,7 @@ function coerceBoolean(value: boolean | null | undefined): boolean | null {
 }
 
 export function mapPropertyRowToDTO(row: PropertyRow): PropertyDTO {
-  if (!row.org_id) {
-    throw new Error("Property row missing org_id");
-  }
+  const resolvedOrgId = row.org_id ?? row.lister_user_id ?? "independent"; // TODO(DATOS): Homologar org_id nulo con agentes independientes.
   const priceAmount = parseNumeric(row.price);
   if (priceAmount === null) {
     throw new Error("Property row missing price");
@@ -92,7 +90,7 @@ export function mapPropertyRowToDTO(row: PropertyRow): PropertyDTO {
   const currency = (row.currency as PropertyDTO["price"]["currency"]) ?? "MXN";
   return {
     id: row.id,
-    orgId: row.org_id,
+    orgId: resolvedOrgId,
     listerUserId: row.lister_user_id,
     status: row.status as PropertyDTO["status"],
     publishedAt: ensureIso(row.published_at),

@@ -7,17 +7,10 @@
   font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
-.migas {
-  font-size: 13px;
-  color: var(--text-500, #64748b);
-  display: flex;
-  gap: 6px;
-}
-
 .cabecera {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 12px;
 }
 
 .tituloFila {

@@ -128,11 +128,6 @@ function MyPropertiesPageContent() {
       />
 
       <header className={styles.cabecera}>
-        <nav className={styles.migas} aria-label="Ruta de navegación">
-          <span>Dashboard</span>
-          <span>/</span>
-          <span>Mis propiedades</span>
-        </nav>
         <div className={styles.tituloFila}>
           <h1 className={styles.titulo}>Mis propiedades</h1>
           <button type="button" onClick={() => navigate("/properties/new")} className={styles.btnPrincipal}>
