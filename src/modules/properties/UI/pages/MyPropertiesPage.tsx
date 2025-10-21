@@ -3,15 +3,25 @@ import { useNavigate } from "react-router-dom";
 import { PropertiesProvider } from "../containers/PropertiesProvider";
 import { usePropertyList } from "../hooks/usePropertyList";
 import { usePropertiesActions } from "../hooks/usePropertiesActions";
-import FiltersBar, { type FiltersBarValues, type ViewMode } from "../components/FiltersBar";
+import FiltersBar, {
+  type FiltersBarValues,
+  type ViewMode,
+} from "../components/FiltersBar";
 import KycBanner from "../components/KycBanner";
-import PropertyCard, { type PropertyCardAction } from "../components/PropertyCard";
+import PropertyCard, {
+  type PropertyCardAction,
+} from "../components/PropertyCard";
 import QuickViewSheet from "../components/QuickViewSheet";
 import MarkSoldModal from "../modals/MarkSoldModal";
 import DeletePropertyModal from "../modals/DeletePropertyModal";
 import DesignBanner from "../utils/DesignBanner";
 import type { PropertyDTO } from "../../application/dto/PropertyDTO";
-import { formatCurrency, formatDate, formatStatus, formatVerification } from "../utils/format";
+import {
+  formatCurrency,
+  formatDate,
+  formatStatus,
+  formatVerification,
+} from "../utils/format";
 import styles from "./MyPropertiesPage.module.css";
 
 export default function MyPropertiesPage() {
@@ -24,19 +34,33 @@ export default function MyPropertiesPage() {
 
 function MyPropertiesPageContent() {
   const navigate = useNavigate();
-  const { filters, items, loading, error, setFilters, refresh, setPage, page, pageSize, total, cache, getCachedById } =
-    usePropertyList();
+  const {
+    filters,
+    items,
+    loading,
+    error,
+    setFilters,
+    refresh,
+    setPage,
+    page,
+    pageSize,
+    total,
+    cache,
+    getCachedById,
+  } = usePropertyList();
   const actions = usePropertiesActions();
   const { getAuthProfile } = actions;
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
-  const [authStatus, setAuthStatus] = useState<"verified" | "pending" | "rejected">("pending");
+  const [authStatus, setAuthStatus] = useState<
+    "verified" | "pending" | "rejected"
+  >("pending");
   const [quickOpen, setQuickOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [markSoldFor, setMarkSoldFor] = useState<PropertyDTO | null>(null);
   const [deleteFor, setDeleteFor] = useState<PropertyDTO | null>(null);
 
   useEffect(() => {
-    void getAuthProfile().then(result => {
+    void getAuthProfile().then((result) => {
       if (result.isOk()) setAuthStatus(result.value.kycStatus);
     });
   }, [getAuthProfile]);
@@ -46,12 +70,12 @@ function MyPropertiesPageContent() {
       ...filters,
       viewMode,
     }),
-    [filters, viewMode],
+    [filters, viewMode]
   );
 
   const stats = useMemo(() => {
     const acc = { total: cache.size, draft: 0, published: 0, sold: 0 };
-    cache.forEach(property => {
+    cache.forEach((property) => {
       if (property.status === "draft") acc.draft += 1;
       if (property.status === "published") acc.published += 1;
       if (property.status === "sold") acc.sold += 1;
@@ -95,12 +119,12 @@ function MyPropertiesPageContent() {
         navigate(`/properties/${property.id}/admin`);
         break;
       case "publish":
-        void actions.publishProperty({ id: property.id }).then(result => {
+        void actions.publishProperty({ id: property.id }).then((result) => {
           if (result.isOk()) void refresh();
         });
         break;
       case "pause":
-        void actions.pauseProperty({ id: property.id }).then(result => {
+        void actions.pauseProperty({ id: property.id }).then((result) => {
           if (result.isOk()) void refresh();
         });
         break;
@@ -130,7 +154,11 @@ function MyPropertiesPageContent() {
       <header className={styles.cabecera}>
         <div className={styles.tituloFila}>
           <h1 className={styles.titulo}>Mis propiedades</h1>
-          <button type="button" onClick={() => navigate("/properties/new")} className={styles.btnPrincipal}>
+          <button
+            type="button"
+            onClick={() => navigate("/properties/new")}
+            className={styles.btnPrincipal}
+          >
             Nueva propiedad
           </button>
         </div>
@@ -144,7 +172,12 @@ function MyPropertiesPageContent() {
 
       {authStatus !== "verified" && <KycBanner visible />}
 
-      <FiltersBar values={filterValues} onChange={handleFilterChange} onReset={handleReset} disabled={loading} />
+      <FiltersBar
+        values={filterValues}
+        onChange={handleFilterChange}
+        onReset={handleReset}
+        disabled={loading}
+      />
 
       {error && (
         <div role="alert" className={styles.alerta}>
@@ -153,24 +186,49 @@ function MyPropertiesPageContent() {
       )}
 
       {viewMode === "grid" ? (
-        <section className={styles.lista} aria-live="polite">
-          {items.map(property => (
-            <PropertyCard key={property.id} property={property} onAction={handleAction} />
+        <section
+          className={styles.lista}
+          aria-live="polite"
+          style={{
+            // "width": "100%",
+            display: "initial",
+          }}
+          // className={styles.lista} aria-live="polite"
+        >
+          {items.map((property) => (
+            <PropertyCard
+              key={property.id}
+              property={property}
+              onAction={handleAction}
+            />
           ))}
           {!loading && items.length === 0 && (
             <div className={styles.vacio}>
               <p>No encontramos propiedades con esos filtros.</p>
-              <button type="button" onClick={handleReset} className={styles.btnPrincipal}>
+              <button
+                type="button"
+                onClick={handleReset}
+                className={styles.btnPrincipal}
+              >
                 Limpiar filtros
               </button>
             </div>
           )}
         </section>
       ) : (
-        <PropertyListTable items={items} loading={loading} onAction={handleAction} />
+        <PropertyListTable
+          items={items}
+          loading={loading}
+          onAction={handleAction}
+        />
       )}
 
-      <Pagination page={page} pageSize={pageSize} total={total} onChange={setPage} />
+      <Pagination
+        page={page}
+        pageSize={pageSize}
+        total={total}
+        onChange={setPage}
+      />
 
       <QuickViewSheet
         propertyId={selectedId}
@@ -178,8 +236,10 @@ function MyPropertiesPageContent() {
         open={quickOpen}
         onClose={() => setQuickOpen(false)}
         onRefresh={refresh}
-        onEdit={id => navigate(`/properties/${id}/admin`)}
-        onViewPublic={prop => window.open(`/p/${prop.id}`, "_blank", "noopener,noreferrer")}
+        onEdit={(id) => navigate(`/properties/${id}/admin`)}
+        onViewPublic={(prop) =>
+          window.open(`/p/${prop.id}`, "_blank", "noopener,noreferrer")
+        }
       />
 
       <MarkSoldModal
@@ -190,12 +250,14 @@ function MyPropertiesPageContent() {
         onConfirm={({ soldAt }) => {
           const property = markSoldFor;
           if (!property) return;
-          void actions.markSold({ id: property.id, soldAt: new Date(soldAt) }).then(result => {
-            if (result.isOk()) {
-              setMarkSoldFor(null);
-              void refresh();
-            }
-          });
+          void actions
+            .markSold({ id: property.id, soldAt: new Date(soldAt) })
+            .then((result) => {
+              if (result.isOk()) {
+                setMarkSoldFor(null);
+                void refresh();
+              }
+            });
         }}
       />
 
@@ -207,7 +269,7 @@ function MyPropertiesPageContent() {
         onConfirm={() => {
           const property = deleteFor;
           if (!property) return;
-          void actions.deleteProperty({ id: property.id }).then(result => {
+          void actions.deleteProperty({ id: property.id }).then((result) => {
             if (result.isOk()) {
               setDeleteFor(null);
               void refresh();
@@ -238,7 +300,9 @@ function PropertyListTable({
   onAction: (action: PropertyCardAction, property: PropertyDTO) => void;
 }) {
   if (!loading && items.length === 0) {
-    return <div className={styles.vacio}>No hay propiedades en esta vista.</div>;
+    return (
+      <div className={styles.vacio}>No hay propiedades en esta vista.</div>
+    );
   }
 
   return (
@@ -246,29 +310,53 @@ function PropertyListTable({
       <table className={styles.tablaTable}>
         <thead>
           <tr>
-            {["Propiedad", "Estado", "Tipo", "Precio", "Ubicación", "Publicada", "Completitud", "RPP", "Acciones"].map(header => (
+            {[
+              "Propiedad",
+              "Estado",
+              "Tipo",
+              "Precio",
+              "Ubicación",
+              "Publicada",
+              "Completitud",
+              "RPP",
+              "Acciones",
+            ].map((header) => (
               <th key={header}>{header}</th>
             ))}
           </tr>
         </thead>
         <tbody>
-          {items.map(property => (
+          {items.map((property) => (
             <tr key={property.id}>
               <td>
                 <strong>{property.title}</strong>
-                <div style={{ fontSize: 12, color: "var(--text-500, #64748b)" }}>{property.id}</div>
+                <div
+                  style={{ fontSize: 12, color: "var(--text-500, #64748b)" }}
+                >
+                  {property.id}
+                </div>
               </td>
               <td>{formatStatus(property.status)}</td>
               <td>{property.propertyType}</td>
-              <td>{formatCurrency(property.price.amount, property.price.currency)}</td>
+              <td>
+                {formatCurrency(property.price.amount, property.price.currency)}
+              </td>
               <td>
                 {property.address.city}, {property.address.state}
               </td>
-              <td>{property.publishedAt ? formatDate(property.publishedAt) : "-"}</td>
-              <td>{Math.round(property.completenessScore)}%</td>
-              <td>{formatVerification(property.rppVerification ?? "pending")}</td>
               <td>
-                <button type="button" onClick={() => onAction("quick_view", property)} className={styles.tablaBtn}>
+                {property.publishedAt ? formatDate(property.publishedAt) : "-"}
+              </td>
+              <td>{Math.round(property.completenessScore)}%</td>
+              <td>
+                {formatVerification(property.rppVerification ?? "pending")}
+              </td>
+              <td>
+                <button
+                  type="button"
+                  onClick={() => onAction("quick_view", property)}
+                  className={styles.tablaBtn}
+                >
                   Acciones
                 </button>
               </td>
@@ -298,7 +386,12 @@ function Pagination({
         Página {page} de {totalPages}
       </span>
       <div className={styles.paginacionControles}>
-        <button type="button" onClick={() => onChange(Math.max(1, page - 1))} disabled={page === 1} className={styles.paginacionBtn}>
+        <button
+          type="button"
+          onClick={() => onChange(Math.max(1, page - 1))}
+          disabled={page === 1}
+          className={styles.paginacionBtn}
+        >
           Anterior
         </button>
         <button

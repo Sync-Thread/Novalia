@@ -1,17 +1,34 @@
 // Wizard moderno para publicar propiedades. Mantener la logica de negocio intacta.
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { PropertiesProvider } from "../containers/PropertiesProvider";
 import { usePropertiesActions } from "../hooks/usePropertiesActions";
-import AmenityChips, { DEFAULT_AMENITY_GROUPS } from "../components/AmenityChips";
+import AmenityChips, {
+  DEFAULT_AMENITY_GROUPS,
+} from "../components/AmenityChips";
 import MediaDropzone from "../components/MediaDropzone";
 import DocumentCard from "../components/DocumentCard";
 import DesignBanner from "../utils/DesignBanner";
 import { formatVerification } from "../utils/format";
+import {
+  isGeolocationSupported,
+  getCurrentPosition,
+} from "../utils/geolocation";
+import type { Coords } from "../utils/geolocation";
 import type { MediaDTO } from "../../application/dto/MediaDTO";
-import type { DocumentDTO, DocumentTypeDTO, VerificationStatusDTO } from "../../application/dto/DocumentDTO";
+import type {
+  DocumentDTO,
+  DocumentTypeDTO,
+  VerificationStatusDTO,
+} from "../../application/dto/DocumentDTO";
 import type { Currency, PropertyType } from "../../domain/enums";
-import { CURRENCY_VALUES, PROPERTY_TYPE, PROPERTY_TYPE_VALUES } from "../../domain/enums";
+import {
+  CURRENCY_VALUES,
+  PROPERTY_TYPE,
+  PROPERTY_TYPE_VALUES,
+} from "../../domain/enums";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 
 const PROPERTY_TYPE_LABELS: Record<PropertyType, string> = {
   house: "Casa",
@@ -23,7 +40,7 @@ const PROPERTY_TYPE_LABELS: Record<PropertyType, string> = {
   other: "Otro",
 } as const;
 
-const PROPERTY_TYPE_OPTIONS = PROPERTY_TYPE_VALUES.map(value => ({
+const PROPERTY_TYPE_OPTIONS = PROPERTY_TYPE_VALUES.map((value) => ({
   value,
   label: PROPERTY_TYPE_LABELS[value],
 }));
@@ -84,6 +101,130 @@ function PublishWizard() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [currentStep, setCurrentStep] = useState(0);
+  const [coords, setCoords] = useState<Coords | null>(null);
+  const mapRef = React.useRef<HTMLDivElement | null>(null);
+  const leafletMap = useRef<L.Map | null>(null);
+  const markerRef = useRef<L.Marker | null>(null);
+
+  // const [coords, setCoords] = useState<Coords | null>(null);
+
+  useEffect(() => {
+    console.log("use effect ...");
+
+    if (!mapRef.current) return;
+
+    const defaultLat = 22.2981865;
+    const defaultLng = -97.8606072;
+
+    // Crear mapa sólo 1 vez
+    if (!leafletMap.current) {
+      leafletMap.current = L.map(mapRef.current).setView(
+        [defaultLat, defaultLng],
+        16
+      );
+
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: "&copy; OpenStreetMap contributors",
+      }).addTo(leafletMap.current);
+
+      // Crear marker draggable en la posición por defecto
+      markerRef.current = L.marker([defaultLat, defaultLng], {
+        draggable: true,
+      })
+        .addTo(leafletMap.current)
+        .bindPopup("Marcador (arrástrame)")
+        .openPopup();
+
+      // evento al terminar de arrastrar: actualiza estado
+      markerRef.current.on("dragend", () => {
+        const pos = markerRef.current!.getLatLng();
+        setCoords({ lat: pos.lat, lng: pos.lng });
+      });
+
+      // guardar coords iniciales en el estado
+      setCoords({ lat: defaultLat, lng: defaultLng });
+    }
+
+    // cleanup al desmontar
+    return () => {
+      if (leafletMap.current) {
+        leafletMap.current.remove();
+        leafletMap.current = null;
+        markerRef.current = null;
+      }
+    };
+  }, [currentStep]);
+
+  // función que llamarás cuando quieras obtener la ubicación real
+  const getLocation = async () => {
+    try {
+      // tu getCurrentPosition debe devolver { lat, lng } o similar
+      const position = await getCurrentPosition();
+      const lat = position.lat;
+      const lng = position.lng;
+
+      setCoords({ lat, lng });
+
+      // mover marker si existe, si no, crearlo
+      if (markerRef.current) {
+        markerRef.current.setLatLng([lat, lng]);
+        markerRef.current.openPopup();
+      } else if (leafletMap.current) {
+        markerRef.current = L.marker([lat, lng], { draggable: true })
+          .addTo(leafletMap.current)
+          .bindPopup("Marcador (arrástrame)")
+          .openPopup();
+
+        markerRef.current.on("dragend", () => {
+          const pos = markerRef.current!.getLatLng();
+          setCoords({ lat: pos.lat, lng: pos.lng });
+        });
+      }
+
+      // centrar mapa en la nueva posición
+      leafletMap.current?.setView([lat, lng], 16);
+    } catch (error) {
+      console.error("Error obteniendo ubicación:", error);
+    }
+  };
+
+  // useEffect(() => {
+  //   if (!mapRef.current) return;
+  //   const lat = 22.2981865;
+  //   const lng =  -97.8606072;
+
+  //   const map = L.map(mapRef.current).setView([lat, lng], 16);
+  // }, []);
+
+  // const getLocation = async () => {
+  //   try {
+  //     const position = await getCurrentPosition();
+  //     const lat = position.lat;
+  //     const lng = position.lng;
+
+  //     setCoords({ lat, lng });
+  //     // reverseGeocode(lat, lng);
+
+  //     if (mapRef.current) {
+  //       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  //         attribution: "&copy; OpenStreetMap contributors",
+  //       }).addTo(map);
+
+  //       const marker = L.marker([lat, lng], { draggable: true })
+  //         .addTo(map)
+  //         .bindPopup(t("locations.add.popup_marker"))
+  //         .openPopup();
+
+  //       marker.on("dragend", () => {
+  //         const position = marker.getLatLng();
+  //         // setLocation({ lat: position.lat, lng: position.lng });
+  //         setCoords({ lat, lng });
+  //       });
+  //     }
+  //   } catch (error) {
+  //     console.error("Error obteniendo ubicación:", error);
+  //   }
+  // };
 
   const handleSave = async () => {
     setSaving(true);
@@ -92,7 +233,10 @@ function PublishWizard() {
       title: form.title.trim() || "Propiedad sin titulo",
       description: form.description.trim() || null,
       propertyType: form.propertyType,
-      price: { amount: Math.max(1, form.priceAmount), currency: form.priceCurrency },
+      price: {
+        amount: Math.max(1, form.priceAmount),
+        currency: form.priceCurrency,
+      },
       operationType: "sale" as const,
       address: {
         city: form.city.trim() || "Por definir",
@@ -106,15 +250,22 @@ function PublishWizard() {
       const result = await createProperty(payload);
       if (result.isOk()) {
         const id = result.value.id;
-        setForm(prev => ({ ...prev, propertyId: id }));
+        setForm((prev) => ({ ...prev, propertyId: id }));
         await refreshDocs(id);
         setMessage("Borrador guardado.");
       } else {
         setMessage("No pudimos guardar el borrador.");
       }
     } else {
-      const result = await updateProperty({ id: form.propertyId, patch: payload });
-      setMessage(result.isOk() ? "Borrador actualizado." : "No pudimos actualizar el borrador.");
+      const result = await updateProperty({
+        id: form.propertyId,
+        patch: payload,
+      });
+      setMessage(
+        result.isOk()
+          ? "Borrador actualizado."
+          : "No pudimos actualizar el borrador."
+      );
     }
     setSaving(false);
   };
@@ -157,13 +308,19 @@ function PublishWizard() {
 
   const handleSetCover = async (mediaId: string) => {
     if (!form.propertyId) return;
-    const result = await setCoverMedia({ propertyId: form.propertyId, mediaId });
+    const result = await setCoverMedia({
+      propertyId: form.propertyId,
+      mediaId,
+    });
     if (result.isOk()) setMediaItems(result.value);
   };
 
   const handleReorder = async (order: string[]) => {
     if (!form.propertyId) return;
-    const result = await reorderMedia({ propertyId: form.propertyId, mediaIds: order });
+    const result = await reorderMedia({
+      propertyId: form.propertyId,
+      mediaIds: order,
+    });
     if (result.isOk()) setMediaItems(result.value);
   };
 
@@ -182,6 +339,25 @@ function PublishWizard() {
     if (result.isOk()) await refreshDocs(form.propertyId);
   };
 
+  const handleLocation = async () => {
+    if (!isGeolocationSupported()) {
+      setMessage(
+        "Geolocalización no soportada en este navegador, mueve el pin al lugar correspondiente."
+      );
+      return;
+    }
+    try {
+      getLocation();
+      // const coords = await getCurrentPosition();
+      // setCoords(coords);
+      // setMessage("Ubicación actual establecida.");
+    } catch (error) {
+      setMessage(
+        `No pudimos obtener tu ubicación: ${(error as Error).message}`
+      );
+    }
+  };
+
   const deleteDoc = async (doc: DocumentDTO) => {
     const result = await deleteDocument(doc.id);
     if (result.isOk() && form.propertyId) await refreshDocs(form.propertyId);
@@ -189,11 +365,16 @@ function PublishWizard() {
 
   const verifyDoc = async (doc: DocumentDTO, status: VerificationStatusDTO) => {
     if (!form.propertyId) return;
-    const result = await verifyRpp({ propertyId: form.propertyId, docId: doc.id, status });
+    const result = await verifyRpp({
+      propertyId: form.propertyId,
+      docId: doc.id,
+      status,
+    });
     if (result.isOk()) await refreshDocs(form.propertyId);
   };
 
-  const findDoc = (type: DocumentTypeDTO) => documents.find(doc => doc.docType === type) ?? null;
+  const findDoc = (type: DocumentTypeDTO) =>
+    documents.find((doc) => doc.docType === type) ?? null;
 
   const steps = [
     { id: "basics", title: "Basicos", subtitle: "Informacion y descripcion" },
@@ -204,26 +385,40 @@ function PublishWizard() {
   ] as const;
 
   const requirements = useMemo(() => {
-    const rppDoc = documents.find(doc => doc.docType === "rpp_certificate") ?? null;
+    const rppDoc =
+      documents.find((doc) => doc.docType === "rpp_certificate") ?? null;
     return [
       { label: "Titulo (Paso 1)", valid: form.title.trim().length > 0 },
       { label: "Tipo (Paso 1)", valid: form.propertyType.trim().length > 0 },
       { label: "Precio (Paso 1)", valid: form.priceAmount > 0 },
       { label: "Ciudad (Paso 2)", valid: form.city.trim().length > 0 },
       { label: "Estado (Paso 2)", valid: form.state.trim().length > 0 },
-      { label: "Descripcion (Paso 1)", valid: form.description.trim().length > 0 },
-      { label: "Amenidades (Paso 3)", valid: form.amenities.length > 0 || form.amenitiesExtra.trim().length > 0 },
+      {
+        label: "Descripcion (Paso 1)",
+        valid: form.description.trim().length > 0,
+      },
+      {
+        label: "Amenidades (Paso 3)",
+        valid:
+          form.amenities.length > 0 || form.amenitiesExtra.trim().length > 0,
+      },
       { label: "Fotos min. 1 (Paso 4)", valid: mediaItems.length > 0 },
-      { label: "Documento RPP (Paso 5)", valid: Boolean(rppDoc && rppDoc.verification === "approved") },
+      {
+        label: "Documento RPP (Paso 5)",
+        valid: Boolean(rppDoc && rppDoc.verification === "approved"),
+      },
     ];
   }, [form, mediaItems, documents]);
 
-  const completed = requirements.filter(item => item.valid).length;
+  const completed = requirements.filter((item) => item.valid).length;
   const completion = Math.round((completed / requirements.length) * 100);
-  const missingItems = requirements.filter(item => !item.valid).map(item => item.label);
+  const missingItems = requirements
+    .filter((item) => !item.valid)
+    .map((item) => item.label);
 
-  const goNext = () => setCurrentStep(prev => Math.min(prev + 1, steps.length - 1));
-  const goPrev = () => setCurrentStep(prev => Math.max(prev - 1, 0));
+  const goNext = () =>
+    setCurrentStep((prev) => Math.min(prev + 1, steps.length - 1));
+  const goPrev = () => setCurrentStep((prev) => Math.max(prev - 1, 0));
   const handleCancel = () => navigate("/properties");
 
   // Distribución a 2 columnas: igual a diseño de referencia. No tocar lógica.
@@ -234,7 +429,9 @@ function PublishWizard() {
           <div className="wizard-card form-section">
             <header className="wizard-card__header">
               <h2 className="wizard-card__title">Informacion basica</h2>
-              <p className="wizard-card__subtitle">Define los datos principales de la propiedad.</p>
+              <p className="wizard-card__subtitle">
+                Define los datos principales de la propiedad.
+              </p>
             </header>
             <div className="form-grid">
               <label className="wizard-field">
@@ -242,7 +439,9 @@ function PublishWizard() {
                 <input
                   className="wizard-field__control"
                   value={form.title}
-                  onChange={event => setForm(prev => ({ ...prev, title: event.target.value }))}
+                  onChange={(event) =>
+                    setForm((prev) => ({ ...prev, title: event.target.value }))
+                  }
                   placeholder="Ej: Departamento moderno en Roma Norte"
                 />
               </label>
@@ -251,11 +450,14 @@ function PublishWizard() {
                 <select
                   className="wizard-field__control wizard-field__control--select"
                   value={form.propertyType}
-                  onChange={event =>
-                    setForm(prev => ({ ...prev, propertyType: event.target.value as PropertyType }))
+                  onChange={(event) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      propertyType: event.target.value as PropertyType,
+                    }))
                   }
                 >
-                  {PROPERTY_TYPE_OPTIONS.map(option => (
+                  {PROPERTY_TYPE_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>
                       {option.label}
                     </option>
@@ -269,7 +471,12 @@ function PublishWizard() {
                   type="number"
                   min={0}
                   value={form.priceAmount}
-                  onChange={event => setForm(prev => ({ ...prev, priceAmount: Number(event.target.value) }))}
+                  onChange={(event) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      priceAmount: Number(event.target.value),
+                    }))
+                  }
                   placeholder="0"
                 />
               </label>
@@ -278,9 +485,14 @@ function PublishWizard() {
                 <select
                   className="wizard-field__control wizard-field__control--select"
                   value={form.priceCurrency}
-                  onChange={event => setForm(prev => ({ ...prev, priceCurrency: event.target.value as Currency }))}
+                  onChange={(event) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      priceCurrency: event.target.value as Currency,
+                    }))
+                  }
                 >
-                  {CURRENCY_VALUES.map(value => (
+                  {CURRENCY_VALUES.map((value) => (
                     <option key={value} value={value}>
                       {value}
                     </option>
@@ -293,7 +505,12 @@ function PublishWizard() {
                   className="wizard-field__control wizard-field__control--textarea"
                   rows={6}
                   value={form.description}
-                  onChange={event => setForm(prev => ({ ...prev, description: event.target.value }))}
+                  onChange={(event) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      description: event.target.value,
+                    }))
+                  }
                   placeholder="Describe caracteristicas, acabados y beneficios principales."
                 />
               </label>
@@ -302,7 +519,12 @@ function PublishWizard() {
                 <input
                   className="wizard-field__control"
                   value={form.amenitiesExtra}
-                  onChange={event => setForm(prev => ({ ...prev, amenitiesExtra: event.target.value }))}
+                  onChange={(event) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      amenitiesExtra: event.target.value,
+                    }))
+                  }
                   placeholder="Ej: Incluye mantenimiento, pet friendly..."
                 />
               </label>
@@ -314,7 +536,9 @@ function PublishWizard() {
           <div className="wizard-card form-section">
             <header className="wizard-card__header">
               <h2 className="wizard-card__title">Ubicacion</h2>
-              <p className="wizard-card__subtitle">Indica donde se encuentra la propiedad.</p>
+              <p className="wizard-card__subtitle">
+                Indica donde se encuentra la propiedad.
+              </p>
             </header>
             <div className="form-grid">
               <label className="wizard-field">
@@ -322,7 +546,9 @@ function PublishWizard() {
                 <input
                   className="wizard-field__control"
                   value={form.city}
-                  onChange={event => setForm(prev => ({ ...prev, city: event.target.value }))}
+                  onChange={(event) =>
+                    setForm((prev) => ({ ...prev, city: event.target.value }))
+                  }
                   placeholder="Ej: Ciudad de Mexico"
                 />
               </label>
@@ -331,18 +557,51 @@ function PublishWizard() {
                 <input
                   className="wizard-field__control"
                   value={form.state}
-                  onChange={event => setForm(prev => ({ ...prev, state: event.target.value }))}
+                  onChange={(event) =>
+                    setForm((prev) => ({ ...prev, state: event.target.value }))
+                  }
                   placeholder="Ej: CDMX"
                 />
               </label>
               <div className="wizard-map form-col-2">
-                <div className="wizard-map__icon" aria-hidden="true">
-                  {"\u25cf"}
+                <p style={{ marginBottom: "12px", fontSize: "0.875rem" }}>
+                  Selecciona una ubicacion aproximada para mostrar en el mapa.
+                  Arrastra el marcador para ajustar.
+                </p>
+                <div
+                  ref={mapRef}
+                  id="map"
+                  style={{
+                    height: "400px",
+                    width: "100%",
+                    borderRadius: "8px",
+                    marginBottom: "12px",
+                    border: "1px solid #e0e0e0",
+                    position: "relative",
+                    zIndex: 1,
+                  }}
+                />
+                <div
+                  style={{
+                    display: "flex",
+                    gap: "12px",
+                    alignItems: "center",
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <button
+                    onClick={handleLocation}
+                    type="button"
+                    className="btn btn-outline btn-sm"
+                  >
+                    📍 Usar mi ubicacion
+                  </button>
+                  {coords && (
+                    <span style={{ fontSize: "0.875rem", color: "#666" }}>
+                      Lat: {coords.lat.toFixed(4)}, Lng: {coords.lng.toFixed(4)}
+                    </span>
+                  )}
                 </div>
-                <p>Selecciona una ubicacion aproximada para mostrar en el mapa.</p>
-                <button type="button" className="btn btn-outline btn-sm">
-                  Usar mi ubicacion
-                </button>
               </div>
             </div>
           </div>
@@ -352,16 +611,22 @@ function PublishWizard() {
           <div className="wizard-card form-section">
             <header className="wizard-card__header">
               <h2 className="wizard-card__title">Amenidades</h2>
-              <p className="wizard-card__subtitle">Selecciona las comodidades clave.</p>
+              <p className="wizard-card__subtitle">
+                Selecciona las comodidades clave.
+              </p>
             </header>
             <div className="form-grid">
               <div className="form-col-2">
                 <AmenityChips
                   groups={DEFAULT_AMENITY_GROUPS}
                   selected={form.amenities}
-                  onChange={next => setForm(prev => ({ ...prev, amenities: next }))}
+                  onChange={(next) =>
+                    setForm((prev) => ({ ...prev, amenities: next }))
+                  }
                   extraValue={form.amenitiesExtra}
-                  onExtraChange={value => setForm(prev => ({ ...prev, amenitiesExtra: value }))}
+                  onExtraChange={(value) =>
+                    setForm((prev) => ({ ...prev, amenitiesExtra: value }))
+                  }
                 />
               </div>
             </div>
@@ -372,7 +637,9 @@ function PublishWizard() {
           <div className="wizard-card form-section">
             <header className="wizard-card__header">
               <h2 className="wizard-card__title">Galeria de medios</h2>
-              <p className="wizard-card__subtitle">Agrega fotos y videos destacados.</p>
+              <p className="wizard-card__subtitle">
+                Agrega fotos y videos destacados.
+              </p>
             </header>
             <div className="form-grid">
               <div className="form-col-2">
@@ -392,21 +659,25 @@ function PublishWizard() {
           <div className="wizard-card form-section">
             <header className="wizard-card__header">
               <h2 className="wizard-card__title">Documentos y publicacion</h2>
-              <p className="wizard-card__subtitle">Revisa los documentos antes de publicar.</p>
+              <p className="wizard-card__subtitle">
+                Revisa los documentos antes de publicar.
+              </p>
             </header>
             <div className="form-grid">
               <div className="wizard-docs form-col-2">
-                {(["rpp_certificate", "deed", "id_doc"] as DocumentTypeDTO[]).map(type => (
+                {(
+                  ["rpp_certificate", "deed", "id_doc"] as DocumentTypeDTO[]
+                ).map((type) => (
                   <DocumentCard
                     key={type}
                     docType={type}
                     document={findDoc(type)}
-                    onUpload={file => handleAttachDocument(type, file)}
+                    onUpload={(file) => handleAttachDocument(type, file)}
                     onDelete={() => {
                       const doc = findDoc(type);
                       if (doc) deleteDoc(doc);
                     }}
-                    onVerify={status => {
+                    onVerify={(status) => {
                       const doc = findDoc(type);
                       if (doc) verifyDoc(doc, status);
                     }}
@@ -415,7 +686,10 @@ function PublishWizard() {
                 ))}
               </div>
               <span className="wizard-note form-col-2">
-                Estado del RPP: {formatVerification(findDoc("rpp_certificate")?.verification ?? "pending")}
+                Estado del RPP:{" "}
+                {formatVerification(
+                  findDoc("rpp_certificate")?.verification ?? "pending"
+                )}
               </span>
             </div>
           </div>
@@ -435,23 +709,34 @@ function PublishWizard() {
       <header className="wizard__header">
         <div>
           <h1 className="wizard__title">Publicar propiedad</h1>
-          <p className="wizard__subtitle">Completa los pasos para publicar tu propiedad.</p>
+          <p className="wizard__subtitle">
+            Completa los pasos para publicar tu propiedad.
+          </p>
         </div>
         <div className="wizard__stepper" role="list">
           {steps.map((step, index) => {
-            const state = index === currentStep ? "current" : index < currentStep ? "done" : "upcoming";
+            const state =
+              index === currentStep
+                ? "current"
+                : index < currentStep
+                  ? "done"
+                  : "upcoming";
             return (
               <div
                 key={step.id}
                 className={`wizard__step wizard__step--${state}`}
                 aria-current={state === "current" ? "step" : undefined}
               >
-                <div className="wizard__step-circle">{state === "done" ? "\u2713" : String(index + 1)}</div>
+                <div className="wizard__step-circle">
+                  {state === "done" ? "\u2713" : String(index + 1)}
+                </div>
                 <div className="wizard__step-text">
                   <span>{step.title}</span>
                   <small>{step.subtitle}</small>
                 </div>
-                {index < steps.length - 1 && <span className="wizard__step-line" aria-hidden="true" />}
+                {index < steps.length - 1 && (
+                  <span className="wizard__step-line" aria-hidden="true" />
+                )}
               </div>
             );
           })}
@@ -484,7 +769,7 @@ function PublishWizard() {
               <p className="wizard-summary__empty">Todo listo para publicar.</p>
             ) : (
               <ul className="wizard-summary__list">
-                {missingItems.map(item => (
+                {missingItems.map((item) => (
                   <li key={item}>{item}</li>
                 ))}
               </ul>
@@ -493,7 +778,7 @@ function PublishWizard() {
         </aside>
       </div>
 
-      <footer className="wizard__actions">
+      <footer className="wizard__actions" style={{ position: "relative", zIndex: 10 }}>
         <button
           type="button"
           className="btn btn-outline"
@@ -502,7 +787,12 @@ function PublishWizard() {
           {currentStep === 0 ? "Cancelar" : "Anterior"}
         </button>
         <div className="wizard__actions-spacer" />
-        <button type="button" className="btn btn-outline" onClick={handleSave} disabled={saving}>
+        <button
+          type="button"
+          className="btn btn-outline"
+          onClick={handleSave}
+          disabled={saving}
+        >
           {saving ? "Guardando..." : "Guardar borrador"}
         </button>
         {currentStep < steps.length - 1 ? (
