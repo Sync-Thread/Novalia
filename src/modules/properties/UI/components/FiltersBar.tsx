@@ -1,7 +1,11 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Grid, List, RotateCcw, Search, SlidersHorizontal } from "lucide-react";
-import type { PropertyListFilters, PropertyStatusFilter } from "../hooks/usePropertyList";
+import type {
+  PropertyListFilters,
+  PropertyStatusFilter,
+} from "../hooks/usePropertyList";
 import type { ListFiltersInput } from "../../application/validators/filters.schema";
+import { CustomSelect, type SelectOption } from "./CustomSelect";
 
 export type ViewMode = "grid" | "list";
 
@@ -16,15 +20,15 @@ export interface FiltersBarProps {
   disabled?: boolean;
 }
 
-const STATUS_OPTIONS: { value: PropertyStatusFilter; label: string }[] = [
+const STATUS_OPTIONS: SelectOption[] = [
   { value: "all", label: "Todos" },
   { value: "draft", label: "Borradores" },
   { value: "published", label: "Publicadas" },
   { value: "sold", label: "Vendidas" },
 ];
 
-const TYPE_OPTIONS: { value: string; label: string }[] = [
-  { value: "", label: "Todos" },
+const TYPE_OPTIONS: SelectOption[] = [
+  { value: "", label: "Todos los tipos" },
   { value: "house", label: "Casa" },
   { value: "apartment", label: "Departamento" },
   { value: "land", label: "Terreno" },
@@ -34,7 +38,7 @@ const TYPE_OPTIONS: { value: string; label: string }[] = [
   { value: "other", label: "Otro" },
 ];
 
-const SORT_OPTIONS: { value: ListFiltersInput["sortBy"]; label: string }[] = [
+const SORT_OPTIONS: SelectOption[] = [
   { value: "recent", label: "Recientes" },
   { value: "price_asc", label: "Precio (menor a mayor)" },
   { value: "price_desc", label: "Precio (mayor a menor)" },
@@ -48,7 +52,12 @@ const parseNumber = (value: string): number | undefined => {
   return Number.isFinite(parsed) ? parsed : undefined;
 };
 
-export function FiltersBar({ values, onChange, onReset, disabled }: FiltersBarProps) {
+export function FiltersBar({
+  values,
+  onChange,
+  onReset,
+  disabled,
+}: FiltersBarProps) {
   const [local, setLocal] = useState(() => ({
     q: values.q ?? "",
     city: values.city ?? "",
@@ -145,9 +154,16 @@ export function FiltersBar({ values, onChange, onReset, disabled }: FiltersBarPr
       .join(" ");
 
   return (
-    <form className="filters-bar" onSubmit={event => event.preventDefault()} role="search">
+    <form
+      className="filters-bar"
+      onSubmit={(event) => event.preventDefault()}
+      role="search"
+    >
       <div className="filters-bar__primary">
-        <div className={pillClass({ noArrow: true, withIcon: true })} data-disabled={disabled || undefined}>
+        <div
+          className={pillClass({ noArrow: true, withIcon: true })}
+          data-disabled={disabled || undefined}
+        >
           <span className="select-control__icon">
             <Search size={16} aria-hidden="true" />
           </span>
@@ -156,58 +172,57 @@ export function FiltersBar({ values, onChange, onReset, disabled }: FiltersBarPr
             aria-label="Buscar por título o ID"
             placeholder="Buscar por título"
             value={local.q}
-            onChange={event => setLocal(prev => ({ ...prev, q: event.target.value }))}
+            onChange={(event) =>
+              setLocal((prev) => ({ ...prev, q: event.target.value }))
+            }
             disabled={disabled}
             className="select-control__input"
           />
         </div>
 
-        <div className={pillClass()} data-disabled={disabled || undefined}>
-          aria-label="Filtrar por estado"
-          <select
+        <div
+          className={pillClass({ noArrow: true })}
+          data-disabled={disabled || undefined}
+        >
+          <CustomSelect
             value={values.status}
-            onChange={event => onChange({ status: event.target.value as PropertyStatusFilter })}
+            options={STATUS_OPTIONS}
+            onChange={(value) =>
+              onChange({ status: value as PropertyStatusFilter })
+            }
             disabled={disabled}
-            className="select-control__native"
-          >
-            {STATUS_OPTIONS.map(option => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+            placeholder="Estado"
+          />
         </div>
 
-        <div className={pillClass()} data-disabled={disabled || undefined}>
-          aria-label="Filtrar por tipo"
-          <select
+        <div
+          className={pillClass({ noArrow: true })}
+          data-disabled={disabled || undefined}
+        >
+          <CustomSelect
             value={values.propertyType ?? ""}
-            onChange={event => onChange({ propertyType: event.target.value || undefined })}
+            options={TYPE_OPTIONS}
+            onChange={(value) => onChange({ propertyType: value || undefined })}
             disabled={disabled}
-            className="select-control__native"
-          >
-            {TYPE_OPTIONS.map(option => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+            placeholder="Tipo"
+          />
         </div>
 
-        <div className={pillClass()} data-disabled={disabled || undefined}>
-          aria-label="Ordenar resultados"
-          <select
+        <div
+          className={pillClass({ noArrow: true })}
+          data-disabled={disabled || undefined}
+        >
+          <CustomSelect
             value={values.sortBy}
-            onChange={event => onChange({ sortBy: event.target.value as ListFiltersInput["sortBy"] })}
+            options={SORT_OPTIONS}
+            onChange={(value) =>
+              onChange({
+                sortBy: value as ListFiltersInput["sortBy"],
+              })
+            }
             disabled={disabled}
-            className="select-control__native"
-          >
-            {SORT_OPTIONS.map(option => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+            placeholder="Ordenar"
+          />
         </div>
       </div>
 
@@ -226,7 +241,7 @@ export function FiltersBar({ values, onChange, onReset, disabled }: FiltersBarPr
         <div ref={moreRef} className="filters-bar__more">
           <button
             type="button"
-            onClick={() => setMoreOpen(prev => !prev)}
+            onClick={() => setMoreOpen((prev) => !prev)}
             className="filters-bar__more-button"
             aria-expanded={moreOpen}
             aria-haspopup="dialog"
@@ -237,13 +252,19 @@ export function FiltersBar({ values, onChange, onReset, disabled }: FiltersBarPr
             Más filtros
           </button>
           {moreOpen && !disabled && (
-            <div className="filters-bar__more-panel" role="dialog" aria-label="Filtros adicionales">
+            <div
+              className="filters-bar__more-panel"
+              role="dialog"
+              aria-label="Filtros adicionales"
+            >
               <div className="filters-bar__more-field">
                 <span className="filters-bar__more-label">Ciudad</span>
                 <input
                   type="text"
                   value={local.city}
-                  onChange={event => setLocal(prev => ({ ...prev, city: event.target.value }))}
+                  onChange={(event) =>
+                    setLocal((prev) => ({ ...prev, city: event.target.value }))
+                  }
                   className="filters-bar__more-input"
                   placeholder="Todas"
                 />
@@ -253,7 +274,9 @@ export function FiltersBar({ values, onChange, onReset, disabled }: FiltersBarPr
                 <input
                   type="text"
                   value={local.state}
-                  onChange={event => setLocal(prev => ({ ...prev, state: event.target.value }))}
+                  onChange={(event) =>
+                    setLocal((prev) => ({ ...prev, state: event.target.value }))
+                  }
                   className="filters-bar__more-input"
                   placeholder="Todos"
                 />
@@ -265,7 +288,12 @@ export function FiltersBar({ values, onChange, onReset, disabled }: FiltersBarPr
                     type="number"
                     min={0}
                     value={local.priceMin}
-                    onChange={event => setLocal(prev => ({ ...prev, priceMin: event.target.value }))}
+                    onChange={(event) =>
+                      setLocal((prev) => ({
+                        ...prev,
+                        priceMin: event.target.value,
+                      }))
+                    }
                     className="filters-bar__more-input"
                     placeholder="0"
                   />
@@ -276,7 +304,12 @@ export function FiltersBar({ values, onChange, onReset, disabled }: FiltersBarPr
                     type="number"
                     min={0}
                     value={local.priceMax}
-                    onChange={event => setLocal(prev => ({ ...prev, priceMax: event.target.value }))}
+                    onChange={(event) =>
+                      setLocal((prev) => ({
+                        ...prev,
+                        priceMax: event.target.value,
+                      }))
+                    }
                     className="filters-bar__more-input"
                     placeholder="∞"
                   />
@@ -285,7 +318,11 @@ export function FiltersBar({ values, onChange, onReset, disabled }: FiltersBarPr
             </div>
           )}
         </div>
-        <div role="group" aria-label="Cambiar vista" className="filters-bar__view-toggle">
+        <div
+          role="group"
+          aria-label="Cambiar vista"
+          className="filters-bar__view-toggle"
+        >
           <button
             type="button"
             onClick={() => onChange({ viewMode: "grid" })}
@@ -311,4 +348,3 @@ export function FiltersBar({ values, onChange, onReset, disabled }: FiltersBarPr
 }
 
 export default FiltersBar;
-
