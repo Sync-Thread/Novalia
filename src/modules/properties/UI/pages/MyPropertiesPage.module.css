@@ -69,7 +69,7 @@
 .lista {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(320px, 360px));
-  justify-content: center;
+  justify-content: start;
   gap: 24px;
 }
 

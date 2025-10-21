@@ -133,14 +133,24 @@ export function FiltersBar({ values, onChange, onReset, disabled }: FiltersBarPr
     onReset();
   }, [onReset]);
 
-  const pillClass = (options?: { noArrow?: boolean }) =>
-    `filters-bar__pill${options?.noArrow ? " filters-bar__pill--no-arrow" : ""}`;
+  const pillClass = (options?: { noArrow?: boolean; withIcon?: boolean }) =>
+    [
+      "select-control",
+      "select-control--compact",
+      options?.noArrow ? "select-control--no-arrow" : "",
+      options?.withIcon ? "select-control--with-icon" : "",
+      "filters-bar__pill",
+    ]
+      .filter(Boolean)
+      .join(" ");
 
   return (
     <form className="filters-bar" onSubmit={event => event.preventDefault()} role="search">
       <div className="filters-bar__primary">
-        <div className={pillClass({ noArrow: true })} data-disabled={disabled || undefined}>
-          <Search size={16} aria-hidden="true" />
+        <div className={pillClass({ noArrow: true, withIcon: true })} data-disabled={disabled || undefined}>
+          <span className="select-control__icon">
+            <Search size={16} aria-hidden="true" />
+          </span>
           <input
             type="search"
             aria-label="Buscar por título o ID"
@@ -148,17 +158,17 @@ export function FiltersBar({ values, onChange, onReset, disabled }: FiltersBarPr
             value={local.q}
             onChange={event => setLocal(prev => ({ ...prev, q: event.target.value }))}
             disabled={disabled}
-            className="filters-bar__input"
+            className="select-control__input"
           />
         </div>
 
         <div className={pillClass()} data-disabled={disabled || undefined}>
+          aria-label="Filtrar por estado"
           <select
-            aria-label="Filtrar por estado"
             value={values.status}
             onChange={event => onChange({ status: event.target.value as PropertyStatusFilter })}
             disabled={disabled}
-            className="filters-bar__select"
+            className="select-control__native"
           >
             {STATUS_OPTIONS.map(option => (
               <option key={option.value} value={option.value}>
@@ -169,12 +179,12 @@ export function FiltersBar({ values, onChange, onReset, disabled }: FiltersBarPr
         </div>
 
         <div className={pillClass()} data-disabled={disabled || undefined}>
+          aria-label="Filtrar por tipo"
           <select
-            aria-label="Filtrar por tipo"
             value={values.propertyType ?? ""}
             onChange={event => onChange({ propertyType: event.target.value || undefined })}
             disabled={disabled}
-            className="filters-bar__select"
+            className="select-control__native"
           >
             {TYPE_OPTIONS.map(option => (
               <option key={option.value} value={option.value}>
@@ -185,12 +195,12 @@ export function FiltersBar({ values, onChange, onReset, disabled }: FiltersBarPr
         </div>
 
         <div className={pillClass()} data-disabled={disabled || undefined}>
+          aria-label="Ordenar resultados"
           <select
-            aria-label="Ordenar resultados"
             value={values.sortBy}
             onChange={event => onChange({ sortBy: event.target.value as ListFiltersInput["sortBy"] })}
             disabled={disabled}
-            className="filters-bar__select"
+            className="select-control__native"
           >
             {SORT_OPTIONS.map(option => (
               <option key={option.value} value={option.value}>
@@ -301,3 +311,4 @@ export function FiltersBar({ values, onChange, onReset, disabled }: FiltersBarPr
 }
 
 export default FiltersBar;
+

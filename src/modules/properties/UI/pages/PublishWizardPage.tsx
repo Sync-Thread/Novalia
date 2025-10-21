@@ -447,22 +447,24 @@ function PublishWizard() {
               </label>
               <label className="wizard-field">
                 <span className="wizard-field__label">Tipo de propiedad *</span>
-                <select
-                  className="wizard-field__control wizard-field__control--select"
-                  value={form.propertyType}
-                  onChange={(event) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      propertyType: event.target.value as PropertyType,
-                    }))
-                  }
-                >
-                  {PROPERTY_TYPE_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
+                <div className="select-control">
+                  <select
+                    className="select-control__native"
+                    value={form.propertyType}
+                    onChange={(event) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        propertyType: event.target.value as PropertyType,
+                      }))
+                    }
+                  >
+                    {PROPERTY_TYPE_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </label>
               <label className="wizard-field">
                 <span className="wizard-field__label">Precio *</span>
@@ -485,22 +487,24 @@ function PublishWizard() {
               </label>
               <label className="wizard-field">
                 <span className="wizard-field__label">Moneda</span>
-                <select
-                  className="wizard-field__control wizard-field__control--select"
-                  value={form.priceCurrency}
-                  onChange={(event) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      priceCurrency: event.target.value as Currency,
-                    }))
-                  }
-                >
-                  {CURRENCY_VALUES.map((value) => (
-                    <option key={value} value={value}>
-                      {value}
-                    </option>
-                  ))}
-                </select>
+                <div className="select-control">
+                  <select
+                    className="select-control__native"
+                    value={form.priceCurrency}
+                    onChange={(event) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        priceCurrency: event.target.value as Currency,
+                      }))
+                    }
+                  >
+                    {CURRENCY_VALUES.map((value) => (
+                      <option key={value} value={value}>
+                        {value}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </label>
               <label className="wizard-field form-col-2">
                 <span className="wizard-field__label">Descripcion *</span>

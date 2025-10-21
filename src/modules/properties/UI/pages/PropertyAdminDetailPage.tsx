@@ -300,13 +300,19 @@ function PropertyAdminDetail() {
           </label>
           <label className="field-group">
             <span className="field-label">Moneda</span>
-            <select className="select" value={form.priceCurrency} onChange={event => setForm(prev => ({ ...prev, priceCurrency: event.target.value as Currency }))}>
-              {CURRENCY_VALUES.map(value => (
-                <option key={value} value={value}>
-                  {value}
-                </option>
-              ))}
-            </select>
+            <div className="select-control">
+              <select
+                className="select-control__native"
+                value={form.priceCurrency}
+                onChange={event => setForm(prev => ({ ...prev, priceCurrency: event.target.value as Currency }))}
+              >
+                {CURRENCY_VALUES.map(value => (
+                  <option key={value} value={value}>
+                    {value}
+                  </option>
+                ))}
+              </select>
+            </div>
           </label>
           <label className="field-group">
             <span className="field-label">Ciudad</span>

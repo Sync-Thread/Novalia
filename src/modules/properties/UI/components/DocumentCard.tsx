@@ -97,17 +97,19 @@ export function DocumentCard({
           <label htmlFor={`${baseId}-verification`} className={styles.titulo}>
             Estado de verificación
           </label>
-          <select
-            id={`${baseId}-verification`}
-            defaultValue={document?.verification ?? "pending"}
-            onChange={event => onVerify(event.target.value as VerificationStatusDTO)}
-            disabled={verifying}
-            className={styles.select}
-          >
-            <option value="pending">Pendiente</option>
-            <option value="verified">Verificado</option>
-            <option value="rejected">Rechazado</option>
-          </select>
+          <div className="select-control" data-disabled={verifying || undefined}>
+            <select
+              id={`${baseId}-verification`}
+              defaultValue={document?.verification ?? "pending"}
+              onChange={event => onVerify(event.target.value as VerificationStatusDTO)}
+              disabled={verifying}
+              className="select-control__native"
+            >
+              <option value="pending">Pendiente</option>
+              <option value="verified">Verificado</option>
+              <option value="rejected">Rechazado</option>
+            </select>
+          </div>
           {verifying && <span className={styles.ayuda}>Actualizando...</span>}
         </div>
       )}
