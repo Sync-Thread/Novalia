@@ -10,22 +10,27 @@ import Register from "../modules/auth/UI/pages/Register";
 import ForgotPassword from "../modules/auth/UI/pages/ForgotPassword";
 import ResetPassword from "../modules/auth/UI/pages/ResetPassword";
 import OAuthCallback from "../modules/auth/UI/pages/Callback";
-
-const withAuth = (el: React.ReactNode) => <AuthGuard>{el}</AuthGuard>;
+import AppShell from "../shared/layouts/AppShell";
 
 export const router = createBrowserRouter([
   { path: "/", element: <Navigate to="/auth/login" replace /> },
-
-  { path: "/dashboard", element: withAuth(<Dashboard />) },
-  { path: "/properties", element: withAuth(<MyPropertiesPage />) },
-  { path: "/properties/new", element: withAuth(<PublishWizardPage />) },
-  { path: "/properties/:id/admin", element: withAuth(<PropertyAdminDetailPage />) },
-
+  {
+    element: (
+      <AuthGuard>
+        <AppShell />
+      </AuthGuard>
+    ),
+    children: [
+      { path: "/dashboard", element: <Dashboard /> },
+      { path: "/properties", element: <MyPropertiesPage /> },
+      { path: "/properties/new", element: <PublishWizardPage /> },
+      { path: "/properties/:id/admin", element: <PropertyAdminDetailPage /> },
+    ],
+  },
   { path: "/auth/login", element: <Login /> },
   { path: "/auth/register", element: <Register /> },
   { path: "/auth/forgot-password", element: <ForgotPassword /> },
   { path: "/auth/reset-password", element: <ResetPassword /> },
   { path: "/auth/callback", element: <OAuthCallback /> },
-
   { path: "*", element: <Navigate to="/auth/login" replace /> },
 ]);
