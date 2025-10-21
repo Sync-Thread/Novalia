@@ -117,7 +117,7 @@ export class SupabaseAuthService implements AuthService {
       orgMissing: orgId === null,
     };
 
-    console.info("[auth] profile snapshot", profileSnapshot);
+    // console.info("[auth] profile snapshot", profileSnapshot);
 
     return Result.ok({
       userId: user.id,

@@ -62,6 +62,8 @@ function MyPropertiesPageContent() {
   useEffect(() => {
     void getAuthProfile().then((result) => {
       if (result.isOk()) setAuthStatus(result.value.kycStatus);
+      console.log("resultado: ", result);
+      console.log("resultadOK: ", result.isOk());
     });
   }, [getAuthProfile]);
 
