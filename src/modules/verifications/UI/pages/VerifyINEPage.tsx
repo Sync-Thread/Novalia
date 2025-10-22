@@ -126,23 +126,56 @@ export default function VerifyINEPage() {
     }
   };
 
+  /**
+   * Guarda la verificación en la base de datos.
+   *
+   * CÓMO FUNCIONA LA VERIFICACIÓN:
+   * ================================
+   *
+   * 1. Se inserta un nuevo registro en la tabla `kyc_verifications`:
+   *    - user_id: UUID del usuario actual
+   *    - provider: identificador del servicio ("ine_worker")
+   *    - status: enum 'pending' | 'verified' | 'rejected'
+   *    - evidence: JSONB con los datos de la verificación
+   *    - created_at: timestamp automático
+   *
+   * 2. El método `getAuthProfile()` (SupabaseAuthService):
+   *    - Consulta `kyc_verifications` WHERE user_id = current_user
+   *    - Ordena por `created_at DESC` (el más reciente primero)
+   *    - Toma solo 1 registro (.limit(1).maybeSingle())
+   *    - Mapea el status:
+   *      * Si status = "verified" → kycStatus = "verified"
+   *      * Si status = "rejected" → kycStatus = "rejected"
+   *      * Si NULL o no existe → kycStatus = "pending"
+   *
+   * 3. El componente MyPropertiesPage:
+   *    - Llama a getAuthProfile() en useEffect
+   *    - Actualiza el estado local: setAuthStatus(result.value.kycStatus)
+   *    - Si kycStatus !== "verified" → muestra el KycBanner
+   *    - Si kycStatus === "verified" → oculta el banner
+   *
+   * 4. Flujo completo:
+   *    Usuario verifica INE → se guarda con status="verified"
+   *    → próxima vez que carga la página → getAuthProfile() retorna "verified"
+   *    → banner desaparece automáticamente
+   */
   const saveVerificationToDatabase = async (verificationData: any) => {
     try {
-      console.log("=== Guardando verificación en base de datos ===");
-      console.log("Datos de verificación:", verificationData);
+      console.log("=== 💾 Guardando verificación en base de datos ===");
+      console.log("📊 Datos de verificación:", verificationData);
 
-      // Obtener el usuario actual
+      // Obtener el usuario autenticado actual
       const {
         data: { user },
         error: userError,
       } = await supabase.auth.getUser();
 
       if (userError || !user) {
-        console.error("Error al obtener usuario:", userError);
+        console.error("❌ Error al obtener usuario:", userError);
         return;
       }
 
-      console.log("Usuario ID:", user.id);
+      console.log("👤 Usuario ID:", user.id);
 
       // Preparar el objeto evidence con toda la información de la verificación
       const evidence = {
@@ -155,26 +188,43 @@ export default function VerifyINEPage() {
       };
 
       // Insertar en la tabla kyc_verifications
+      // Esto creará un nuevo registro con created_at = NOW()
+      // getAuthProfile() siempre leerá el más reciente (ORDER BY created_at DESC)
       const { data, error } = await supabase
         .from("kyc_verifications")
         .insert({
           user_id: user.id,
           provider: "ine_worker", // Identificador del proveedor de verificación
-          status: "verified", // Estado: pending, verified, rejected
+          status: "verified", // ← Este valor se lee en getAuthProfile()
           evidence: evidence, // Información adicional como JSONB
         })
         .select()
         .single();
 
       if (error) {
-        console.error("Error al guardar en base de datos:", error);
+        console.error("❌ Error al guardar en base de datos:", error);
+        console.error("📝 Detalles del error:", {
+          message: error.message,
+          code: error.code,
+          details: error.details,
+        });
         return;
       }
 
-      console.log("✅ Verificación guardada exitosamente:", data);
+      console.log("✅ Verificación guardada exitosamente");
+      console.log("📄 Registro creado:", {
+        id: data.id,
+        user_id: data.user_id,
+        provider: data.provider,
+        status: data.status,
+        created_at: data.created_at,
+      });
+      console.log(
+        "🎉 El usuario ahora aparecerá como verificado en MyPropertiesPage"
+      );
       console.log("=== Fin del guardado ===");
     } catch (err) {
-      console.error("Error inesperado al guardar verificación:", err);
+      console.error("💥 Error inesperado al guardar verificación:", err);
     }
   };
 
