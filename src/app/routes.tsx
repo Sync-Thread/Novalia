@@ -11,6 +11,7 @@ import ResetPassword from "../modules/auth/UI/pages/ResetPassword";
 import OAuthCallback from "../modules/auth/UI/pages/Callback";
 import AppShell from "../shared/layouts/AppShell";
 import VerifyINEPage from "../modules/verifications/UI/pages/VerifyINEPage";
+import VerifyRPPPage from "../modules/verifications/UI/pages/VerifyRPPPage";
 
 export const router = createBrowserRouter([
   { path: "/", element: <Navigate to="/auth/login" replace /> },
@@ -26,6 +27,7 @@ export const router = createBrowserRouter([
       { path: "/properties/new", element: <PublishWizardPage /> },
       { path: "/properties/:id/edit", element: <PublishWizardPage /> },
       { path: "/kyc", element: <VerifyINEPage /> },
+      { path: "/verify-rpp", element: <VerifyRPPPage /> },
     ],
   },
   { path: "/auth/login", element: <Login /> },

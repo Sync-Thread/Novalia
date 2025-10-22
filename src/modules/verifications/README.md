@@ -2,21 +2,26 @@
 
 ## 📋 Descripción General
 
-Este módulo maneja la verificación de identidad (Know Your Customer - KYC) de los usuarios mediante el proceso de validación de INE (Identificación Nacional Electoral).
+Este módulo maneja las verificaciones requeridas para los usuarios:
+- **Verificación de Identidad (INE)**: Validación de la Identificación Nacional Electoral
+- **Verificación de Documento RPP**: Validación del Registro Público de la Propiedad
 
 ## 🏗️ Arquitectura
 
 ```
 src/modules/verifications/
-├── INE.ts                      # Utilidad para comunicación con worker de Cloudflare
+├── INE.ts                      # Utilidad para comunicación con worker (verificación INE)
+├── RPP.ts                      # Utilidad para comunicación con worker (verificación RPP)
 ├── UI/
 │   └── pages/
-│       ├── VerifyINEPage.tsx   # Página principal de verificación
-│       └── VerifyINEPage.module.css
+│       ├── VerifyINEPage.tsx   # Página de verificación de INE
+│       ├── VerifyINEPage.module.css
+│       ├── VerifyRPPPage.tsx   # Página de verificación de RPP
+│       └── VerifyRPPPage.module.css
 └── README.md                   # Este archivo
 ```
 
-## 🔄 Flujo Completo de Verificación
+## 🔄 Flujo de Verificación INE
 
 ### 1. **Usuario no verificado**
 - El usuario entra a `/properties` (MyPropertiesPage)
@@ -262,8 +267,133 @@ LIMIT 1;
 ## 📝 Notas Adicionales
 
 - **RLS (Row Level Security):** Los usuarios solo pueden ver sus propias verificaciones
-- **Provider:** Usa `"ine_worker"` para identificar verificaciones de INE
+- **Provider INE:** Usa `"ine_worker"` para identificar verificaciones de INE
+- **Provider RPP:** Usa `"rpp_document"` para identificar verificaciones de RPP
 - **Evidence:** Guarda toda la respuesta del worker para auditoría
 - **Timestamp:** Se guarda la fecha de envío del formulario
 - **CURP:** Debe tener exactamente 18 caracteres (validado en frontend)
-- **Imágenes:** Max 5MB, formato base64, tipo `image/*`
+- **Imágenes:** Max 5MB (INE) o 10MB (RPP), formato base64
+
+---
+
+## 🏢 Verificación de Documento RPP
+
+### **Descripción**
+
+La verificación de documento RPP (Registro Público de la Propiedad) permite validar documentos oficiales de propiedades.
+
+### **Ruta de Acceso**
+- URL: `/verify-rpp`
+- Accesible desde: `PublishWizardPage` (banner de verificación)
+
+### **Flujo del Proceso**
+
+```
+┌─────────────┐     ┌─────────────┐     ┌──────────────┐     ┌─────────────┐
+│   Upload    │ ──> │   Review    │ ──> │  Processing  │ ──> │   Result    │
+│ (Subir doc) │     │ (Confirmar) │     │  (Validando) │     │ (Resultado) │
+└─────────────┘     └─────────────┘     └──────────────┘     └─────────────┘
+```
+
+### **Paso 1: Upload**
+- Usuario sube 1 documento:
+  - Certificado de libertad de gravamen
+  - Escritura pública registrada
+  - O cualquier documento RPP válido
+- Formatos aceptados: PDF, JPG, PNG
+- Validación: max 10MB
+- Conversión a base64
+
+### **Paso 2: Review**
+- Previsualización del documento
+- Formulario con 3 campos:
+  - Nombre del propietario (como aparece en el documento)
+  - Dirección de la propiedad (dirección registrada)
+  - Número de registro o folio real
+
+### **Paso 3: Processing**
+- Se crea el payload con `createRPPPayload()` del archivo `RPP.ts`
+- Se envía al mismo worker: `https://verification.novaliaprops.workers.dev/verify-ine`
+- **NOTA:** La respuesta del worker se ignora, siempre se considera verificado
+- Se simula resultado exitoso en código:
+  ```typescript
+  const simulatedResult = {
+    verified: true,
+    status: "verified",
+    message: "Documento RPP verificado correctamente",
+    documentType: "rpp",
+    timestamp: new Date().toISOString(),
+  };
+  ```
+
+### **Paso 4: Result**
+- Siempre muestra éxito (validación temporal)
+- Mensaje: "¡Documento RPP verificado!"
+- "El documento del Registro Público de la Propiedad ha sido verificado correctamente"
+- Botón: "Ir a mis propiedades"
+
+### **Guardado en Base de Datos**
+
+```typescript
+await supabase
+  .from("kyc_verifications")
+  .insert({
+    user_id: user.id,
+    provider: "rpp_document",  // ← Identificador único para RPP
+    status: "verified",
+    evidence: {
+      verificationResponse: simulatedResult,
+      submittedData: {
+        ownerName,
+        propertyAddress,
+        registrationNumber
+      },
+      timestamp: ISO_DATE
+    }
+  });
+```
+
+### **Diferencias con INE**
+
+| Aspecto | INE | RPP |
+|---------|-----|-----|
+| Documentos | 3 imágenes (frente, reverso, selfie) | 1 documento (PDF o imagen) |
+| Tamaño máx | 5MB por imagen | 10MB |
+| Formatos | Solo imágenes | PDF, JPG, PNG |
+| Campos form | Nombre, CURP | Nombre propietario, Dirección, Folio |
+| Provider | `"ine_worker"` | `"rpp_document"` |
+| Worker | Usa respuesta real | Ignora respuesta, simula éxito |
+| Mensaje | "INE verificada" | "Documento RPP verificado" |
+
+### **Uso del Worker**
+
+**IMPORTANTE:** Actualmente ambas verificaciones usan el mismo endpoint del worker:
+```
+POST https://verification.novaliaprops.workers.dev/verify-ine
+```
+
+- **Para INE:** La respuesta se procesa y valida normalmente
+- **Para RPP:** La llamada se hace pero la respuesta se **ignora**. El resultado siempre es exitoso (código hardcoded).
+
+**Motivo:** Funcionalidad temporal. En el futuro se creará un endpoint específico `/verify-rpp` en el worker.
+
+### **Archivos del Módulo RPP**
+
+- `src/modules/verifications/RPP.ts` - Utilidades y tipos
+- `src/modules/verifications/UI/pages/VerifyRPPPage.tsx` - Componente principal
+- `src/modules/verifications/UI/pages/VerifyRPPPage.module.css` - Estilos
+- `src/app/routes.tsx` - Ruta `/verify-rpp`
+
+### **Integración con PublishWizardPage**
+
+```tsx
+<div className="wizard-summary wizard-summary--alert">
+  <strong>Verificación de documento RPP requerida</strong>
+  <p>Para publicar propiedades necesitas verificar el documento del Registro Público de la Propiedad.</p>
+  <button onClick={() => navigate("/verify-rpp")}>
+    Verificar documento ahora
+  </button>
+</div>
+```
+
+---

@@ -118,7 +118,9 @@ function PublishWizard() {
   const [propertyStatus, setPropertyStatus] = useState<
     PropertyDTO["status"] | null
   >(null);
-  const [savedCompleteness, setSavedCompleteness] = useState<number | null>(null);
+  const [savedCompleteness, setSavedCompleteness] = useState<number | null>(
+    null
+  );
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [currentStep, setCurrentStep] = useState(0);
@@ -792,9 +794,7 @@ function PublishWizard() {
   }, [form, mediaItems, documents]);
 
   const completed = requirements.filter((item) => item.valid).length;
-  const editingCompletion = Math.round(
-    (completed / requirements.length) * 100
-  );
+  const editingCompletion = Math.round((completed / requirements.length) * 100);
   const savedScore =
     savedCompleteness !== null
       ? Math.max(0, Math.min(100, Math.round(savedCompleteness)))
@@ -1155,10 +1155,17 @@ function PublishWizard() {
 
         <aside className="wizard__aside">
           <div className="wizard-summary wizard-summary--alert">
-            <strong>Verificacion KYC requerida</strong>
-            <p>Para publicar propiedades necesitas tu KYC (INE) verificado.</p>
-            <button type="button" className="btn btn-primary btn-sm">
-              Verificar ahora
+            <strong>Verificación de documento RPP requerida</strong>
+            <p>
+              Para publicar propiedades necesitas verificar el documento del
+              Registro Público de la Propiedad.
+            </p>
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              onClick={() => navigate("/verify-rpp")}
+            >
+              Verificar documento ahora
             </button>
           </div>
 
