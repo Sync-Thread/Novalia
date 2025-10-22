@@ -115,6 +115,8 @@ function PublishWizard() {
   const [form, setForm] = useState<DraftForm>(INITIAL_FORM);
   const [mediaItems, setMediaItems] = useState<MediaDTO[]>([]);
   const [documents, setDocuments] = useState<DocumentDTO[]>([]);
+  const [hasVerifiedRppCertificate, setHasVerifiedRppCertificate] =
+    useState(false);
   const [propertyStatus, setPropertyStatus] = useState<
     PropertyDTO["status"] | null
   >(null);
@@ -414,6 +416,26 @@ function PublishWizard() {
       active = false;
     };
   }, [currentStep, form.propertyId]);
+
+  // Verificar si existe un documento rpp_certificate verificado
+  useEffect(() => {
+    const rppCertificate = documents.find(
+      (doc) => doc.docType === "rpp_certificate"
+    );
+
+    if (rppCertificate && rppCertificate.verification === "verified") {
+      setHasVerifiedRppCertificate(true);
+      console.log("✅ Documento RPP verificado encontrado:", rppCertificate.id);
+    } else {
+      setHasVerifiedRppCertificate(false);
+      if (rppCertificate) {
+        console.log(
+          "⚠️ Documento RPP encontrado pero no verificado. Estado:",
+          rppCertificate.verification
+        );
+      }
+    }
+  }, [documents]);
 
   const buildDraftPayload = () => ({
     title: form.title.trim() || "Propiedad sin titulo",
@@ -1154,20 +1176,24 @@ function PublishWizard() {
         <section className="wizard__main">{renderStepContent()}</section>
 
         <aside className="wizard__aside">
-          <div className="wizard-summary wizard-summary--alert">
-            <strong>Verificación de documento RPP requerida</strong>
-            <p>
-              Para publicar propiedades necesitas verificar el documento del
-              Registro Público de la Propiedad.
-            </p>
-            <button
-              type="button"
-              className="btn btn-primary btn-sm"
-              onClick={() => navigate("/verify-rpp")}
-            >
-              Verificar documento ahora
-            </button>
-          </div>
+          {!hasVerifiedRppCertificate && form.propertyId && (
+            <div className="wizard-summary wizard-summary--alert">
+              <strong>Verificación de documento RPP requerida</strong>
+              <p>
+                Para publicar propiedades necesitas verificar el documento del
+                Registro Público de la Propiedad.
+              </p>
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                onClick={() =>
+                  navigate(`/verify-rpp?propertyId=${form.propertyId}`)
+                }
+              >
+                Verificar documento ahora
+              </button>
+            </div>
+          )}
 
           <div className="wizard-summary">
             <ProgressCircle value={completion} />

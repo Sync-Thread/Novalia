@@ -1,15 +1,25 @@
 import React, { useState, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { verifyRpp, createRPPPayload } from "../../RPP";
 import { supabase } from "../../../../core/supabase/client";
+import { uploadFile } from "../../../properties/infrastructure/adapters/MediaStorage";
+import { SupabaseDocumentStorage } from "../../../properties/infrastructure/adapters/SupabaseDocumentStorage";
+import { SupabaseAuthService } from "../../../properties/infrastructure/adapters/SupabaseAuthService";
 import styles from "./VerifyRPPPage.module.css";
 
 type VerificationStep = "upload" | "review" | "processing" | "result";
 
+const authService = new SupabaseAuthService({ client: supabase });
+const documentStorage = new SupabaseDocumentStorage({ supabase, authService });
+
 export default function VerifyRPPPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const propertyId = searchParams.get("propertyId");
+
   const [currentStep, setCurrentStep] = useState<VerificationStep>("upload");
   const [rppDocument, setRppDocument] = useState<string | null>(null);
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [formData, setFormData] = useState({
     ownerName: "",
     propertyAddress: "",
@@ -47,7 +57,10 @@ export default function VerifyRPPPage() {
 
     setError(null);
 
-    // Convertir a base64
+    // Guardar el archivo original para subirlo después
+    setUploadedFile(file);
+
+    // Convertir a base64 para preview
     const reader = new FileReader();
     reader.onload = (e) => {
       const base64 = e.target?.result as string;
@@ -58,6 +71,7 @@ export default function VerifyRPPPage() {
 
   const handleRemoveDocument = () => {
     setRppDocument(null);
+    setUploadedFile(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -77,13 +91,24 @@ export default function VerifyRPPPage() {
   };
 
   const handleSubmit = async () => {
-    if (!canSubmit()) return;
+    if (!canSubmit() || !uploadedFile) {
+      setError("Falta el archivo o los datos del formulario");
+      return;
+    }
+
+    if (!propertyId) {
+      setError(
+        "No se especificó el ID de la propiedad. Por favor, accede desde el wizard de publicación."
+      );
+      return;
+    }
 
     setLoading(true);
     setError(null);
     setCurrentStep("processing");
 
     try {
+      // 1. Llamar al worker (opcional, la respuesta se ignora)
       const payload = createRPPPayload({
         ownerName: formData.ownerName,
         propertyAddress: formData.propertyAddress,
@@ -91,25 +116,59 @@ export default function VerifyRPPPage() {
         rppDocument: rppDocument,
       });
 
-      // Llamar al worker (aunque la respuesta será de INE, la ignoraremos)
       await verifyRpp(payload);
 
-      // Simular resultado exitoso (siempre verdadero según requerimiento)
+      // 2. Subir archivo a S3
+      console.log("📤 Subiendo documento RPP a S3...");
+      const uploadResult = await uploadFile(
+        uploadedFile,
+        "documents",
+        propertyId
+      );
+
+      if (!uploadResult?.objectUrl) {
+        throw new Error("Error al subir el documento a S3");
+      }
+
+      console.log("✅ Documento subido a S3:", uploadResult);
+
+      // 3. Guardar en la base de datos con estado "verified"
+      const dbResult = await documentStorage.insertDocumentFromS3({
+        propertyId: propertyId,
+        docType: "rpp_certificate",
+        s3Key: uploadResult.key,
+        url: uploadResult.objectUrl,
+        fileName: uploadResult.filename,
+        contentType: uploadResult.contentType,
+        size: uploadResult.size,
+      });
+
+      if (dbResult.isErr()) {
+        const errorMsg =
+          typeof dbResult.error === "object" &&
+          dbResult.error !== null &&
+          "message" in dbResult.error
+            ? String(dbResult.error.message)
+            : "Error desconocido al guardar en BD";
+        throw new Error(errorMsg);
+      }
+
+      console.log("✅ Documento RPP guardado en BD:", dbResult.value);
+
+      // 4. Simular resultado exitoso
       const simulatedResult = {
         verified: true,
         status: "verified",
         message: "Documento RPP verificado correctamente",
-        documentType: "rpp",
+        documentType: "rpp_certificate",
+        documentId: dbResult.value.id,
         timestamp: new Date().toISOString(),
       };
 
       setResult(simulatedResult);
-
-      // Guardar en base de datos
-      await saveVerificationToDatabase(simulatedResult);
-
       setCurrentStep("result");
     } catch (err) {
+      console.error("❌ Error en verificación RPP:", err);
       setError(err instanceof Error ? err.message : "Error desconocido");
       setCurrentStep("review");
     } finally {
@@ -117,75 +176,10 @@ export default function VerifyRPPPage() {
     }
   };
 
-  /**
-   * Guarda la verificación RPP en la base de datos.
-   * Similar al proceso de INE pero con provider "rpp_document"
-   */
-  const saveVerificationToDatabase = async (verificationData: any) => {
-    try {
-      console.log("=== 💾 Guardando verificación RPP en base de datos ===");
-      console.log("📊 Datos de verificación:", verificationData);
-
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
-
-      if (userError || !user) {
-        console.error("❌ Error al obtener usuario:", userError);
-        return;
-      }
-
-      console.log("👤 Usuario ID:", user.id);
-
-      const evidence = {
-        verificationResponse: verificationData,
-        submittedData: {
-          ownerName: formData.ownerName,
-          propertyAddress: formData.propertyAddress,
-          registrationNumber: formData.registrationNumber,
-        },
-        timestamp: new Date().toISOString(),
-      };
-
-      const { data, error } = await supabase
-        .from("kyc_verifications")
-        .insert({
-          user_id: user.id,
-          provider: "rpp_document",
-          status: "verified",
-          evidence: evidence,
-        })
-        .select()
-        .single();
-
-      if (error) {
-        console.error("❌ Error al guardar en base de datos:", error);
-        console.error("📝 Detalles del error:", {
-          message: error.message,
-          code: error.code,
-          details: error.details,
-        });
-        return;
-      }
-
-      console.log("✅ Verificación RPP guardada exitosamente");
-      console.log("📄 Registro creado:", {
-        id: data.id,
-        user_id: data.user_id,
-        provider: data.provider,
-        status: data.status,
-        created_at: data.created_at,
-      });
-      console.log("=== Fin del guardado ===");
-    } catch (err) {
-      console.error("💥 Error inesperado al guardar verificación RPP:", err);
-    }
-  };
-
   const handleReset = () => {
     setCurrentStep("upload");
     setRppDocument(null);
+    setUploadedFile(null);
     setFormData({ ownerName: "", propertyAddress: "", registrationNumber: "" });
     setError(null);
     setResult(null);

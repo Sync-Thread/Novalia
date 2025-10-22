@@ -1,5 +1,6 @@
 export type DocumentTypeDTO =
   | "deed"
+  | "rpp_certificate"
   | "plan"
   | "other";
 
