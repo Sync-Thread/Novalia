@@ -93,7 +93,7 @@ export function FiltersBar({
         priceMin: parseNumber(local.priceMin),
         priceMax: parseNumber(local.priceMax),
       });
-    }, 250);
+    }, 450);
     return () => window.clearTimeout(handler);
   }, [local, onChange]);
 
