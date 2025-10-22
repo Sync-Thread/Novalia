@@ -4,7 +4,9 @@
 import type { UUID } from "../enums";
 import { InvalidValueError } from "../errors/InvalidValueError";
 
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+// Regex más permisiva que acepta cualquier UUID con formato válido
+// Incluye versión 0 (nil UUID) y otros UUIDs especiales
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export class UniqueEntityID {
   public readonly value: UUID;

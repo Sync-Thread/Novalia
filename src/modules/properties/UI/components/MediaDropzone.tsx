@@ -34,7 +34,7 @@ export function MediaDropzone({
       if (!fileList || !onUpload) return;
       onUpload(Array.from(fileList));
     },
-    [onUpload],
+    [onUpload]
   );
 
   const handleDrop = useCallback(
@@ -44,7 +44,7 @@ export function MediaDropzone({
       if (!event.dataTransfer?.files?.length) return;
       handleFiles(event.dataTransfer.files);
     },
-    [handleFiles],
+    [handleFiles]
   );
 
   const counts = useMemo(() => {
@@ -64,14 +64,14 @@ export function MediaDropzone({
     const next = [...items];
     const [moved] = next.splice(index, 1);
     next.splice(target, 0, moved);
-    onReorder(next.map(item => item.id));
+    onReorder(next.map((item) => item.id));
   };
 
   return (
     <section className={styles.contenedor}>
       <div
         className={`${styles.dropzone} ${dragging ? styles.dropzoneActivo : ""}`.trim()}
-        onDragOver={event => {
+        onDragOver={(event) => {
           event.preventDefault();
           if (!uploading) setDragging(true);
         }}
@@ -80,14 +80,18 @@ export function MediaDropzone({
         onClick={() => !uploading && inputRef.current?.click()}
         role="button"
         tabIndex={0}
-        onKeyDown={event => {
+        onKeyDown={(event) => {
           if (event.key === "Enter" || event.key === " ") {
             event.preventDefault();
             inputRef.current?.click();
           }
         }}
       >
-        <strong>{uploading ? "Subiendo archivos..." : "Arrastra archivos o haz clic para seleccionar"}</strong>
+        <strong>
+          {uploading
+            ? "Subiendo archivos..."
+            : "Arrastra archivos o haz clic para seleccionar"}
+        </strong>
         <span>
           Acepta imágenes, videos o PDFs. Recomendado mínimo 8 fotos
           {maxFiles ? ` (máximo ${maxFiles})` : ""}.
@@ -100,7 +104,7 @@ export function MediaDropzone({
         accept={accept}
         multiple
         style={{ display: "none" }}
-        onChange={event => {
+        onChange={(event) => {
           handleFiles(event.target.files);
           event.target.value = "";
         }}
@@ -119,9 +123,26 @@ export function MediaDropzone({
             return (
               <article key={item.id} className={styles.tarjeta}>
                 <div className={styles.preview}>
-                  {/* TODO(IMAGEN): Reemplazar placeholder por asset real según docs/ui/properties/refs/ */}
                   {item.url && item.type === "image" ? (
-                    <img src={item.url} alt="" />
+                    <img
+                      src={item.url}
+                      alt={`Media ${index + 1}`}
+                      onError={(e) => {
+                        console.error("Error cargando imagen:", item.url);
+                        e.currentTarget.style.display = "none";
+                      }}
+                      onLoad={() => console.log("Imagen cargada:", item.url)}
+                    />
+                  ) : item.type === "video" ? (
+                    <video
+                      src={item.url}
+                      controls
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "cover",
+                      }}
+                    />
                   ) : (
                     <div className={styles.placeholder} aria-hidden="true" />
                   )}
@@ -161,7 +182,11 @@ export function MediaDropzone({
                         Abajo
                       </button>
                     </div>
-                    <button type="button" onClick={() => onRemove?.(item.id)} className={`${styles.boton} ${styles.botonPeligro}`}>
+                    <button
+                      type="button"
+                      onClick={() => onRemove?.(item.id)}
+                      className={`${styles.boton} ${styles.botonPeligro}`}
+                    >
                       Eliminar
                     </button>
                   </div>

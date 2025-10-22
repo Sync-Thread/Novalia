@@ -21,6 +21,7 @@ import type {
   DocumentTypeDTO,
   VerificationStatusDTO,
 } from "../../application/dto/DocumentDTO";
+import type { PropertyDTO } from "../../application/dto/PropertyDTO";
 import type { Currency, PropertyType } from "../../domain/enums";
 import {
   CURRENCY_VALUES,
@@ -29,6 +30,18 @@ import {
 } from "../../domain/enums";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import {
+  uploadFile,
+  getPresignedUrlForDisplay,
+} from "../../infrastructure/adapters/MediaStorage";
+import { supabase } from "../../../../core/supabase/client";
+import { SupabaseMediaStorage } from "../../infrastructure/adapters/SupabaseMediaStorage";
+import { SupabaseAuthService } from "../../infrastructure/adapters/SupabaseAuthService";
+import { descargarCoordenadasDePropiedad } from "../utils/downloadscoords";
+
+// Instanciar el mediaStorage
+const authService = new SupabaseAuthService({ client: supabase });
+const mediaStorage = new SupabaseMediaStorage({ supabase, authService });
 
 const PROPERTY_TYPE_LABELS: Record<PropertyType, string> = {
   house: "Casa",
@@ -103,6 +116,12 @@ function PublishWizard() {
   const [form, setForm] = useState<DraftForm>(INITIAL_FORM);
   const [mediaItems, setMediaItems] = useState<MediaDTO[]>([]);
   const [documents, setDocuments] = useState<DocumentDTO[]>([]);
+  const [propertyStatus, setPropertyStatus] = useState<
+    PropertyDTO["status"] | null
+  >(null);
+  const [propertyCompleteness, setPropertyCompleteness] = useState<
+    number | null
+  >(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [currentStep, setCurrentStep] = useState(0);
@@ -111,11 +130,11 @@ function PublishWizard() {
   const leafletMap = useRef<L.Map | null>(null);
   const markerRef = useRef<L.Marker | null>(null);
 
+  const isEditingDraft = isEditing && propertyStatus === "draft";
+
   // const [coords, setCoords] = useState<Coords | null>(null);
 
   useEffect(() => {
-    console.log("use effect ...");
-
     if (!mapRef.current) return;
 
     const defaultLat = 22.2981865;
@@ -146,8 +165,41 @@ function PublishWizard() {
         setCoords({ lat: pos.lat, lng: pos.lng });
       });
 
-      // guardar coords iniciales en el estado
+      // Establecer coords iniciales por defecto
       setCoords({ lat: defaultLat, lng: defaultLng });
+
+      // Si hay propertyId, intentar cargar coordenadas guardadas
+      if (form.propertyId) {
+        descargarCoordenadasDePropiedad(form.propertyId)
+          .then((coordenadas) => {
+            if (coordenadas && coordenadas.lat && coordenadas.lng) {
+              // Actualizar estado
+              setCoords({ lat: coordenadas.lat, lng: coordenadas.lng });
+
+              // Mover marker a las coordenadas guardadas
+              if (markerRef.current) {
+                markerRef.current.setLatLng([coordenadas.lat, coordenadas.lng]);
+              }
+
+              // Centrar mapa en las coordenadas guardadas
+              if (leafletMap.current) {
+                leafletMap.current.setView(
+                  [coordenadas.lat, coordenadas.lng],
+                  16
+                );
+              }
+
+              console.log("Coordenadas cargadas de BD:", coordenadas);
+            } else {
+              console.log(
+                "No hay coordenadas guardadas, usando posición por defecto"
+              );
+            }
+          })
+          .catch((error) => {
+            console.error("Error al cargar coordenadas:", error);
+          });
+      }
     }
 
     // cleanup al desmontar
@@ -158,7 +210,7 @@ function PublishWizard() {
         markerRef.current = null;
       }
     };
-  }, [currentStep]);
+  }, [currentStep, form.propertyId]);
 
   // función que llamarás cuando quieras obtener la ubicación real
   const getLocation = async () => {
@@ -193,48 +245,13 @@ function PublishWizard() {
     }
   };
 
-  // useEffect(() => {
-  //   if (!mapRef.current) return;
-  //   const lat = 22.2981865;
-  //   const lng =  -97.8606072;
-
-  //   const map = L.map(mapRef.current).setView([lat, lng], 16);
-  // }, []);
-
-  // const getLocation = async () => {
-  //   try {
-  //     const position = await getCurrentPosition();
-  //     const lat = position.lat;
-  //     const lng = position.lng;
-
-  //     setCoords({ lat, lng });
-  //     // reverseGeocode(lat, lng);
-
-  //     if (mapRef.current) {
-  //       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-  //         attribution: "&copy; OpenStreetMap contributors",
-  //       }).addTo(map);
-
-  //       const marker = L.marker([lat, lng], { draggable: true })
-  //         .addTo(map)
-  //         .bindPopup(t("locations.add.popup_marker"))
-  //         .openPopup();
-
-  //       marker.on("dragend", () => {
-  //         const position = marker.getLatLng();
-  //         // setLocation({ lat: position.lat, lng: position.lng });
-  //         setCoords({ lat, lng });
-  //       });
-  //     }
-  //   } catch (error) {
-  //     console.error("Error obteniendo ubicación:", error);
-  //   }
-  // };
   useEffect(() => {
     if (editingId) return;
     setForm(() => ({ ...INITIAL_FORM }));
     setMediaItems([]);
     setDocuments([]);
+    setPropertyStatus(null);
+    setPropertyCompleteness(null);
     setCoords(null);
   }, [editingId]);
   useEffect(() => {
@@ -245,7 +262,7 @@ function PublishWizard() {
       if (!active) return;
       if (result.isOk()) {
         const data = result.value;
-        setForm(prev => ({
+        setForm((prev) => ({
           ...prev,
           propertyId: data.id,
           title: data.title ?? "",
@@ -258,6 +275,12 @@ function PublishWizard() {
           amenities: data.amenities ?? [],
           amenitiesExtra: data.amenitiesExtra ?? "",
         }));
+        setPropertyStatus(data.status);
+        setPropertyCompleteness(
+          typeof data.completenessScore === "number"
+            ? data.completenessScore
+            : null
+        );
         if (data.location) {
           setCoords({ lat: data.location.lat, lng: data.location.lng });
         }
@@ -276,6 +299,87 @@ function PublishWizard() {
       active = false;
     };
   }, [editingId, getProperty, listDocuments]);
+
+  // Cargar imágenes desde BD cuando llegue al paso "media"
+  useEffect(() => {
+    // Solo cargar si estamos en el paso "media" (índice 3) y tenemos propertyId
+    if (currentStep !== 3 || !form.propertyId) return;
+
+    let active = true;
+
+    const loadMediaFromDatabase = async () => {
+      console.log(
+        "📸 Cargando imágenes desde BD para propiedad:",
+        form.propertyId
+      );
+
+      // 1. Obtener registros de media_assets
+      const mediaResult = await mediaStorage.listMedia(form.propertyId!);
+
+      if (!active) return;
+
+      if (mediaResult.isErr()) {
+        console.error("Error al cargar media desde BD:", mediaResult.error);
+        setMessage("⚠️ No se pudieron cargar las imágenes");
+        return;
+      }
+
+      const mediaRecords = mediaResult.value;
+      console.log(
+        `✅ Se encontraron ${mediaRecords.length} registros de media en BD`
+      );
+
+      if (mediaRecords.length === 0) {
+        // No hay imágenes guardadas
+        return;
+      }
+
+      // 2. Descargar cada imagen usando presigned URLs
+      const mediaWithBlobUrls = await Promise.all(
+        mediaRecords.map(async (mediaRecord) => {
+          try {
+            if (!mediaRecord.s3Key) {
+              console.warn("Media sin s3Key:", mediaRecord.id);
+              return mediaRecord;
+            }
+
+            console.log("⬇️ Descargando imagen:", mediaRecord.s3Key);
+
+            // Obtener presigned URL y descargar como blob
+            const blobUrl = await getPresignedUrlForDisplay(mediaRecord.s3Key);
+
+            console.log("✅ Imagen descargada como blob:", blobUrl);
+
+            // Retornar MediaDTO con blob URL local
+            return {
+              ...mediaRecord,
+              url: blobUrl, // Usar blob URL en lugar de S3 URL
+            };
+          } catch (error) {
+            console.error(
+              "Error descargando imagen:",
+              mediaRecord.s3Key,
+              error
+            );
+            // Retornar el registro sin modificar si falla
+            return mediaRecord;
+          }
+        })
+      );
+
+      if (!active) return;
+
+      // 3. Actualizar estado con las imágenes descargadas
+      setMediaItems(mediaWithBlobUrls);
+      console.log("✅ Todas las imágenes cargadas y listas para mostrar");
+    };
+
+    loadMediaFromDatabase();
+
+    return () => {
+      active = false;
+    };
+  }, [currentStep, form.propertyId]);
 
   const buildDraftPayload = () => ({
     title: form.title.trim() || "Propiedad sin titulo",
@@ -303,7 +407,12 @@ function PublishWizard() {
     const payload = buildDraftPayload();
 
     if (!form.propertyId) {
+      console.log('antes de "crear"');
+
       const result = await createProperty(payload);
+      console.log("despues de crear, mas result");
+      console.log(result);
+
       if (result.isOk()) {
         const id = result.value.id;
         setForm((prev) => ({ ...prev, propertyId: id }));
@@ -317,11 +426,15 @@ function PublishWizard() {
         id: form.propertyId,
         patch: payload,
       });
+      const success = result.isOk();
       setMessage(
-        result.isOk()
-          ? "Borrador actualizado."
-          : "No pudimos actualizar el borrador."
+        success ? "Borrador actualizado." : "No pudimos actualizar el borrador."
       );
+      if (success && isEditing) {
+        setSaving(false);
+        navigate("/properties");
+        return;
+      }
     }
     setSaving(false);
   };
@@ -335,7 +448,9 @@ function PublishWizard() {
 
   const handlePublish = async () => {
     if (!form.propertyId) return;
-    if (isEditing) {
+    setMessage(null);
+
+    if (isEditing && !isEditingDraft) {
       const updateResult = await updateProperty({
         id: form.propertyId,
         patch: buildDraftPayload(),
@@ -347,6 +462,18 @@ function PublishWizard() {
       }
       return;
     }
+
+    if (isEditingDraft) {
+      const updateResult = await updateProperty({
+        id: form.propertyId,
+        patch: buildDraftPayload(),
+      });
+      if (!updateResult.isOk()) {
+        setMessage("No pudimos actualizar la propiedad.");
+        return;
+      }
+    }
+
     const result = await publishProperty({ id: form.propertyId });
     if (result.isOk()) {
       navigate("/properties");
@@ -360,10 +487,117 @@ function PublishWizard() {
       setMessage("Guarda el borrador antes de subir media.");
       return;
     }
+
+    // Procesar cada archivo
     for (const file of files) {
-      const result = await uploadMedia({ propertyId: form.propertyId, file });
-      if (result.isOk()) {
-        setMediaItems(result.value);
+      const tempId = crypto.randomUUID();
+
+      try {
+        // 1. Crear URL local inmediatamente para preview
+        const localUrl = URL.createObjectURL(file);
+
+        // 2. Crear MediaDTO temporal con URL local
+        const tempMedia: MediaDTO = {
+          id: tempId,
+          orgId: null,
+          propertyId: form.propertyId,
+          url: localUrl, // URL local temporal (blob:http://...)
+          s3Key: null,
+          type: file.type.startsWith("video/") ? "video" : "image",
+          position: mediaItems.length,
+          isCover: mediaItems.length === 0,
+          metadata: {
+            fileName: file.name,
+            originalName: file.name,
+            contentType: file.type,
+            size: file.size,
+            uploadedAt: new Date().toISOString(),
+            uploading: true, // Flag para indicar que está subiendo
+          },
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+
+        // 3. Agregar inmediatamente al estado para preview
+        setMediaItems((prev) => [...prev, tempMedia]);
+
+        // 4. Subir a S3 en segundo plano
+        const uploadResult = await uploadFile(file, "uploads", form.propertyId);
+
+        if (uploadResult?.objectUrl) {
+          console.log("Archivo subido a S3:", uploadResult);
+
+          // 5. Guardar en la base de datos
+          const dbResult = await mediaStorage.insertMediaFromS3({
+            propertyId: form.propertyId,
+            s3Key: uploadResult.key,
+            url: uploadResult.objectUrl,
+            type: file.type.startsWith("video/") ? "video" : "image",
+            fileName: uploadResult.filename,
+            contentType: uploadResult.contentType,
+            size: uploadResult.size,
+          });
+
+          if (dbResult.isOk()) {
+            const savedMedia = dbResult.value;
+            console.log("Media guardado en BD:", savedMedia);
+
+            // 6. Actualizar con el ID real pero mantener URL local
+            setMediaItems((prev) =>
+              prev.map((item) =>
+                item.id === tempId
+                  ? {
+                      ...savedMedia,
+                      url: localUrl, // Mantener URL local en lugar de S3
+                      metadata: {
+                        ...savedMedia.metadata,
+                        uploading: false,
+                      },
+                    }
+                  : item
+              )
+            );
+
+            // NO liberar URL local - la necesitamos para mostrar la imagen
+            // URL.revokeObjectURL(localUrl);
+
+            setMessage(`✅ ${file.name} subido correctamente`);
+          } else {
+            console.error("Error guardando en BD:", dbResult.error);
+
+            // Actualizar el item temporal con error
+            setMediaItems((prev) =>
+              prev.map((item) =>
+                item.id === tempId
+                  ? {
+                      ...item,
+                      metadata: {
+                        ...item.metadata,
+                        uploading: false,
+                        error: "Error guardando en BD",
+                      },
+                    }
+                  : item
+              )
+            );
+
+            setMessage(
+              `⚠️ ${file.name} subido a S3 pero error guardando en BD`
+            );
+          }
+        } else {
+          // Si falla el upload a S3, remover el item temporal
+          setMediaItems((prev) => prev.filter((item) => item.id !== tempId));
+          setMessage(`❌ Error al subir ${file.name} a S3`);
+        }
+      } catch (error) {
+        console.error("Error subiendo archivo:", error);
+        setMessage(
+          `❌ Error al subir ${file.name}: ${error instanceof Error ? error.message : "Error desconocido"}`
+        );
+
+        // Remover el item temporal si falla
+        setMediaItems((prev) => prev.filter((item) => item.id !== tempId));
       }
     }
   };
@@ -488,7 +722,13 @@ function PublishWizard() {
   }, [form, mediaItems, documents]);
 
   const completed = requirements.filter((item) => item.valid).length;
-  const completion = Math.round((completed / requirements.length) * 100);
+  const computedCompletion = Math.round(
+    (completed / requirements.length) * 100
+  );
+  const completion =
+    isEditing && propertyCompleteness !== null
+      ? Math.max(0, Math.min(100, Math.round(propertyCompleteness)))
+      : computedCompletion;
   const missingItems = requirements
     .filter((item) => !item.valid)
     .map((item) => item.label);
@@ -855,7 +1095,9 @@ function PublishWizard() {
             <h3 className="wizard-summary__title">Campos faltantes</h3>
             {missingItems.length === 0 ? (
               <p className="wizard-summary__empty">
-                {isEditing ? "Todo listo para actualizar." : "Todo listo para publicar."}
+                {isEditing
+                  ? "Todo listo para actualizar."
+                  : "Todo listo para publicar."}
               </p>
             ) : (
               <ul className="wizard-summary__list">
@@ -868,7 +1110,10 @@ function PublishWizard() {
         </aside>
       </div>
 
-      <footer className="wizard__actions" style={{ position: "relative", zIndex: 10 }}>
+      <footer
+        className="wizard__actions"
+        style={{ position: "relative", zIndex: 10 }}
+      >
         <button
           type="button"
           className="btn btn-outline"
@@ -896,7 +1141,11 @@ function PublishWizard() {
             onClick={handlePublish}
             disabled={!form.propertyId}
           >
-            {isEditing ? "Actualizar propiedad" : "Publicar propiedad"}
+            {isEditingDraft
+              ? "Publicar propiedad"
+              : isEditing
+                ? "Actualizar propiedad"
+                : "Publicar propiedad"}
           </button>
         )}
       </footer>

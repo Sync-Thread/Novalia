@@ -1,4 +1,6 @@
 import type { Result } from "../_shared/result";
+// import type {Coords} from "../../application/dto/CoordsDTO";
+import type { Coords } from "../../UI/utils/geolocation";
 
 export interface AuthProfile {
   userId: string;
@@ -8,6 +10,7 @@ export interface AuthProfile {
   email: string | null;
   phone: string | null;
   roleHint: string | null;
+  location: Coords | null;
 }
 
 export interface AuthService {

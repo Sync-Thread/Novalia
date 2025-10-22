@@ -30,7 +30,7 @@ export interface PropertyRow {
   state: string | null;
   postal_code: string | null;
   display_address: boolean | null;
-  location: string | GeoPoint | null;
+  location: Json | null; // JSONB: { lat: number, lng: number }
   normalized_address: Json | null;
   rpp_verified: string | null;
   completeness_score: number | null;
@@ -70,7 +70,7 @@ export interface DocumentRow {
 
 export interface MediaAssetRow {
   id: string;
-  org_id: string;
+  org_id: string | null;
   property_id: string | null;
   media_type: string;
   s3_key: string | null;
@@ -90,7 +90,7 @@ export type GeoPoint =
 export type PropertyInsertPayload = Omit<
   PropertyRow,
   "created_at" | "updated_at" | "org_id"
-> & { org_id: string };
+> & { org_id: string | null };
 
 export type PropertyUpdatePayload = Partial<PropertyInsertPayload>;
 
@@ -114,7 +114,7 @@ export type DocumentUpdatePayload = Partial<
 
 export type MediaInsertPayload = {
   id: string;
-  org_id: string;
+  org_id: string | null;
   property_id: string | null;
   media_type: string;
   s3_key: string | null;

@@ -59,12 +59,13 @@ export class MediaStorageFake implements MediaStorage {
       return Result.fail(mediaError("AUTH", "Cannot resolve authenticated context", authResult.error));
     }
 
-    const { orgId } = authResult.value;
+    const { orgId, userId } = authResult.value;
     const now = this.clock.now();
     const nowIso = now.toISOString();
     const mediaId = crypto.randomUUID();
     const key = this.composeKey({
       orgId,
+      userId,
       propertyId,
       mediaId,
       fileName: file.fileName,
@@ -76,7 +77,7 @@ export class MediaStorageFake implements MediaStorage {
 
     const stored: StoredMedia = {
       id: mediaId,
-      orgId,
+      orgId: orgId ?? null,
       propertyId,
       url: key,
       s3Key: key,
@@ -221,9 +222,16 @@ export class MediaStorageFake implements MediaStorage {
     return Result.ok(undefined);
   }
 
-  private composeKey(params: { orgId: string; propertyId: string; mediaId: string; fileName: string }): string {
+  private composeKey(params: {
+    orgId: string | null;
+    userId: string;
+    propertyId: string;
+    mediaId: string;
+    fileName: string;
+  }): string {
     const safeFile = normalizeFileName(params.fileName);
-    return `novalia+fake://env/${this.env}/org/${params.orgId}/properties/${params.propertyId}/${params.mediaId}/${safeFile}`;
+    const scope = params.orgId ? `org/${params.orgId}` : `user/${params.userId}`;
+    return `novalia+fake://env/${this.env}/${scope}/properties/${params.propertyId}/${params.mediaId}/${safeFile}`;
   }
 
   private toDto(stored: StoredMedia): MediaDTO {

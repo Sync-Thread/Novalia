@@ -105,20 +105,6 @@ export class SupabaseAuthService implements AuthService {
 
     const kycStatus = mapKycStatus((kycRow?.status as string | null) ?? null);
 
-    const profileSnapshot = {
-      userId: user.id,
-      email: user.email ?? null,
-      orgId,
-      roleHint: profile.role_hint ?? null,
-      kycStatus,
-      fullName: profile.full_name ?? null,
-      phone: profile.phone ?? null,
-      profileEmail: profile.email ?? null,
-      orgMissing: orgId === null,
-    };
-
-    // console.info("[auth] profile snapshot", profileSnapshot);
-
     return Result.ok({
       userId: user.id,
       orgId,

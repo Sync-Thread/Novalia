@@ -5,7 +5,6 @@ import type {
   UpdatePropertyDTO,
 } from "../../application/dto/PropertyDTO";
 import type {
-  GeoPoint,
   Json,
   PropertyInsertPayload,
   PropertyRow,
@@ -25,8 +24,26 @@ function ensureIso(value: string | null | undefined): string | null {
   return value;
 }
 
-function readLocation(point: GeoPoint | null | undefined): PropertyDTO["location"] {
+function readLocation(point: Json | null | undefined): PropertyDTO["location"] {
   if (!point) return null;
+  
+  // Si es un objeto JSONB directo con lat/lng
+  if (typeof point === "object" && !Array.isArray(point)) {
+    const obj = point as any;
+    if (typeof obj.lat === "number" && typeof obj.lng === "number") {
+      return { lat: obj.lat, lng: obj.lng };
+    }
+    
+    // Soporte para GeoJSON (por si acaso)
+    if (obj.type === "Point" && Array.isArray(obj.coordinates)) {
+      const [lng, lat] = obj.coordinates;
+      if (typeof lat === "number" && typeof lng === "number") {
+        return { lat, lng };
+      }
+    }
+  }
+  
+  // Soporte legacy para formato WKT string (por si acaso)
   if (typeof point === "string") {
     const match = point.match(/POINT\\(([-\\d\\.]+) ([-\\d\\.]+)\\)$/);
     if (!match) return null;
@@ -36,19 +53,16 @@ function readLocation(point: GeoPoint | null | undefined): PropertyDTO["location
     if (Number.isNaN(latNum) || Number.isNaN(lngNum)) return null;
     return { lat: latNum, lng: lngNum };
   }
-  if (point.type === "Point" && Array.isArray(point.coordinates)) {
-    const [lng, lat] = point.coordinates;
-    if (typeof lat !== "number" || typeof lng !== "number") return null;
-    return { lat, lng };
-  }
+  
   return null;
 }
 
-function toPostgrestPoint(location: PropertyDTO["location"] | undefined | null): string | null {
+function toJsonbLocation(location: PropertyDTO["location"] | undefined | null): Json | null {
   if (!location) return null;
   const { lat, lng } = location;
   if (typeof lat !== "number" || typeof lng !== "number") return null;
-  return `SRID=4326;POINT(${lng} ${lat})`;
+  // Retornar objeto plano que Supabase convertirá a JSONB automáticamente
+  return { lat, lng };
 }
 
 function readNormalizedStatus(input: unknown): PropertyDTO["normalizedStatus"] | null {
@@ -148,7 +162,7 @@ export function mapPropertyRowToDTO(row: PropertyRow): PropertyDTO {
 export function mapPropertyDtoToInsertPayload(dto: CreatePropertyDTO): PropertyInsertPayload {
   return {
     id: dto.id,
-    org_id: dto.orgId,
+    org_id: dto.orgId ?? null,
     lister_user_id: dto.listerUserId,
     status: dto.status,
     property_type: dto.propertyType,
@@ -169,7 +183,7 @@ export function mapPropertyDtoToInsertPayload(dto: CreatePropertyDTO): PropertyI
     state: dto.address.state,
     postal_code: dto.address.postalCode ?? null,
     display_address: dto.address.displayAddress ?? false,
-    location: toPostgrestPoint(dto.location),
+    location: toJsonbLocation(dto.location),
     normalized_address: dto.normalizedStatus
       ? { status: dto.normalizedStatus }
       : null,
@@ -234,7 +248,7 @@ export function mapPropertyUpdateToPayload(
     payload.display_address = patch.address.displayAddress ?? false;
   }
   if (patch.location !== undefined) {
-    payload.location = toPostgrestPoint(patch.location);
+    payload.location = toJsonbLocation(patch.location);
   }
   if (patch.tags !== undefined) payload.tags_cached = patch.tags ?? [];
   if ("internalId" in patch) payload.internal_id = patch.internalId ?? null;

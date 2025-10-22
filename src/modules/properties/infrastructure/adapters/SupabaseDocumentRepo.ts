@@ -9,6 +9,7 @@ import {
   mapVerificationToDb,
 } from "../mappers/document.mappers";
 import type { DocumentRow } from "../types/supabase-rows";
+import { scopeByContext } from "./scopeByContext";
 
 type DocumentErrorCode = "AUTH" | "NOT_FOUND" | "CONFLICT" | "UNKNOWN";
 
@@ -87,7 +88,7 @@ export class SupabaseDocumentRepo implements DocumentRepo {
       return Result.fail(docError("AUTH", "Cannot resolve authenticated context", authResult.error));
     }
 
-    const { orgId } = authResult.value;
+    const { orgId, userId } = authResult.value;
 
     let listQuery = this.client
       .from("documents")
@@ -95,9 +96,7 @@ export class SupabaseDocumentRepo implements DocumentRepo {
       .eq("related_type", "property")
       .eq("related_id", propertyId);
 
-    if (orgId) {
-      listQuery = listQuery.eq("org_id", orgId);
-    }
+    listQuery = scopeByContext(listQuery, { orgId, userId, listerColumn: null });
 
     const { data, error } = await listQuery.order("created_at", { ascending: true });
 
@@ -121,7 +120,7 @@ export class SupabaseDocumentRepo implements DocumentRepo {
       return Result.fail(docError("AUTH", "Cannot resolve authenticated context", authResult.error));
     }
 
-    const { orgId } = authResult.value;
+    const { orgId, userId } = authResult.value;
 
     let lookupQuery = this.client
       .from("documents")
@@ -129,9 +128,7 @@ export class SupabaseDocumentRepo implements DocumentRepo {
       .eq("id", documentId)
       .eq("related_type", "property");
 
-    if (orgId) {
-      lookupQuery = lookupQuery.eq("org_id", orgId);
-    }
+    lookupQuery = scopeByContext(lookupQuery, { orgId, userId, listerColumn: null });
 
     const lookup = await lookupQuery.maybeSingle();
 
@@ -151,9 +148,7 @@ export class SupabaseDocumentRepo implements DocumentRepo {
       .eq("related_type", "property")
       .eq("related_id", propertyId);
 
-    if (orgId) {
-      deleteQuery = deleteQuery.eq("org_id", orgId);
-    }
+    deleteQuery = scopeByContext(deleteQuery, { orgId, userId, listerColumn: null });
 
     const { error } = await deleteQuery.select("id").single();
 
@@ -174,7 +169,7 @@ export class SupabaseDocumentRepo implements DocumentRepo {
       return Result.fail(docError("AUTH", "Cannot resolve authenticated context", authResult.error));
     }
 
-    const { orgId } = authResult.value;
+    const { orgId, userId } = authResult.value;
 
     const dbStatus = mapVerificationToDb(status);
     let verifyQuery = this.client
@@ -184,9 +179,7 @@ export class SupabaseDocumentRepo implements DocumentRepo {
       .eq("related_id", propertyId)
       .eq("related_type", "property");
 
-    if (orgId) {
-      verifyQuery = verifyQuery.eq("org_id", orgId);
-    }
+    verifyQuery = scopeByContext(verifyQuery, { orgId, userId, listerColumn: null });
 
     const { error } = await verifyQuery.select("id").single();
 

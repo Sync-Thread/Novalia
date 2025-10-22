@@ -25,7 +25,7 @@ import {
 import { SupabaseAuthService } from "./infrastructure/adapters/SupabaseAuthService";
 import { SupabasePropertyRepo } from "./infrastructure/adapters/SupabasePropertyRepo";
 import { SupabaseDocumentRepo } from "./infrastructure/adapters/SupabaseDocumentRepo";
-import { MediaStorageFake } from "./infrastructure/adapters/MediaStorageFake";
+import { SupabaseMediaStorage } from "./infrastructure/adapters/SupabaseMediaStorage";
 
 export interface PropertiesContainerDeps {
   client?: SupabaseClient;
@@ -69,7 +69,7 @@ export function createPropertiesContainer(deps: PropertiesContainerDeps = {}): P
   const auth = new SupabaseAuthService({ client });
   const propertyRepo = new SupabasePropertyRepo({ client, auth, clock });
   const documentRepo = new SupabaseDocumentRepo({ client, auth });
-  const mediaStorage = new MediaStorageFake({ auth, clock, env: deps.env });
+  const mediaStorage = new SupabaseMediaStorage({ supabase: client, authService: auth });
 
   return {
     useCases: {

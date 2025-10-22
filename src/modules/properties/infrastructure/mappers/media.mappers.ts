@@ -7,13 +7,13 @@ import type {
 const DB_TO_DTO_MEDIA: Record<string, MediaTypeDTO> = {
   image: "image",
   video: "video",
-  document: "floorplan",
+  document: "document",
 };
 
 const DTO_TO_DB_MEDIA: Record<MediaTypeDTO, string> = {
   image: "image",
   video: "video",
-  floorplan: "document",
+  document: "document",
 };
 
 export function mapMediaRowToDTO(row: MediaAssetRow): MediaDTO {
@@ -42,19 +42,17 @@ export function mapMediaRowToDTO(row: MediaAssetRow): MediaDTO {
 }
 
 export function mapMediaDtoToInsertPayload(dto: MediaDTO): MediaInsertPayload {
-  if (!dto.orgId) {
-    throw new Error("MediaDTO.orgId is required to build insert payload");
-  }
-
   const metadata = {
     ...(dto.metadata ?? {}),
     isCover: dto.isCover,
     variant: dto.type,
   };
 
+  const orgId = dto.orgId ?? null;
+
   return {
     id: dto.id,
-    org_id: dto.orgId,
+    org_id: orgId,
     property_id: dto.propertyId ?? null,
     media_type: DTO_TO_DB_MEDIA[dto.type] ?? "image",
     s3_key: dto.s3Key ?? null,
