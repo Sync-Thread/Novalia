@@ -1264,7 +1264,7 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 .filters-bar__more-panel {
   position: absolute;
   top: calc(100% + 12px);
-  right: 0;
+  left: 0;
   min-width: 280px;
   padding: 16px;
   border-radius: 14px;
