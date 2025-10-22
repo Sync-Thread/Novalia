@@ -235,25 +235,17 @@ export class SupabasePropertyRepo implements PropertyRepo {
       );
     }
 
-    const { orgId, userId , location} = authContext.value;
+    const { orgId, userId } = authContext.value;
 
     try {
       const payload = mapPropertyDtoToInsertPayload(input);
       payload.org_id = orgId ?? null;
       payload.lister_user_id = userId;
-      console.log('244, payload',payload);
-      const locationString = `POINT(${location?.lng} ${location?.lat})`;
-      //hacerlo en json:
-      const locationGeoJson = 
+      
+      // El mapper ya convirtió input.location a JSONB: { lat: number, lng: number }
+      // Supabase lo guardará automáticamente como JSONB
+      console.log('payload',payload);
         
-         {lat: location?.lng, lng:location?.lat}
-      ;
-      const a = JSON.stringify(locationGeoJson);
-      if (location!==null && payload.location){ //que tenga valores
-        payload.location=a; //lo agrego al payload
-        console.log('payload', payload);
-        
-      }
       const { error } = await this.client.from("properties").insert(payload);
       if (error) {
         return Result.fail(mapPostgrestError(error));
@@ -492,7 +484,6 @@ export class SupabasePropertyRepo implements PropertyRepo {
       const payload = mapPropertyDtoToInsertPayload(duplicate);
       payload.org_id = authOrgId ?? null;
       payload.lister_user_id = userId;
-      console.log('484, payload ',payload);
       
       const { error } = await this.client.from("properties").insert(payload);
       if (error) {

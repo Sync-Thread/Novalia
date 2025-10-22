@@ -30,7 +30,7 @@ export interface PropertyRow {
   state: string | null;
   postal_code: string | null;
   display_address: boolean | null;
-  location: string | GeoPoint | null;
+  location: Json | null; // JSONB: { lat: number, lng: number }
   normalized_address: Json | null;
   rpp_verified: string | null;
   completeness_score: number | null;
