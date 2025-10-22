@@ -300,6 +300,7 @@ export default function HeaderUpbarNovalia({
   const { role, user } = useHeaderAuth(roleOverride);
   const size = useResponsiveSize(sizeOverride);
   const isMobile = size === "mobile";
+  const isOnPropertiesList = location.pathname === "/properties";
 
   const [sheetOpen, setSheetOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -409,6 +410,7 @@ export default function HeaderUpbarNovalia({
 
   const mobileCta = useMemo(() => {
     if (role === "agent_org") {
+      if (isOnPropertiesList) return null;
       return (
         <Link to="/properties/new" className="btn btn-primary" onClick={closeSheet}>
           Publicar propiedad
@@ -427,7 +429,7 @@ export default function HeaderUpbarNovalia({
         Publica tu propiedad
       </button>
     );
-  }, [closeSheet, handleSignUp, role]);
+  }, [closeSheet, handleSignUp, isOnPropertiesList, role]);
 
   const dropdownItems = useMemo<DropdownItem[]>(() => {
     if (role === "buyer") {
@@ -604,9 +606,11 @@ export default function HeaderUpbarNovalia({
 
     return (
       <>
-        <Link to="/properties/new" className="btn btn-primary">
-          Publicar propiedad
-        </Link>
+        {!isOnPropertiesList && (
+          <Link to="/properties/new" className="btn btn-primary">
+            Publicar propiedad
+          </Link>
+        )}
         {bellButton}
         <div className="upbar-dropdown" ref={dropdownRef}>
           <span className="sr-only">{avatarLabel}</span>
@@ -710,9 +714,11 @@ export default function HeaderUpbarNovalia({
       )}
       {role === "agent_org" && (
         <>
-          <Link to="/properties/new" className="btn btn-primary" onClick={closeSheet}>
-            Publicar propiedad
-          </Link>
+          {!isOnPropertiesList && (
+            <Link to="/properties/new" className="btn btn-primary" onClick={closeSheet}>
+              Publicar propiedad
+            </Link>
+          )}
           <button type="button" className="btn btn-outline" onClick={handleSignOut}>
             Cerrar sesion
           </button>
