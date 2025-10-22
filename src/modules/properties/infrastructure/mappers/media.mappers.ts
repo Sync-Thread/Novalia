@@ -7,13 +7,13 @@ import type {
 const DB_TO_DTO_MEDIA: Record<string, MediaTypeDTO> = {
   image: "image",
   video: "video",
-  document: "floorplan",
+  document: "document",
 };
 
 const DTO_TO_DB_MEDIA: Record<MediaTypeDTO, string> = {
   image: "image",
   video: "video",
-  floorplan: "document",
+  document: "document",
 };
 
 export function mapMediaRowToDTO(row: MediaAssetRow): MediaDTO {

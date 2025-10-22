@@ -30,6 +30,14 @@ import {
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { uploadFile } from "../../infrastructure/adapters/MediaStorage";
+import { supabase } from "../../../../core/supabase/client";
+import { SupabaseMediaStorage } from "../../infrastructure/adapters/SupabaseMediaStorage";
+import { SupabaseAuthService } from "../../infrastructure/adapters/SupabaseAuthService";
+import { descargarCoordenadasDePropiedad } from "../utils/downloadscoords";
+
+// Instanciar el mediaStorage
+const authService = new SupabaseAuthService({ client: supabase });
+const mediaStorage = new SupabaseMediaStorage({ supabase, authService });
 
 const PROPERTY_TYPE_LABELS: Record<PropertyType, string> = {
   house: "Casa",
@@ -149,6 +157,12 @@ function PublishWizard() {
 
       // guardar coords iniciales en el estado
       setCoords({ lat: defaultLat, lng: defaultLng });
+      if (form.propertyId) {
+        const coredenas = descargarCoordenadasDePropiedad(form.propertyId);
+        console.log(form.propertyId);
+
+        console.log("coords :;;;; ", coredenas);
+      }
     }
 
     // cleanup al desmontar
@@ -194,43 +208,6 @@ function PublishWizard() {
     }
   };
 
-  // useEffect(() => {
-  //   if (!mapRef.current) return;
-  //   const lat = 22.2981865;
-  //   const lng =  -97.8606072;
-
-  //   const map = L.map(mapRef.current).setView([lat, lng], 16);
-  // }, []);
-
-  // const getLocation = async () => {
-  //   try {
-  //     const position = await getCurrentPosition();
-  //     const lat = position.lat;
-  //     const lng = position.lng;
-
-  //     setCoords({ lat, lng });
-  //     // reverseGeocode(lat, lng);
-
-  //     if (mapRef.current) {
-  //       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-  //         attribution: "&copy; OpenStreetMap contributors",
-  //       }).addTo(map);
-
-  //       const marker = L.marker([lat, lng], { draggable: true })
-  //         .addTo(map)
-  //         .bindPopup(t("locations.add.popup_marker"))
-  //         .openPopup();
-
-  //       marker.on("dragend", () => {
-  //         const position = marker.getLatLng();
-  //         // setLocation({ lat: position.lat, lng: position.lng });
-  //         setCoords({ lat, lng });
-  //       });
-  //     }
-  //   } catch (error) {
-  //     console.error("Error obteniendo ubicación:", error);
-  //   }
-  // };
   useEffect(() => {
     if (editingId) return;
     setForm(() => ({ ...INITIAL_FORM }));
@@ -304,7 +281,12 @@ function PublishWizard() {
     const payload = buildDraftPayload();
 
     if (!form.propertyId) {
+      console.log('antes de "crear"');
+
       const result = await createProperty(payload);
+      console.log("despues de crear, mas result");
+      console.log(result);
+
       if (result.isOk()) {
         const id = result.value.id;
         setForm((prev) => ({ ...prev, propertyId: id }));
@@ -362,15 +344,102 @@ function PublishWizard() {
       return;
     }
 
-    const a = uploadFile(files[0], "uploads", "form.propertyId");
-    console.log(a);
+    // Procesar cada archivo
+    for (const file of files) {
+      const tempId = crypto.randomUUID();
 
-    // for (const file of files) {
-    //   const result = await uploadMedia({ propertyId: form.propertyId, file });
-    //   if (result.isOk()) {
-    //     setMediaItems(result.value);
-    //   }
-    // }
+      try {
+        // 1. Crear URL local inmediatamente para preview
+        const localUrl = URL.createObjectURL(file);
+
+        // 2. Crear MediaDTO temporal con URL local
+        const tempMedia: MediaDTO = {
+          id: tempId,
+          orgId: null,
+          propertyId: form.propertyId,
+          url: localUrl, // URL local temporal (blob:http://...)
+          s3Key: null,
+          type: file.type.startsWith("video/") ? "video" : "image",
+          position: mediaItems.length,
+          isCover: mediaItems.length === 0,
+          metadata: {
+            fileName: file.name,
+            originalName: file.name,
+            contentType: file.type,
+            size: file.size,
+            uploadedAt: new Date().toISOString(),
+            uploading: true, // Flag para indicar que está subiendo
+          },
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+
+        // 3. Agregar inmediatamente al estado para preview
+        setMediaItems((prev) => [...prev, tempMedia]);
+
+        // 4. Subir a S3 en segundo plano
+        const uploadResult = await uploadFile(file, "uploads", form.propertyId);
+
+        if (uploadResult?.objectUrl) {
+          console.log("Archivo subido a S3:", uploadResult);
+
+          // 5. Guardar en la base de datos
+          const dbResult = await mediaStorage.insertMediaFromS3({
+            propertyId: form.propertyId,
+            s3Key: uploadResult.key,
+            url: uploadResult.objectUrl,
+            type: file.type.startsWith("video/") ? "video" : "image",
+            fileName: uploadResult.filename,
+            contentType: uploadResult.contentType,
+            size: uploadResult.size,
+          });
+
+          if (dbResult.isOk()) {
+            const savedMedia = dbResult.value;
+            console.log("Media guardado en BD:", savedMedia);
+
+            // 6. Reemplazar el temporal con el real de la BD
+            // setMediaItems((prev) =>
+            //   prev.map((item) => (item.id === tempId ? savedMedia : item))
+            // );
+
+            // Liberar URL local
+            URL.revokeObjectURL(localUrl);
+
+            setMessage(`✅ ${file.name} subido correctamente`);
+          } else {
+            console.error("Error guardando en BD:", dbResult.error);
+            setMessage(
+              `⚠️ ${file.name} subido a S3 pero error guardando en BD`
+            );
+
+            // Mantener el preview local si falla la BD
+            // setMediaItems((prev) =>
+            //   prev.map((item) =>
+            //     item.id === tempId
+            //       ? {
+            //           ...item,
+            //           metadata: {
+            //             ...item.metadata,
+            //             uploading: false,
+            //             error: "Error guardando en BD",
+            //           },
+            //         }
+            //       : item
+            //   )
+            // );
+          }
+        }
+      } catch (error) {
+        console.error("Error subiendo archivo:", error);
+        setMessage(
+          `❌ Error al subir ${file.name}: ${error instanceof Error ? error.message : "Error desconocido"}`
+        );
+
+        // Remover el item temporal si falla
+        setMediaItems((prev) => prev.filter((item) => item.id !== tempId));
+      }
+    }
   };
 
   const handleRemoveMedia = async (mediaId: string) => {

@@ -1,4 +1,4 @@
-export type MediaTypeDTO = "image" | "video" | "floorplan";
+export type MediaTypeDTO = "image" | "video" | "document";
 
 export interface MediaDTO {
   id: string;
