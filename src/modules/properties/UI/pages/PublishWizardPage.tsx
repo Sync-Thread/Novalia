@@ -29,6 +29,7 @@ import {
 } from "../../domain/enums";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { uploadFile } from "../../infrastructure/adapters/MediaStorage";
 
 const PROPERTY_TYPE_LABELS: Record<PropertyType, string> = {
   house: "Casa",
@@ -245,7 +246,7 @@ function PublishWizard() {
       if (!active) return;
       if (result.isOk()) {
         const data = result.value;
-        setForm(prev => ({
+        setForm((prev) => ({
           ...prev,
           propertyId: data.id,
           title: data.title ?? "",
@@ -360,12 +361,16 @@ function PublishWizard() {
       setMessage("Guarda el borrador antes de subir media.");
       return;
     }
-    for (const file of files) {
-      const result = await uploadMedia({ propertyId: form.propertyId, file });
-      if (result.isOk()) {
-        setMediaItems(result.value);
-      }
-    }
+
+    const a = uploadFile(files[0], "uploads", "form.propertyId");
+    console.log(a);
+
+    // for (const file of files) {
+    //   const result = await uploadMedia({ propertyId: form.propertyId, file });
+    //   if (result.isOk()) {
+    //     setMediaItems(result.value);
+    //   }
+    // }
   };
 
   const handleRemoveMedia = async (mediaId: string) => {
@@ -855,7 +860,9 @@ function PublishWizard() {
             <h3 className="wizard-summary__title">Campos faltantes</h3>
             {missingItems.length === 0 ? (
               <p className="wizard-summary__empty">
-                {isEditing ? "Todo listo para actualizar." : "Todo listo para publicar."}
+                {isEditing
+                  ? "Todo listo para actualizar."
+                  : "Todo listo para publicar."}
               </p>
             ) : (
               <ul className="wizard-summary__list">
@@ -868,7 +875,10 @@ function PublishWizard() {
         </aside>
       </div>
 
-      <footer className="wizard__actions" style={{ position: "relative", zIndex: 10 }}>
+      <footer
+        className="wizard__actions"
+        style={{ position: "relative", zIndex: 10 }}
+      >
         <button
           type="button"
           className="btn btn-outline"
