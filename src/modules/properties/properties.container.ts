@@ -76,7 +76,7 @@ export function createPropertiesContainer(deps: PropertiesContainerDeps = {}): P
       listProperties: new ListProperties({ repo: propertyRepo, clock }),
       getProperty: new GetProperty({ repo: propertyRepo, clock }),
       createProperty: new CreateProperty({ repo: propertyRepo, auth, clock }),
-      updateProperty: new UpdateProperty({ repo: propertyRepo, clock }),
+      updateProperty: new UpdateProperty({ repo: propertyRepo, media: mediaStorage, documents: documentRepo, clock }),
       publishProperty: new PublishProperty({ repo: propertyRepo, auth, clock }),
       pauseProperty: new PauseProperty({ repo: propertyRepo, clock }),
       schedulePublish: new SchedulePublish({ repo: propertyRepo, clock }),

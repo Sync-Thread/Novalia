@@ -536,6 +536,16 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
   align-items: flex-end;
   gap: 12px;
 }
+.quickview-progress {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.quickview-progress__label {
+  font-size: 0.8rem;
+  color: #64748b;
+}
 .quickview-section {
   display: flex;
   flex-direction: column;
@@ -1628,6 +1638,12 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 .wizard-summary__text p {
   margin: 4px 0 0;
   color: #64748b;
+}
+.wizard-summary__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
 }
 .wizard-summary__title {
   margin: 0;

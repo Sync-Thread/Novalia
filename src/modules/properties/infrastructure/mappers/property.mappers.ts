@@ -255,6 +255,9 @@ export function mapPropertyUpdateToPayload(
   if ("rppVerification" in patch) {
     payload.rpp_verified = patch.rppVerification ?? "pending";
   }
+  if ("completenessScore" in patch) {
+    payload.completeness_score = patch.completenessScore ?? 0;
+  }
   if ("normalizedStatus" in patch) {
     payload.normalized_address = buildNormalizedAddress(
       patch.normalizedStatus ?? null,

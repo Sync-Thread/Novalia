@@ -389,6 +389,7 @@ export function PropertyQuickView({
   );
 
   const isDraft = property?.status === "draft";
+  const savedCompleteness = Math.round(property?.completenessScore ?? 0);
   const publishButtonClass = isDraft ? "btn btn-primary btn-sm quickview-cta" : "btn btn-ghost btn-sm quickview-cta";
 
   if (!open) return null;
@@ -469,7 +470,12 @@ export function PropertyQuickView({
                 )}
               </div>
               <div className="quickview-header__right">
-                <ProgressCircle value={property?.completenessScore ?? 0} size={72} />
+                <div className="quickview-progress">
+                  <ProgressCircle value={savedCompleteness} size={72} />
+                  <span className="muted quickview-progress__label">
+                    Guardado {savedCompleteness}%
+                  </span>
+                </div>
                 <span className={getBadgeClass(RPP_BADGE[rppStatus].tone)}>
                   {RPP_BADGE[rppStatus].label}
                 </span>

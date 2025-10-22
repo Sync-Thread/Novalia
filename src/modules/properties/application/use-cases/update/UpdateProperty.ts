@@ -2,6 +2,8 @@
 // No tocar la lógica de dominio; sólo orquestar validaciones y repositorio.
 import { propertyIdSchema, updatePropertySchema } from "../../validators/property.schema";
 import type { PropertyRepo } from "../../ports/PropertyRepo";
+import type { MediaStorage } from "../../ports/MediaStorage";
+import type { DocumentRepo } from "../../ports/DocumentRepo";
 import type { Clock } from "../../ports/Clock";
 import { Result } from "../../_shared/result";
 import { parseWith } from "../../_shared/validation";
@@ -37,7 +39,14 @@ const DIRECT_KEYS: Array<keyof UpdatePropertyDTO> = [
 ] as const;
 
 export class UpdateProperty {
-  constructor(private readonly deps: { repo: PropertyRepo; clock: Clock }) {}
+  constructor(
+    private readonly deps: {
+      repo: PropertyRepo;
+      media: MediaStorage;
+      documents: DocumentRepo;
+      clock: Clock;
+    },
+  ) {}
 
   async execute(params: { id: string; patch: unknown }): Promise<Result<void>> {
     const idResult = parseWith(propertyIdSchema, params.id);
@@ -60,6 +69,20 @@ export class UpdateProperty {
 
     const mergedDto = mergeSnapshot(baseSnapshot, patchResult.value);
     const updatedEntity = toDomain(mergedDto, { clock: this.deps.clock });
+
+    // Compute completeness score with current media and document counts
+    const [mediaResult, docsResult] = await Promise.all([
+      this.deps.media.listMedia(baseSnapshot.id),
+      this.deps.documents.listByProperty(baseSnapshot.id),
+    ]);
+
+    const mediaCount = mediaResult.isOk() ? mediaResult.value.length : 0;
+    const hasRppDoc = docsResult.isOk()
+      ? docsResult.value.some((doc) => doc.docType === "rpp_certificate")
+      : false;
+
+    updatedEntity.computeCompleteness({ mediaCount, hasRppDoc });
+
     const sanitized = fromDomain(updatedEntity);
 
     const updatePayload = buildUpdatePayload(patchResult.value, sanitized);
@@ -110,6 +133,9 @@ function buildUpdatePayload(patch: ParsedPatch, sanitized: PropertySnapshot): Up
   if ("location" in patch) {
     payload.location = sanitized.location ?? null;
   }
+
+  // Always include completenessScore since it's computed from current state
+  payload.completenessScore = sanitized.completenessScore;
 
   return payload;
 }

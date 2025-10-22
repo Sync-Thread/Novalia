@@ -119,9 +119,7 @@ function PublishWizard() {
   const [propertyStatus, setPropertyStatus] = useState<
     PropertyDTO["status"] | null
   >(null);
-  const [propertyCompleteness, setPropertyCompleteness] = useState<
-    number | null
-  >(null);
+  const [savedCompleteness, setSavedCompleteness] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [currentStep, setCurrentStep] = useState(0);
@@ -251,7 +249,7 @@ function PublishWizard() {
     setMediaItems([]);
     setDocuments([]);
     setPropertyStatus(null);
-    setPropertyCompleteness(null);
+    setSavedCompleteness(null);
     setCoords(null);
   }, [editingId]);
   useEffect(() => {
@@ -276,9 +274,9 @@ function PublishWizard() {
           amenitiesExtra: data.amenitiesExtra ?? "",
         }));
         setPropertyStatus(data.status);
-        setPropertyCompleteness(
+        setSavedCompleteness(
           typeof data.completenessScore === "number"
-            ? data.completenessScore
+            ? Math.round(data.completenessScore)
             : null
         );
         if (data.location) {
@@ -418,6 +416,7 @@ function PublishWizard() {
         setForm((prev) => ({ ...prev, propertyId: id }));
         await refreshDocs(id);
         setMessage("Borrador guardado.");
+        setSavedCompleteness(completion);
       } else {
         setMessage("No pudimos guardar el borrador.");
       }
@@ -430,6 +429,9 @@ function PublishWizard() {
       setMessage(
         success ? "Borrador actualizado." : "No pudimos actualizar el borrador."
       );
+      if (success) {
+        setSavedCompleteness(completion);
+      }
       if (success && isEditing) {
         setSaving(false);
         navigate("/properties");
@@ -722,13 +724,15 @@ function PublishWizard() {
   }, [form, mediaItems, documents]);
 
   const completed = requirements.filter((item) => item.valid).length;
-  const computedCompletion = Math.round(
+  const editingCompletion = Math.round(
     (completed / requirements.length) * 100
   );
-  const completion =
-    isEditing && propertyCompleteness !== null
-      ? Math.max(0, Math.min(100, Math.round(propertyCompleteness)))
-      : computedCompletion;
+  const savedScore =
+    savedCompleteness !== null
+      ? Math.max(0, Math.min(100, Math.round(savedCompleteness)))
+      : null;
+  const completion = editingCompletion;
+  const showSavedBadge = savedScore !== null;
   const missingItems = requirements
     .filter((item) => !item.valid)
     .map((item) => item.label);
@@ -1088,6 +1092,16 @@ function PublishWizard() {
             <div className="wizard-summary__text">
               <h3>Completitud</h3>
               <p>Completa todos los pasos para habilitar la publicacion.</p>
+              <div className="wizard-summary__chips">
+                <span className="badge badge-primary">
+                  En edicion: {completion}%
+                </span>
+                {showSavedBadge && (
+                  <span className="badge badge-neutral">
+                    Guardado: {savedScore}%
+                  </span>
+                )}
+              </div>
             </div>
           </div>
 
