@@ -9,7 +9,6 @@ import AmenityChips, {
 import MediaDropzone from "../components/MediaDropzone";
 import DocumentCard from "../components/DocumentCard";
 import DesignBanner from "../utils/DesignBanner";
-import { formatVerification } from "../utils/format";
 import {
   isGeolocationSupported,
   getCurrentPosition,
@@ -36,12 +35,14 @@ import {
 } from "../../infrastructure/adapters/MediaStorage";
 import { supabase } from "../../../../core/supabase/client";
 import { SupabaseMediaStorage } from "../../infrastructure/adapters/SupabaseMediaStorage";
+import { SupabaseDocumentStorage } from "../../infrastructure/adapters/SupabaseDocumentStorage";
 import { SupabaseAuthService } from "../../infrastructure/adapters/SupabaseAuthService";
 import { descargarCoordenadasDePropiedad } from "../utils/downloadscoords";
 
-// Instanciar el mediaStorage
+// Instanciar los adaptadores
 const authService = new SupabaseAuthService({ client: supabase });
 const mediaStorage = new SupabaseMediaStorage({ supabase, authService });
+const documentStorage = new SupabaseDocumentStorage({ supabase, authService });
 
 const PROPERTY_TYPE_LABELS: Record<PropertyType, string> = {
   house: "Casa",
@@ -103,11 +104,9 @@ function PublishWizard() {
     updateProperty,
     publishProperty,
     getProperty,
-    uploadMedia,
     removeMedia,
     setCoverMedia,
     reorderMedia,
-    attachDocumentAction,
     deleteDocument,
     verifyRpp,
     listDocuments,
@@ -379,6 +378,41 @@ function PublishWizard() {
     };
   }, [currentStep, form.propertyId]);
 
+  // Cargar documentos desde BD cuando llegue al paso "publish"
+  useEffect(() => {
+    // Solo cargar si estamos en el paso "publish" (índice 4) y tenemos propertyId
+    if (currentStep !== 4 || !form.propertyId) return;
+
+    let active = true;
+
+    const loadDocumentsFromDatabase = async () => {
+      console.log(
+        "📄 Cargando documentos desde BD para propiedad:",
+        form.propertyId
+      );
+
+      const docsResult = await documentStorage.listDocuments(form.propertyId!);
+
+      if (!active) return;
+
+      if (docsResult.isErr()) {
+        console.error("Error al cargar documentos desde BD:", docsResult.error);
+        return;
+      }
+
+      const docs = docsResult.value;
+      console.log(`✅ Se encontraron ${docs.length} documentos en BD`);
+
+      setDocuments(docs);
+    };
+
+    loadDocumentsFromDatabase();
+
+    return () => {
+      active = false;
+    };
+  }, [currentStep, form.propertyId]);
+
   const buildDraftPayload = () => ({
     title: form.title.trim() || "Propiedad sin titulo",
     description: form.description.trim() || null,
@@ -633,14 +667,47 @@ function PublishWizard() {
       setMessage("Guarda el borrador antes de adjuntar documentos.");
       return;
     }
-    const url = URL.createObjectURL(file);
-    const result = await attachDocumentAction({
-      propertyId: form.propertyId,
-      docType: type,
-      url,
-      metadata: { fileName: file.name },
-    });
-    if (result.isOk()) await refreshDocs(form.propertyId);
+
+    try {
+      console.log("📄 Subiendo documento:", file.name);
+
+      // 1. Subir a S3
+      const uploadResult = await uploadFile(file, "documents", form.propertyId);
+
+      if (!uploadResult?.objectUrl) {
+        setMessage(`❌ Error al subir ${file.name} a S3`);
+        return;
+      }
+
+      console.log("✅ Documento subido a S3:", uploadResult);
+
+      // 2. Guardar en la base de datos
+      const dbResult = await documentStorage.insertDocumentFromS3({
+        propertyId: form.propertyId,
+        docType: type,
+        s3Key: uploadResult.key,
+        url: uploadResult.objectUrl,
+        fileName: uploadResult.filename,
+        contentType: uploadResult.contentType,
+        size: uploadResult.size,
+      });
+
+      if (dbResult.isOk()) {
+        console.log("✅ Documento guardado en BD:", dbResult.value);
+        setMessage(`✅ ${file.name} subido correctamente`);
+
+        // Recargar lista de documentos
+        await refreshDocs(form.propertyId);
+      } else {
+        console.error("Error guardando documento en BD:", dbResult.error);
+        setMessage(`⚠️ ${file.name} subido a S3 pero error guardando en BD`);
+      }
+    } catch (error) {
+      console.error("Error subiendo documento:", error);
+      setMessage(
+        `❌ Error al subir ${file.name}: ${error instanceof Error ? error.message : "Error desconocido"}`
+      );
+    }
   };
 
   const handleLocation = async () => {
@@ -680,6 +747,9 @@ function PublishWizard() {
   const findDoc = (type: DocumentTypeDTO) =>
     documents.find((doc) => doc.docType === type) ?? null;
 
+  const findDocs = (type: DocumentTypeDTO) =>
+    documents.filter((doc) => doc.docType === type);
+
   const steps = [
     { id: "basics", title: "Basicos", subtitle: "Datos clave" },
     { id: "location", title: "Ubicacion", subtitle: "Zona" },
@@ -698,8 +768,6 @@ function PublishWizard() {
   }, [searchParams]);
 
   const requirements = useMemo(() => {
-    const rppDoc =
-      documents.find((doc) => doc.docType === "rpp_certificate") ?? null;
     return [
       { label: "Titulo (Paso 1)", valid: form.title.trim().length > 0 },
       { label: "Tipo (Paso 1)", valid: form.propertyType.trim().length > 0 },
@@ -717,8 +785,8 @@ function PublishWizard() {
       },
       { label: "Fotos min. 1 (Paso 4)", valid: mediaItems.length > 0 },
       {
-        label: "Documento RPP (Paso 5)",
-        valid: Boolean(rppDoc && rppDoc.verification === "approved"),
+        label: "Documentos (Paso 5)",
+        valid: documents.length >= 1, // Al menos un documento (escritura, planos u otros)
       },
     ];
   }, [form, mediaItems, documents]);
@@ -993,31 +1061,38 @@ function PublishWizard() {
             </header>
             <div className="form-grid">
               <div className="wizard-docs form-col-2">
-                {(
-                  ["rpp_certificate", "deed", "id_doc"] as DocumentTypeDTO[]
-                ).map((type) => (
-                  <DocumentCard
-                    key={type}
-                    docType={type}
-                    document={findDoc(type)}
-                    onUpload={(file) => handleAttachDocument(type, file)}
-                    onDelete={() => {
-                      const doc = findDoc(type);
-                      if (doc) deleteDoc(doc);
-                    }}
-                    onVerify={(status) => {
-                      const doc = findDoc(type);
-                      if (doc) verifyDoc(doc, status);
-                    }}
-                    allowVerification={type === "rpp_certificate"}
-                  />
-                ))}
+                {(["deed", "plan", "other"] as DocumentTypeDTO[]).map(
+                  (type) => {
+                    // Para "other" permitir múltiples documentos
+                    const isMultiple = type === "other";
+                    const docsForType = findDocs(type);
+                    const singleDoc = findDoc(type);
+
+                    return (
+                      <DocumentCard
+                        key={type}
+                        docType={type}
+                        documents={isMultiple ? docsForType : undefined}
+                        document={!isMultiple ? singleDoc : undefined}
+                        allowMultiple={isMultiple}
+                        onUpload={(file) => handleAttachDocument(type, file)}
+                        onDelete={(docId) => {
+                          const doc = documents.find((d) => d.id === docId);
+                          if (doc) deleteDoc(doc);
+                        }}
+                        onVerify={(status) => {
+                          const doc = findDoc(type);
+                          if (doc) verifyDoc(doc, status);
+                        }}
+                        allowVerification={false}
+                      />
+                    );
+                  }
+                )}
               </div>
               <span className="wizard-note form-col-2">
-                Estado del RPP:{" "}
-                {formatVerification(
-                  findDoc("rpp_certificate")?.verification ?? "pending"
-                )}
+                Los documentos ayudan a verificar la autenticidad de la
+                propiedad.
               </span>
             </div>
           </div>

@@ -84,3 +84,111 @@
   font-size: 12px;
   color: var(--text-500, #64748b);
 }
+
+/* Lista de archivos */
+.archivoLista {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.archivoItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 10px;
+  background: rgba(241, 245, 249, 0.5);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  transition: background 0.2s ease;
+}
+
+.archivoItem:hover {
+  background: rgba(241, 245, 249, 0.8);
+}
+
+.archivoIcono {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #295dff, #1d4ed8);
+  box-shadow: 0 4px 12px rgba(41, 93, 255, 0.2);
+}
+
+.archivoExt {
+  font-size: 11px;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: 0.5px;
+}
+
+.archivoInfo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.archivoNombre {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-900, #0f172a);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.archivoFecha {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-500, #64748b);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.estadoChip {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 11px;
+}
+
+.archivoAcciones {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.botonIcono {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  border-radius: 8px;
+  background: #ffffff;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 16px;
+}
+
+.botonIcono:hover {
+  background: rgba(241, 245, 249, 1);
+  border-color: rgba(148, 163, 184, 0.6);
+  transform: scale(1.05);
+}
+
+.botonIcono:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
