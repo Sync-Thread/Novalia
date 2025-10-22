@@ -21,6 +21,7 @@ import type {
   DocumentTypeDTO,
   VerificationStatusDTO,
 } from "../../application/dto/DocumentDTO";
+import type { PropertyDTO } from "../../application/dto/PropertyDTO";
 import type { Currency, PropertyType } from "../../domain/enums";
 import {
   CURRENCY_VALUES,
@@ -112,6 +113,8 @@ function PublishWizard() {
   const [form, setForm] = useState<DraftForm>(INITIAL_FORM);
   const [mediaItems, setMediaItems] = useState<MediaDTO[]>([]);
   const [documents, setDocuments] = useState<DocumentDTO[]>([]);
+  const [propertyStatus, setPropertyStatus] = useState<PropertyDTO["status"] | null>(null);
+  const [propertyCompleteness, setPropertyCompleteness] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [currentStep, setCurrentStep] = useState(0);
@@ -119,6 +122,8 @@ function PublishWizard() {
   const mapRef = React.useRef<HTMLDivElement | null>(null);
   const leafletMap = useRef<L.Map | null>(null);
   const markerRef = useRef<L.Marker | null>(null);
+
+  const isEditingDraft = isEditing && propertyStatus === "draft";
 
   // const [coords, setCoords] = useState<Coords | null>(null);
 
@@ -213,6 +218,8 @@ function PublishWizard() {
     setForm(() => ({ ...INITIAL_FORM }));
     setMediaItems([]);
     setDocuments([]);
+    setPropertyStatus(null);
+    setPropertyCompleteness(null);
     setCoords(null);
   }, [editingId]);
   useEffect(() => {
@@ -236,6 +243,10 @@ function PublishWizard() {
           amenities: data.amenities ?? [],
           amenitiesExtra: data.amenitiesExtra ?? "",
         }));
+        setPropertyStatus(data.status);
+        setPropertyCompleteness(
+          typeof data.completenessScore === "number" ? data.completenessScore : null,
+        );
         if (data.location) {
           setCoords({ lat: data.location.lat, lng: data.location.lng });
         }
@@ -300,11 +311,13 @@ function PublishWizard() {
         id: form.propertyId,
         patch: payload,
       });
-      setMessage(
-        result.isOk()
-          ? "Borrador actualizado."
-          : "No pudimos actualizar el borrador."
-      );
+      const success = result.isOk();
+      setMessage(success ? "Borrador actualizado." : "No pudimos actualizar el borrador.");
+      if (success && isEditing) {
+        setSaving(false);
+        navigate("/properties");
+        return;
+      }
     }
     setSaving(false);
   };
@@ -318,7 +331,9 @@ function PublishWizard() {
 
   const handlePublish = async () => {
     if (!form.propertyId) return;
-    if (isEditing) {
+    setMessage(null);
+
+    if (isEditing && !isEditingDraft) {
       const updateResult = await updateProperty({
         id: form.propertyId,
         patch: buildDraftPayload(),
@@ -330,6 +345,18 @@ function PublishWizard() {
       }
       return;
     }
+
+    if (isEditingDraft) {
+      const updateResult = await updateProperty({
+        id: form.propertyId,
+        patch: buildDraftPayload(),
+      });
+      if (!updateResult.isOk()) {
+        setMessage("No pudimos actualizar la propiedad.");
+        return;
+      }
+    }
+
     const result = await publishProperty({ id: form.propertyId });
     if (result.isOk()) {
       navigate("/properties");
@@ -562,7 +589,11 @@ function PublishWizard() {
   }, [form, mediaItems, documents]);
 
   const completed = requirements.filter((item) => item.valid).length;
-  const completion = Math.round((completed / requirements.length) * 100);
+  const computedCompletion = Math.round((completed / requirements.length) * 100);
+  const completion =
+    isEditing && propertyCompleteness !== null
+      ? Math.max(0, Math.min(100, Math.round(propertyCompleteness)))
+      : computedCompletion;
   const missingItems = requirements
     .filter((item) => !item.valid)
     .map((item) => item.label);
@@ -975,7 +1006,11 @@ function PublishWizard() {
             onClick={handlePublish}
             disabled={!form.propertyId}
           >
-            {isEditing ? "Actualizar propiedad" : "Publicar propiedad"}
+            {isEditingDraft
+              ? "Publicar propiedad"
+              : isEditing
+              ? "Actualizar propiedad"
+              : "Publicar propiedad"}
           </button>
         )}
       </footer>

@@ -10,9 +10,12 @@ import {
   AlertCircle,
   CheckCircle2,
   Copy,
+  ExternalLink,
   ImageIcon,
   Layers,
+  Loader2,
   MapPin,
+  Rocket,
   ShieldAlert,
   X,
 } from "lucide-react";
@@ -169,6 +172,7 @@ export function PropertyQuickView({
   const {
     getProperty,
     listDocuments,
+    publishProperty,
     pauseProperty,
     deleteProperty,
     getAuthProfile,
@@ -343,6 +347,14 @@ export function PropertyQuickView({
     }
   }, [pauseProperty, property, refreshAndClose]);
 
+  const handlePublish = useCallback(async () => {
+    if (!property) return;
+    const result = await publishProperty({ id: property.id });
+    if (result.isOk()) {
+      refreshAndClose();
+    }
+  }, [publishProperty, property, refreshAndClose]);
+
   const handleDelete = useCallback(async () => {
     if (!property) return;
     const result = await deleteProperty({ id: property.id });
@@ -375,6 +387,9 @@ export function PropertyQuickView({
     },
     [closeSheet, navigate, onEdit, property],
   );
+
+  const isDraft = property?.status === "draft";
+  const publishButtonClass = isDraft ? "btn btn-primary btn-sm quickview-cta" : "btn btn-ghost btn-sm quickview-cta";
 
   if (!open) return null;
 
@@ -650,11 +665,30 @@ export function PropertyQuickView({
               </button>
               <button
                 type="button"
-                className="btn btn-ghost btn-sm"
-                disabled
-                title="Pendiente de implementar"
+                className={publishButtonClass}
+                onClick={isDraft ? handlePublish : undefined}
+                disabled={!property || (isDraft ? loading.publishProperty : true)}
+                title={
+                  isDraft
+                    ? "Publica la propiedad para que aparezca en tu inventario."
+                    : "Disponibilidad de vista pública en desarrollo."
+                }
               >
-                Ver publicación
+                {isDraft ? (
+                  <>
+                    {loading.publishProperty ? (
+                      <Loader2 size={14} aria-hidden="true" />
+                    ) : (
+                      <Rocket size={14} aria-hidden="true" />
+                    )}
+                    <span>{loading.publishProperty ? "Publicando..." : "Publicar propiedad"}</span>
+                  </>
+                ) : (
+                  <>
+                    <ExternalLink size={14} aria-hidden="true" />
+                    <span>Ver publicación</span>
+                  </>
+                )}
               </button>
             </div>
           </footer>

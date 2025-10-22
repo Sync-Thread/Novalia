@@ -477,6 +477,12 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 .quickview-actions .btn {
   flex: 1 1 140px;
 }
+.quickview-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
 .quickview-scrim {
   width: 100%;
   height: 100%;
