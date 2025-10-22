@@ -1,7 +1,5 @@
 export { default as MyPropertiesPage } from "./pages/MyPropertiesPage";
 export { default as PublishWizardPage } from "./pages/PublishWizardPage";
-export { default as PropertyAdminDetailPage } from "./pages/PropertyAdminDetailPage";
-
 export { default as FiltersBar } from "./components/FiltersBar";
 export { default as PropertyCard } from "./components/PropertyCard";
 export { default as MediaDropzone } from "./components/MediaDropzone";

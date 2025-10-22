@@ -359,7 +359,7 @@ export function PropertyQuickView({
       closeSheet();
       return;
     }
-    navigate(`/properties/${property.id}/admin`);
+    navigate(`/properties/${property.id}/edit`);
     closeSheet();
   }, [closeSheet, navigate, onEdit, property]);
 
@@ -369,7 +369,7 @@ export function PropertyQuickView({
       if (onEdit) {
         onEdit(property.id, step);
       } else {
-        navigate(`/properties/${property.id}/admin?step=${step}`);
+        navigate(`/properties/${property.id}/edit?step=${step}`);
       }
       closeSheet();
     },

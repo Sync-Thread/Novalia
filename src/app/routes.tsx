@@ -3,7 +3,6 @@ import { createBrowserRouter, Navigate } from "react-router-dom";
 import Dashboard from "../pages/Dashboard";
 import MyPropertiesPage from "../modules/properties/UI/pages/MyPropertiesPage";
 import PublishWizardPage from "../modules/properties/UI/pages/PublishWizardPage";
-import PropertyAdminDetailPage from "../modules/properties/UI/pages/PropertyAdminDetailPage";
 import AuthGuard from "./guards/AuthGuard";
 import Login from "../modules/auth/UI/pages/Login";
 import Register from "../modules/auth/UI/pages/Register";
@@ -25,7 +24,7 @@ export const router = createBrowserRouter([
       { path: "/dashboard", element: <Dashboard /> },
       { path: "/properties", element: <MyPropertiesPage /> },
       { path: "/properties/new", element: <PublishWizardPage /> },
-      { path: "/properties/:id/admin", element: <PropertyAdminDetailPage /> },
+      { path: "/properties/:id/edit", element: <PublishWizardPage /> },
       { path: "/kyc", element: <VerifyINEPage /> },
     ],
   },

@@ -122,7 +122,7 @@ function MyPropertiesPageContent() {
         setQuickOpen(true);
         break;
       case "edit":
-        navigate(`/properties/${property.id}/admin`);
+        navigate(`/properties/${property.id}/edit`);
         break;
       case "publish":
         void actions.publishProperty({ id: property.id }).then((result) => {

@@ -1,6 +1,6 @@
 // Wizard moderno para publicar propiedades. Mantener la logica de negocio intacta.
 import React, { useMemo, useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { PropertiesProvider } from "../containers/PropertiesProvider";
 import { usePropertiesActions } from "../hooks/usePropertiesActions";
 import AmenityChips, {
@@ -81,10 +81,15 @@ export default function PublishWizardPage() {
 
 function PublishWizard() {
   const navigate = useNavigate();
+  const params = useParams<{ id?: string }>();
+  const editingId = params.id ?? null;
+  const isEditing = Boolean(editingId);
+  const [searchParams] = useSearchParams();
   const {
     createProperty,
     updateProperty,
     publishProperty,
+    getProperty,
     uploadMedia,
     removeMedia,
     setCoverMedia,
@@ -225,26 +230,77 @@ function PublishWizard() {
   //     console.error("Error obteniendo ubicación:", error);
   //   }
   // };
+  useEffect(() => {
+    if (editingId) return;
+    setForm(() => ({ ...INITIAL_FORM }));
+    setMediaItems([]);
+    setDocuments([]);
+    setCoords(null);
+  }, [editingId]);
+  useEffect(() => {
+    if (!editingId) return;
+    let active = true;
+    const load = async () => {
+      const result = await getProperty(editingId);
+      if (!active) return;
+      if (result.isOk()) {
+        const data = result.value;
+        setForm(prev => ({
+          ...prev,
+          propertyId: data.id,
+          title: data.title ?? "",
+          description: data.description ?? "",
+          propertyType: data.propertyType,
+          priceAmount: data.price.amount,
+          priceCurrency: data.price.currency,
+          city: data.address.city ?? "",
+          state: data.address.state ?? "",
+          amenities: data.amenities ?? [],
+          amenitiesExtra: data.amenitiesExtra ?? "",
+        }));
+        if (data.location) {
+          setCoords({ lat: data.location.lat, lng: data.location.lng });
+        }
+        const docs = await listDocuments(data.id);
+        if (active && docs.isOk()) {
+          setDocuments(docs.value);
+        }
+        const media = (data as unknown as { media?: MediaDTO[] }).media;
+        setMediaItems(media ?? []);
+      } else {
+        setMessage("No pudimos cargar los datos de la propiedad.");
+      }
+    };
+    void load();
+    return () => {
+      active = false;
+    };
+  }, [editingId, getProperty, listDocuments]);
+
+  const buildDraftPayload = () => ({
+    title: form.title.trim() || "Propiedad sin titulo",
+    description: form.description.trim() || null,
+    propertyType: form.propertyType,
+    price: {
+      amount: Math.max(1, form.priceAmount),
+      currency: form.priceCurrency,
+    },
+    operationType: "sale" as const,
+    address: {
+      city: form.city.trim() || "Por definir",
+      state: form.state.trim() || "Por definir",
+      country: "MX",
+      displayAddress: true,
+    },
+    amenities: form.amenities,
+    amenitiesExtra: form.amenitiesExtra.trim() || null,
+    location: coords ? { lat: coords.lat, lng: coords.lng } : null,
+  });
 
   const handleSave = async () => {
     setSaving(true);
     setMessage(null);
-    const payload = {
-      title: form.title.trim() || "Propiedad sin titulo",
-      description: form.description.trim() || null,
-      propertyType: form.propertyType,
-      price: {
-        amount: Math.max(1, form.priceAmount),
-        currency: form.priceCurrency,
-      },
-      operationType: "sale" as const,
-      address: {
-        city: form.city.trim() || "Por definir",
-        state: form.state.trim() || "Por definir",
-        country: "MX",
-        displayAddress: true,
-      },
-    };
+    const payload = buildDraftPayload();
 
     if (!form.propertyId) {
       const result = await createProperty(payload);
@@ -279,9 +335,21 @@ function PublishWizard() {
 
   const handlePublish = async () => {
     if (!form.propertyId) return;
+    if (isEditing) {
+      const updateResult = await updateProperty({
+        id: form.propertyId,
+        patch: buildDraftPayload(),
+      });
+      if (updateResult.isOk()) {
+        navigate("/properties");
+      } else {
+        setMessage("No pudimos actualizar la propiedad.");
+      }
+      return;
+    }
     const result = await publishProperty({ id: form.propertyId });
     if (result.isOk()) {
-      navigate(`/properties/${form.propertyId}/admin`);
+      navigate("/properties");
     } else {
       setMessage("No pudimos publicar la propiedad.");
     }
@@ -383,6 +451,15 @@ function PublishWizard() {
     { id: "media", title: "Multimedia", subtitle: "Fotos" },
     { id: "publish", title: "Publicar", subtitle: "Revision" },
   ] as const;
+
+  useEffect(() => {
+    const stepParam = searchParams.get("step");
+    if (!stepParam) return;
+    const targetIndex = steps.findIndex((item) => item.id === stepParam);
+    if (targetIndex >= 0) {
+      setCurrentStep(targetIndex);
+    }
+  }, [searchParams]);
 
   const requirements = useMemo(() => {
     const rppDoc =
@@ -715,9 +792,13 @@ function PublishWizard() {
 
       <header className="wizard__header">
         <div>
-          <h1 className="wizard__title">Publicar propiedad</h1>
+          <h1 className="wizard__title">
+            {isEditing ? "Actualizar propiedad" : "Publicar propiedad"}
+          </h1>
           <p className="wizard__subtitle">
-            Completa los pasos para publicar tu propiedad.
+            {isEditing
+              ? "Revisa y ajusta los datos antes de actualizar tu propiedad."
+              : "Completa los pasos para publicar tu propiedad."}
           </p>
         </div>
         <div className="wizard__stepper" role="list">
@@ -773,7 +854,9 @@ function PublishWizard() {
           <div className="wizard-summary">
             <h3 className="wizard-summary__title">Campos faltantes</h3>
             {missingItems.length === 0 ? (
-              <p className="wizard-summary__empty">Todo listo para publicar.</p>
+              <p className="wizard-summary__empty">
+                {isEditing ? "Todo listo para actualizar." : "Todo listo para publicar."}
+              </p>
             ) : (
               <ul className="wizard-summary__list">
                 {missingItems.map((item) => (
@@ -813,7 +896,7 @@ function PublishWizard() {
             onClick={handlePublish}
             disabled={!form.propertyId}
           >
-            Publicar propiedad
+            {isEditing ? "Actualizar propiedad" : "Publicar propiedad"}
           </button>
         )}
       </footer>
