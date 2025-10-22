@@ -312,9 +312,9 @@ export class SupabaseMediaStorage implements MediaStorage {
       }
       
       const profile = authResult.value;
-      if (!profile.orgId) {
-        profile.orgId = '001'; // para aquellos usuarios sin org
-      }
+      // if (!profile.orgId) {
+      //   return Result.fail(mediaError("AUTH", "No org context available"));
+      // }
 
       // Determinar posición
       const { data: existingMedia, error: countError } = await this.supabase

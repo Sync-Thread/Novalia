@@ -128,8 +128,6 @@ function PublishWizard() {
   // const [coords, setCoords] = useState<Coords | null>(null);
 
   useEffect(() => {
-    console.log("use effect ...");
-
     if (!mapRef.current) return;
 
     const defaultLat = 22.2981865;
@@ -160,13 +158,40 @@ function PublishWizard() {
         setCoords({ lat: pos.lat, lng: pos.lng });
       });
 
-      // guardar coords iniciales en el estado
+      // Establecer coords iniciales por defecto
       setCoords({ lat: defaultLat, lng: defaultLng });
-      if (form.propertyId) {
-        const coredenas = descargarCoordenadasDePropiedad(form.propertyId);
-        console.log(form.propertyId);
 
-        console.log("coords :;;;; ", coredenas);
+      // Si hay propertyId, intentar cargar coordenadas guardadas
+      if (form.propertyId) {
+        descargarCoordenadasDePropiedad(form.propertyId)
+          .then((coordenadas) => {
+            if (coordenadas && coordenadas.lat && coordenadas.lng) {
+              // Actualizar estado
+              setCoords({ lat: coordenadas.lat, lng: coordenadas.lng });
+
+              // Mover marker a las coordenadas guardadas
+              if (markerRef.current) {
+                markerRef.current.setLatLng([coordenadas.lat, coordenadas.lng]);
+              }
+
+              // Centrar mapa en las coordenadas guardadas
+              if (leafletMap.current) {
+                leafletMap.current.setView(
+                  [coordenadas.lat, coordenadas.lng],
+                  16
+                );
+              }
+
+              console.log("Coordenadas cargadas de BD:", coordenadas);
+            } else {
+              console.log(
+                "No hay coordenadas guardadas, usando posición por defecto"
+              );
+            }
+          })
+          .catch((error) => {
+            console.error("Error al cargar coordenadas:", error);
+          });
       }
     }
 
@@ -178,7 +203,7 @@ function PublishWizard() {
         markerRef.current = null;
       }
     };
-  }, [currentStep]);
+  }, [currentStep, form.propertyId]);
 
   // función que llamarás cuando quieras obtener la ubicación real
   const getLocation = async () => {
@@ -425,37 +450,53 @@ function PublishWizard() {
             const savedMedia = dbResult.value;
             console.log("Media guardado en BD:", savedMedia);
 
-            // 6. Reemplazar el temporal con el real de la BD
-            // setMediaItems((prev) =>
-            //   prev.map((item) => (item.id === tempId ? savedMedia : item))
-            // );
+            // 6. Actualizar con el ID real pero mantener URL local
+            setMediaItems((prev) =>
+              prev.map((item) =>
+                item.id === tempId
+                  ? {
+                      ...savedMedia,
+                      url: localUrl, // Mantener URL local en lugar de S3
+                      metadata: {
+                        ...savedMedia.metadata,
+                        uploading: false,
+                      },
+                    }
+                  : item
+              )
+            );
 
-            // Liberar URL local
-            URL.revokeObjectURL(localUrl);
+            // NO liberar URL local - la necesitamos para mostrar la imagen
+            // URL.revokeObjectURL(localUrl);
 
             setMessage(`✅ ${file.name} subido correctamente`);
           } else {
             console.error("Error guardando en BD:", dbResult.error);
+
+            // Actualizar el item temporal con error
+            setMediaItems((prev) =>
+              prev.map((item) =>
+                item.id === tempId
+                  ? {
+                      ...item,
+                      metadata: {
+                        ...item.metadata,
+                        uploading: false,
+                        error: "Error guardando en BD",
+                      },
+                    }
+                  : item
+              )
+            );
+
             setMessage(
               `⚠️ ${file.name} subido a S3 pero error guardando en BD`
             );
-
-            // Mantener el preview local si falla la BD
-            // setMediaItems((prev) =>
-            //   prev.map((item) =>
-            //     item.id === tempId
-            //       ? {
-            //           ...item,
-            //           metadata: {
-            //             ...item.metadata,
-            //             uploading: false,
-            //             error: "Error guardando en BD",
-            //           },
-            //         }
-            //       : item
-            //   )
-            // );
           }
+        } else {
+          // Si falla el upload a S3, remover el item temporal
+          setMediaItems((prev) => prev.filter((item) => item.id !== tempId));
+          setMessage(`❌ Error al subir ${file.name} a S3`);
         }
       } catch (error) {
         console.error("Error subiendo archivo:", error);
