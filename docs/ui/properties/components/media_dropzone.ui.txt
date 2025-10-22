@@ -1,0 +1,10 @@
+TITLE: Media Dropzone
+ID: cmp-media-dropzone
+MODULE: properties
+
+### FIELDS
+- files       | drop    | Subir archivos           | media.files[]     | accept=image/*,video/*,pdf
+- set_cover   | action  | Marcar portada           | SetCoverMedia({mediaId})
+- reorder     | action  | Reordenar                | ReorderMedia({ids})
+- remove      | action  | Eliminar                 | RemoveMedia({mediaId})
+- counts      | info    | Fotos/Videos/Planos      | media.counts

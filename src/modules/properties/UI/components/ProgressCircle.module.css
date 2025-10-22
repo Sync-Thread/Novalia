@@ -1,0 +1,14 @@
+.contenedor {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-700, #334155);
+}
+
+.valor {
+  position: absolute;
+}

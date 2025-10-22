@@ -1,0 +1,12 @@
+TITLE: Duplicar Propiedad
+ID: modal-duplicate-property
+MODULE: properties
+USES: DuplicateProperty
+
+### FIELDS
+- copy_media   | toggle   | Copiar media             | form.copyMedia | default=false
+- copy_docs    | toggle   | Copiar documentos        | form.copyDocs  | default=false
+
+### ACTIONS
+- duplicate    | action   | Duplicar                 | DuplicateProperty.exec({id, copyMedia:form.copyMedia, copyDocs:form.copyDocs})
+- cancel       | action   | Cancelar                 | UI.closeModal()

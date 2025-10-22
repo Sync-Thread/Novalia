@@ -1,0 +1,10 @@
+TITLE: DateTime Picker
+ID: cmp-datetime-picker
+MODULE: properties
+
+### PROPS
+- value        | datetime | Fecha/Hora
+- timezone     | string   | Default local
+- min          | datetime | opcional
+- max          | datetime | opcional
+- on_change    | event    | returns ISO string

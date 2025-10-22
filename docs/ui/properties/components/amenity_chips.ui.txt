@@ -1,0 +1,8 @@
+TITLE: Amenity Chips
+ID: cmp-amenity-chips
+MODULE: properties
+
+### FIELDS
+- amenities     | chips   | Amenidades              | property.amenities[]
+- categories    | static  | interior|exterior|seguridad|comunes|sustentabilidad|accesibilidad
+- add_custom    | text    | Otras amenidades        | property.amenitiesExtra
