@@ -6,4 +6,5 @@ export interface MediaStorage {
   remove(propertyId: string, mediaId: string): Promise<Result<void>>;
   setCover(propertyId: string, mediaId: string): Promise<Result<void>>;
   reorder(propertyId: string, orderedIds: string[]): Promise<Result<void>>;
+  listMedia(propertyId: string): Promise<Result<MediaDTO[]>>;
 }

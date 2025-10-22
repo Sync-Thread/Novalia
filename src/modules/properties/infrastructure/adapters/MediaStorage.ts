@@ -137,3 +137,44 @@ export async function downloadFileExample(key: string, filename?: string) {
     throw new Error('Fallback download failed: ' + (err instanceof Error ? err.message : String(err)));
   }
 }
+
+/**
+ * getPresignedUrlForDisplay
+ * - obtiene presigned URL de S3 y descarga el archivo como blob
+ * - devuelve blob URL local para mostrar la imagen sin necesidad de autenticación
+ *
+ * @param s3Key ruta dentro del bucket (ej: 'uploads/1234-name.png')
+ * @returns blob URL local (ej: 'blob:http://localhost:5173/abc-123')
+ */
+export async function getPresignedUrlForDisplay(s3Key: string): Promise<string> {
+  if (!s3Key) throw new Error('No s3Key specified');
+
+  // 1) Obtener presigned URL del worker
+  const resp = await fetch(`${WORKER_BASE}/generate-presigned-download`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ key: s3Key })
+  });
+
+  if (!resp.ok) {
+    const txt = await resp.text().catch(() => '');
+    throw new Error('Failed to get presigned URL: ' + txt);
+  }
+
+  const { url } = await resp.json();
+  if (!url) throw new Error('No presigned url returned');
+
+  // 2) Descargar el archivo como blob
+  const fileResp = await fetch(url);
+  if (!fileResp.ok) {
+    const txt = await fileResp.text().catch(() => '');
+    throw new Error('Failed to fetch file: ' + txt);
+  }
+
+  const blob = await fileResp.blob();
+  
+  // 3) Crear blob URL local
+  const blobUrl = URL.createObjectURL(blob);
+  
+  return blobUrl;
+}

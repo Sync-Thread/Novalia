@@ -398,4 +398,60 @@ export class SupabaseMediaStorage implements MediaStorage {
       );
     }
   }
+
+  /**
+   * Lista todos los media assets de una propiedad
+   */
+  async listMedia(propertyId: string): Promise<Result<MediaDTO[]>> {
+    try {
+      console.log('list media');
+      
+      const authResult = await this.authService.getCurrent();
+      console.log('auth: ', authResult);
+      
+      if (authResult.isErr()) {
+        return Result.fail(mediaError("AUTH", "Not authenticated", authResult.error));
+      }
+      
+      const profile = authResult.value;
+      // if (!profile.orgId) {
+      //   return Result.fail(mediaError("AUTH", "No org context available"));
+      // }
+
+      const { data, error } =  await this.supabase
+        .from("media_assets")
+        .select("*")
+        .eq("property_id", propertyId)
+        // .eq("org_id", profile.orgId)
+        .order("position", { ascending: true });
+
+      
+
+      if (error) {
+        return Result.fail(
+          mediaError("UNKNOWN", "Failed to list media", error)
+        );
+      }
+
+      const mediaList: MediaDTO[] = (data ?? []).map((row) => ({
+        id: row.id,
+        orgId: row.org_id,
+        propertyId: row.property_id,
+        url: row.url,
+        s3Key: row.s3_key,
+        type: row.media_type,
+        position: row.position ?? 0,
+        isCover: (row.metadata as any)?.isCover ?? false,
+        metadata: row.metadata,
+        createdAt: row.created_at,
+        updatedAt: row.created_at,
+      }));
+
+      return Result.ok(mediaList);
+    } catch (error) {
+      return Result.fail(
+        mediaError("UNKNOWN", "Unexpected error listing media", error)
+      );
+    }
+  }
 }
