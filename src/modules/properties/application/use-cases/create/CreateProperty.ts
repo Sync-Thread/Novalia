@@ -42,7 +42,7 @@ export class CreateProperty {
 
     const dto = buildCreateDto(parsedInput.value, context);
     const entity = toDomain(dto, { clock: this.deps.clock });
-    entity.computeCompleteness({ mediaCount: 0, hasRppDoc: false });
+    entity.computeCompleteness({ mediaCount: 0, documentCount: 0 });
 
     const repoResult = await this.deps.repo.create(fromDomain(entity));
     if (repoResult.isErr()) {

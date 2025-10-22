@@ -77,15 +77,14 @@ export class UpdateProperty {
     ]);
 
     const mediaCount = mediaResult.isOk() ? mediaResult.value.length : 0;
-    const hasRppDoc = docsResult.isOk()
-      ? docsResult.value.some((doc) => doc.docType === "rpp_certificate")
-      : false;
+    const documentCount = docsResult.isOk() ? docsResult.value.length : 0;
 
-    updatedEntity.computeCompleteness({ mediaCount, hasRppDoc });
+    updatedEntity.computeCompleteness({ mediaCount, documentCount });
 
     const sanitized = fromDomain(updatedEntity);
 
     const updatePayload = buildUpdatePayload(patchResult.value, sanitized);
+
     if (Object.keys(updatePayload).length === 0) {
       return Result.ok(undefined);
     }
