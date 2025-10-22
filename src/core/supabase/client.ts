@@ -1,8 +1,10 @@
 ﻿// src/core/supabase/client.ts
 import { createClient } from '@supabase/supabase-js';
 import { env } from '../config/env';
+// import type { Database } from './types/database';
 
 export const supabase = createClient(
+// export const supabase = createClient<Database>(
   env.VITE_SUPABASE_URL,
   env.VITE_SUPABASE_ANON_KEY,
   {
