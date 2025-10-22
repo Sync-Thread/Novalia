@@ -10,6 +10,7 @@ export { default as AmenityChips } from "./components/AmenityChips";
 export { default as DateTimePicker } from "./components/DateTimePicker";
 export { default as ProgressCircle } from "./components/ProgressCircle";
 export { default as KycBanner } from "./components/KycBanner";
+export { default as PropertyQuickView } from "./components/PropertyQuickView";
 export { default as QuickViewSheet } from "./components/QuickViewSheet";
 
 export { DesignBanner } from "./utils/DesignBanner";

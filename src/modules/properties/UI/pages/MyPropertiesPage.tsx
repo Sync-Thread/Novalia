@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { PropertiesProvider } from "../containers/PropertiesProvider";
 import { usePropertyList } from "../hooks/usePropertyList";
@@ -11,7 +11,7 @@ import KycBanner from "../components/KycBanner";
 import PropertyCard, {
   type PropertyCardAction,
 } from "../components/PropertyCard";
-import QuickViewSheet from "../components/QuickViewSheet";
+import PropertyQuickView from "../components/PropertyQuickView";
 import MarkSoldModal from "../modals/MarkSoldModal";
 import DeletePropertyModal from "../modals/DeletePropertyModal";
 import DesignBanner from "../utils/DesignBanner";
@@ -46,7 +46,6 @@ function MyPropertiesPageContent() {
     pageSize,
     total,
     cache,
-    getCachedById,
   } = usePropertyList();
   const actions = usePropertiesActions();
   const { getAuthProfile } = actions;
@@ -58,6 +57,11 @@ function MyPropertiesPageContent() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [markSoldFor, setMarkSoldFor] = useState<PropertyDTO | null>(null);
   const [deleteFor, setDeleteFor] = useState<PropertyDTO | null>(null);
+
+  const closeQuickView = useCallback(() => {
+    setQuickOpen(false);
+    setSelectedId(null);
+  }, []);
 
   useEffect(() => {
     void getAuthProfile().then((result) => {
@@ -142,8 +146,6 @@ function MyPropertiesPageContent() {
     }
   };
 
-  const selectedProperty = selectedId ? getCachedById(selectedId) : null;
-
   return (
     <main className={`${styles.pagina} app-container`}>
       <DesignBanner
@@ -222,16 +224,11 @@ function MyPropertiesPageContent() {
         onChange={setPage}
       />
 
-      <QuickViewSheet
+      <PropertyQuickView
         propertyId={selectedId}
-        initialProperty={selectedProperty ?? undefined}
         open={quickOpen}
-        onClose={() => setQuickOpen(false)}
+        onClose={closeQuickView}
         onRefresh={refresh}
-        onEdit={(id) => navigate(`/properties/${id}/admin`)}
-        onViewPublic={(prop) =>
-          window.open(`/p/${prop.id}`, "_blank", "noopener,noreferrer")
-        }
       />
 
       <MarkSoldModal
@@ -319,7 +316,11 @@ function PropertyListTable({
         </thead>
         <tbody>
           {items.map((property) => (
-            <tr key={property.id}>
+            <tr
+              key={property.id}
+              onClick={() => onAction("quick_view", property)}
+              style={{ cursor: "pointer" }}
+            >
               <td>
                 <strong>{property.title}</strong>
                 <div
@@ -346,7 +347,10 @@ function PropertyListTable({
               <td>
                 <button
                   type="button"
-                  onClick={() => onAction("quick_view", property)}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onAction("quick_view", property);
+                  }}
                   className={styles.tablaBtn}
                 >
                   Acciones

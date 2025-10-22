@@ -45,7 +45,7 @@ const RPP_STYLE: Record<RppStatus, { label: string; className: string }> = {
 
 /**
  * Tarjeta del listado de propiedades.
- * Se mantiene el disparo de quick view al hacer click en la portada.
+ * Toda la tarjeta abre el quick view cuando está habilitado.
  */
 export function PropertyCard({ property, coverUrl, metrics, onAction, enableQuickView = true }: PropertyCardProps) {
   const rppStatus = useMemo<RppStatus>(() => property.rppVerification ?? "missing", [property.rppVerification]);
@@ -54,19 +54,33 @@ export function PropertyCard({ property, coverUrl, metrics, onAction, enableQuic
     onAction?.(action, property);
   };
 
+  const handleQuickView = () => {
+    if (!enableQuickView) return;
+    trigger("quick_view");
+  };
+
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLElement>) => {
+    if (!enableQuickView) return;
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      trigger("quick_view");
+    }
+  };
+
   const fechaPublicacion = property.publishedAt
     ? `Publicada el ${formatDate(property.publishedAt)}`
     : `Creada el ${formatDate(property.createdAt)}`;
 
   return (
-    <article className={styles.tarjeta}>
-      <button
-        type="button"
-        onClick={() => enableQuickView && trigger("quick_view")}
-        className={styles.portada}
-        aria-label="Abrir vista rapida"
-        disabled={!enableQuickView}
-      >
+    <article
+      className={`${styles.tarjeta} ${enableQuickView ? styles.tarjetaInteractiva : ""}`}
+      role={enableQuickView ? "button" : undefined}
+      tabIndex={enableQuickView ? 0 : undefined}
+      onClick={handleQuickView}
+      onKeyDown={handleKeyDown}
+      aria-disabled={!enableQuickView}
+    >
+      <div className={styles.portada}>
         <div className={styles.cinta}>
           <span className={`${styles.estado} ${STATUS_CLASS[property.status] ?? styles.estadoNeutro}`}>
             {formatStatus(property.status)}
@@ -76,7 +90,7 @@ export function PropertyCard({ property, coverUrl, metrics, onAction, enableQuic
         <div className={styles.cajaImagen}>
           {coverUrl ? <img src={coverUrl} alt="" /> : <div className={styles.placeholder} aria-hidden="true" />}
         </div>
-      </button>
+      </div>
 
       <div className={styles.contenido}>
         <header className={styles.cabecera}>
