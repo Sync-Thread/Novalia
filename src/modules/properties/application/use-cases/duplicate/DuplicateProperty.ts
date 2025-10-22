@@ -29,11 +29,12 @@ export class DuplicateProperty {
     if (propertyResult.isErr()) return Result.fail(propertyResult.error);
 
     const { orgId, userId } = authResult.value;
+    const scopedOrgId = orgId ?? userId;
     const entity = toDomain(propertyResult.value, { clock: this.deps.clock });
     entity.duplicate(
       new UniqueEntityID(generateId()),
       new UniqueEntityID(userId),
-      new UniqueEntityID(orgId),
+      new UniqueEntityID(scopedOrgId),
     );
 
     const repoResult = await this.deps.repo.duplicate(payloadResult.value.id, {

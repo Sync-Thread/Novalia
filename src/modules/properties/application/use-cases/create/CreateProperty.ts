@@ -36,8 +36,9 @@ export class CreateProperty {
     }
 
     const { orgId, userId } = authResult.value;
+    const scopedOrgId = orgId ?? userId;
     const nowIso = this.deps.clock.now().toISOString();
-    const context: CreateContext = { id: generateId(), orgId, userId, nowIso };
+    const context: CreateContext = { id: generateId(), orgId: scopedOrgId, userId, nowIso };
 
     const dto = buildCreateDto(parsedInput.value, context);
     const entity = toDomain(dto, { clock: this.deps.clock });

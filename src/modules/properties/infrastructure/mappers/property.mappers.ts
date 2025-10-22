@@ -148,7 +148,7 @@ export function mapPropertyRowToDTO(row: PropertyRow): PropertyDTO {
 export function mapPropertyDtoToInsertPayload(dto: CreatePropertyDTO): PropertyInsertPayload {
   return {
     id: dto.id,
-    org_id: dto.orgId,
+    org_id: dto.orgId ?? null,
     lister_user_id: dto.listerUserId,
     status: dto.status,
     property_type: dto.propertyType,

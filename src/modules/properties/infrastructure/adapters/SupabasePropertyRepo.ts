@@ -16,6 +16,7 @@ import {
   mapPropertyUpdateToPayload,
 } from "../mappers/property.mappers";
 import type { PropertyRow } from "../types/supabase-rows";
+import { scopeByContext } from "./scopeByContext";
 
 type PropertyErrorCode =
   | "AUTH"
@@ -146,11 +147,7 @@ export class SupabasePropertyRepo implements PropertyRepo {
       .select(PROPERTY_COLUMNS, { count: "exact" })
       .is("deleted_at", null);
 
-    if (orgId) {
-      query = query.eq("org_id", orgId);
-    } else {
-      query = query.eq("lister_user_id", userId);
-    }
+    query = scopeByContext(query, { orgId, userId, listerColumn: "lister_user_id" });
 
     if (filters.status) {
       query = query.eq("status", filters.status);
@@ -212,11 +209,7 @@ export class SupabasePropertyRepo implements PropertyRepo {
       .is("deleted_at", null)
       .limit(1);
 
-    if (orgId) {
-      query = query.eq("org_id", orgId);
-    } else {
-      query = query.eq("lister_user_id", userId);
-    }
+    query = scopeByContext(query, { orgId, userId, listerColumn: "lister_user_id" });
 
     const { data, error } = await query.single();
 
@@ -235,8 +228,19 @@ export class SupabasePropertyRepo implements PropertyRepo {
   }
 
   async create(input: CreatePropertyDTO): Promise<Result<{ id: string }>> {
+    const authContext = await this.auth.getCurrent();
+    if (authContext.isErr()) {
+      return Result.fail(
+        propertyError("AUTH", "Cannot resolve authenticated context", authContext.error),
+      );
+    }
+
+    const { orgId, userId } = authContext.value;
+
     try {
       const payload = mapPropertyDtoToInsertPayload(input);
+      payload.org_id = orgId ?? null;
+      payload.lister_user_id = userId;
       const { error } = await this.client.from("properties").insert(payload);
       if (error) {
         return Result.fail(mapPostgrestError(error));
@@ -274,11 +278,7 @@ export class SupabasePropertyRepo implements PropertyRepo {
       .is("deleted_at", null)
       .select("id");
 
-    if (orgId) {
-      updateQuery = updateQuery.eq("org_id", orgId);
-    } else {
-      updateQuery = updateQuery.eq("lister_user_id", userId);
-    }
+    updateQuery = scopeByContext(updateQuery, { orgId, userId, listerColumn: "lister_user_id" });
 
     const { error } = await updateQuery.single();
 
@@ -310,11 +310,7 @@ export class SupabasePropertyRepo implements PropertyRepo {
       .is("deleted_at", null)
       .select("id");
 
-    if (orgId) {
-      publishQuery = publishQuery.eq("org_id", orgId);
-    } else {
-      publishQuery = publishQuery.eq("lister_user_id", userId);
-    }
+    publishQuery = scopeByContext(publishQuery, { orgId, userId, listerColumn: "lister_user_id" });
 
     const { error } = await publishQuery.single();
 
@@ -341,11 +337,7 @@ export class SupabasePropertyRepo implements PropertyRepo {
       .is("deleted_at", null)
       .select("id");
 
-    if (orgId) {
-      pauseQuery = pauseQuery.eq("org_id", orgId);
-    } else {
-      pauseQuery = pauseQuery.eq("lister_user_id", userId);
-    }
+    pauseQuery = scopeByContext(pauseQuery, { orgId, userId, listerColumn: "lister_user_id" });
 
     const { error } = await pauseQuery.single();
 
@@ -377,11 +369,11 @@ export class SupabasePropertyRepo implements PropertyRepo {
       .is("deleted_at", null)
       .select("id");
 
-    if (orgId) {
-      markSoldQuery = markSoldQuery.eq("org_id", orgId);
-    } else {
-      markSoldQuery = markSoldQuery.eq("lister_user_id", userId);
-    }
+    markSoldQuery = scopeByContext(markSoldQuery, {
+      orgId,
+      userId,
+      listerColumn: "lister_user_id",
+    });
 
     const { error } = await markSoldQuery.single();
 
@@ -409,11 +401,11 @@ export class SupabasePropertyRepo implements PropertyRepo {
       .is("deleted_at", null)
       .select("id");
 
-    if (orgId) {
-      softDeleteQuery = softDeleteQuery.eq("org_id", orgId);
-    } else {
-      softDeleteQuery = softDeleteQuery.eq("lister_user_id", userId);
-    }
+    softDeleteQuery = scopeByContext(softDeleteQuery, {
+      orgId,
+      userId,
+      listerColumn: "lister_user_id",
+    });
 
     const { error } = await softDeleteQuery.single();
 
@@ -443,11 +435,11 @@ export class SupabasePropertyRepo implements PropertyRepo {
       .is("deleted_at", null)
       .limit(1);
 
-    if (authOrgId) {
-      originalQuery = originalQuery.eq("org_id", authOrgId);
-    } else {
-      originalQuery = originalQuery.eq("lister_user_id", userId);
-    }
+    originalQuery = scopeByContext(originalQuery, {
+      orgId: authOrgId,
+      userId,
+      listerColumn: "lister_user_id",
+    });
 
     const originalResult = await originalQuery.single();
 
@@ -485,6 +477,8 @@ export class SupabasePropertyRepo implements PropertyRepo {
 
     try {
       const payload = mapPropertyDtoToInsertPayload(duplicate);
+      payload.org_id = authOrgId ?? null;
+      payload.lister_user_id = userId;
       const { error } = await this.client.from("properties").insert(payload);
       if (error) {
         return Result.fail(mapPostgrestError(error));

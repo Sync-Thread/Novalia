@@ -2,7 +2,7 @@ export type MediaTypeDTO = "image" | "video" | "floorplan";
 
 export interface MediaDTO {
   id: string;
-  orgId?: string;
+  orgId?: string | null;
   propertyId?: string | null;
   url: string;
   s3Key?: string | null;
