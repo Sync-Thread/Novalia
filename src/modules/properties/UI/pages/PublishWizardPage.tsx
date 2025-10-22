@@ -423,37 +423,53 @@ function PublishWizard() {
             const savedMedia = dbResult.value;
             console.log("Media guardado en BD:", savedMedia);
 
-            // 6. Reemplazar el temporal con el real de la BD
-            // setMediaItems((prev) =>
-            //   prev.map((item) => (item.id === tempId ? savedMedia : item))
-            // );
+            // 6. Actualizar con el ID real pero mantener URL local
+            setMediaItems((prev) =>
+              prev.map((item) =>
+                item.id === tempId
+                  ? {
+                      ...savedMedia,
+                      url: localUrl, // Mantener URL local en lugar de S3
+                      metadata: {
+                        ...savedMedia.metadata,
+                        uploading: false,
+                      },
+                    }
+                  : item
+              )
+            );
 
-            // Liberar URL local
-            URL.revokeObjectURL(localUrl);
+            // NO liberar URL local - la necesitamos para mostrar la imagen
+            // URL.revokeObjectURL(localUrl);
 
             setMessage(`✅ ${file.name} subido correctamente`);
           } else {
             console.error("Error guardando en BD:", dbResult.error);
+
+            // Actualizar el item temporal con error
+            setMediaItems((prev) =>
+              prev.map((item) =>
+                item.id === tempId
+                  ? {
+                      ...item,
+                      metadata: {
+                        ...item.metadata,
+                        uploading: false,
+                        error: "Error guardando en BD",
+                      },
+                    }
+                  : item
+              )
+            );
+
             setMessage(
               `⚠️ ${file.name} subido a S3 pero error guardando en BD`
             );
-
-            // Mantener el preview local si falla la BD
-            // setMediaItems((prev) =>
-            //   prev.map((item) =>
-            //     item.id === tempId
-            //       ? {
-            //           ...item,
-            //           metadata: {
-            //             ...item.metadata,
-            //             uploading: false,
-            //             error: "Error guardando en BD",
-            //           },
-            //         }
-            //       : item
-            //   )
-            // );
           }
+        } else {
+          // Si falla el upload a S3, remover el item temporal
+          setMediaItems((prev) => prev.filter((item) => item.id !== tempId));
+          setMessage(`❌ Error al subir ${file.name} a S3`);
         }
       } catch (error) {
         console.error("Error subiendo archivo:", error);
