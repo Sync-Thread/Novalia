@@ -20,9 +20,11 @@ type CreateContext = {
 type ParsedCreate = ReturnType<typeof createPropertySchema.parse>;
 
 export class CreateProperty {
-  constructor(
-    private readonly deps: { repo: PropertyRepo; auth: AuthService; clock: Clock },
-  ) {}
+  private readonly deps: { repo: PropertyRepo; auth: AuthService; clock: Clock };
+
+  constructor(deps: { repo: PropertyRepo; auth: AuthService; clock: Clock }) {
+    this.deps = deps;
+  }
 
   async execute(rawInput: unknown): Promise<Result<{ id: string }>> {
     const parsedInput = parseWith(createPropertySchema, rawInput);
