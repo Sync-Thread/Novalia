@@ -5,8 +5,6 @@ export { default as PublishWizardPage } from "./pages/PublishWizardPage";
 // MyPropertiesPage components
 export { default as FiltersBar } from "./pages/MyPropertiesPage/components/FiltersBar";
 export { default as PropertyCard } from "./pages/MyPropertiesPage/components/PropertyCard";
-export { default as QuickViewSheet } from "./pages/MyPropertiesPage/components/QuickViewSheet";
-
 // PublishWizardPage components
 export { default as MediaDropzone } from "./pages/PublishWizardPage/components/MediaDropzone";
 export { default as DocumentCard } from "./pages/PublishWizardPage/components/DocumentCard";
@@ -16,7 +14,7 @@ export { default as DateTimePicker } from "./pages/PublishWizardPage/components/
 // Shared components
 export { default as ProgressCircle } from "./components/ProgressCircle";
 export { default as KycBanner } from "./components/KycBanner";
-export { default as PropertyQuickView } from "./components/PropertyQuickView";
+export { default as PropertyQuickView } from "./pages/MyPropertiesPage/components/PropertyQuickView";
 
 // Utils
 export { DesignBanner } from "./utils/DesignBanner";

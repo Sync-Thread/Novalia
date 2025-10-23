@@ -20,19 +20,19 @@ import {
   X,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import type { PropertyDTO } from "../../application/dto/PropertyDTO";
-import type { DocumentDTO } from "../../application/dto/DocumentDTO";
-import type { AuthProfile } from "../../application/ports/AuthService";
-import { usePropertiesActions } from "../hooks/usePropertiesActions";
-import ProgressCircle from "./ProgressCircle";
-import Modal from "./Modal";
+import type { PropertyDTO } from "../../../../../application/dto/PropertyDTO";
+import type { DocumentDTO } from "../../../../../application/dto/DocumentDTO";
+import type { AuthProfile } from "../../../../../application/ports/AuthService";
+import { usePropertiesActions } from "../../../../hooks/usePropertiesActions";
+import ProgressCircle from "../../../../components/ProgressCircle";
+import Modal from "../../../../components/Modal";
 import {
   formatCurrency,
   formatDate,
   formatStatus,
   formatVerification,
   shortenId,
-} from "../utils/format";
+} from "../../../../utils/format";
 import {
   PROPERTY_TYPE_LABEL,
   OPERATION_LABEL,
@@ -42,13 +42,13 @@ import {
   focusableSelectors,
   STEP_LINKS,
   type VerificationState,
-} from "./PropertyQuickView/constants";
+} from "./constants";
 import {
   computeChecklist,
   getStatusTone,
   getBadgeClass,
   deriveRppStatus,
-} from "./PropertyQuickView/helpers";
+} from "./helpers";
 
 type ExtendedProperty = PropertyDTO & {
   metrics?: {

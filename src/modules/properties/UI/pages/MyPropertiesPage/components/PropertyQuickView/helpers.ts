@@ -1,6 +1,6 @@
-import type { PropertyDTO } from "../../../application/dto/PropertyDTO";
-import type { DocumentDTO } from "../../../application/dto/DocumentDTO";
-import type { AuthProfile } from "../../../application/ports/AuthService";
+import type { PropertyDTO } from "../../../../../application/dto/PropertyDTO";
+import type { DocumentDTO } from "../../../../../application/dto/DocumentDTO";
+import type { AuthProfile } from "../../../../../application/ports/AuthService";
 import { STATUS_BADGE, type VerificationState, type ChecklistState } from "./constants";
 
 export function computeChecklist(

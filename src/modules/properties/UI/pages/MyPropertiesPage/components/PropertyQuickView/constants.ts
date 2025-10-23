@@ -1,4 +1,4 @@
-import type { PropertyDTO } from "../../../application/dto/PropertyDTO";
+import type { PropertyDTO } from "../../../../../application/dto/PropertyDTO";
 
 export type VerificationState = "pending" | "verified" | "rejected";
 
