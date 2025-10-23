@@ -1,27 +1,27 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { PropertiesProvider } from "../containers/PropertiesProvider";
-import { usePropertyList } from "../hooks/usePropertyList";
-import { usePropertiesActions } from "../hooks/usePropertiesActions";
+import { PropertiesProvider } from "../../containers/PropertiesProvider";
+import { usePropertyList } from "../../hooks/usePropertyList";
+import { usePropertiesActions } from "../../hooks/usePropertiesActions";
 import FiltersBar, {
   type FiltersBarValues,
   type ViewMode,
-} from "../components/FiltersBar";
-import KycBanner from "../components/KycBanner";
+} from "./components/FiltersBar";
+import KycBanner from "../../components/KycBanner";
 import PropertyCard, {
   type PropertyCardAction,
-} from "../components/PropertyCard";
-import PropertyQuickView from "../components/PropertyQuickView";
-import MarkSoldModal from "../modals/MarkSoldModal";
-import DeletePropertyModal from "../modals/DeletePropertyModal";
-import DesignBanner from "../utils/DesignBanner";
-import type { PropertyDTO } from "../../application/dto/PropertyDTO";
+} from "./components/PropertyCard";
+import PropertyQuickView from "../../components/PropertyQuickView";
+import MarkSoldModal from "../../modals/MarkSoldModal";
+import DeletePropertyModal from "../../modals/DeletePropertyModal";
+import DesignBanner from "../../utils/DesignBanner";
+import type { PropertyDTO } from "../../../application/dto/PropertyDTO";
 import {
   formatCurrency,
   formatDate,
   formatStatus,
   formatVerification,
-} from "../utils/format";
+} from "../../utils/format";
 import styles from "./MyPropertiesPage.module.css";
 
 export default function MyPropertiesPage() {

@@ -1,9 +1,13 @@
 import React, { useMemo } from "react";
 import { Bath, Bed, Car, Eye, MessageCircle, Users } from "lucide-react";
-import type { PropertyDTO } from "../../application/dto/PropertyDTO";
-import type { VerificationStatusDTO } from "../../application/dto/DocumentDTO";
-import { formatCurrency, formatDate, formatStatus } from "../utils/format";
-import ProgressCircle from "./ProgressCircle";
+import type { PropertyDTO } from "../../../../application/dto/PropertyDTO";
+import type { VerificationStatusDTO } from "../../../../application/dto/DocumentDTO";
+import {
+  formatCurrency,
+  formatDate,
+  formatStatus,
+} from "../../../utils/format";
+import ProgressCircle from "../../../components/ProgressCircle";
 import styles from "./PropertyCard.module.css";
 
 export type PropertyCardAction =
@@ -47,8 +51,17 @@ const RPP_STYLE: Record<RppStatus, { label: string; className: string }> = {
  * Tarjeta del listado de propiedades.
  * Toda la tarjeta abre el quick view cuando está habilitado.
  */
-export function PropertyCard({ property, coverUrl, metrics, onAction, enableQuickView = true }: PropertyCardProps) {
-  const rppStatus = useMemo<RppStatus>(() => property.rppVerification ?? "missing", [property.rppVerification]);
+export function PropertyCard({
+  property,
+  coverUrl,
+  metrics,
+  onAction,
+  enableQuickView = true,
+}: PropertyCardProps) {
+  const rppStatus = useMemo<RppStatus>(
+    () => property.rppVerification ?? "missing",
+    [property.rppVerification]
+  );
 
   const trigger = (action: PropertyCardAction) => {
     onAction?.(action, property);
@@ -82,13 +95,23 @@ export function PropertyCard({ property, coverUrl, metrics, onAction, enableQuic
     >
       <div className={styles.portada}>
         <div className={styles.cinta}>
-          <span className={`${styles.estado} ${STATUS_CLASS[property.status] ?? styles.estadoNeutro}`}>
+          <span
+            className={`${styles.estado} ${STATUS_CLASS[property.status] ?? styles.estadoNeutro}`}
+          >
             {formatStatus(property.status)}
           </span>
-          <span className={`${styles.estado} ${RPP_STYLE[rppStatus].className}`}>{RPP_STYLE[rppStatus].label}</span>
+          <span
+            className={`${styles.estado} ${RPP_STYLE[rppStatus].className}`}
+          >
+            {RPP_STYLE[rppStatus].label}
+          </span>
         </div>
         <div className={styles.cajaImagen}>
-          {coverUrl ? <img src={coverUrl} alt="" /> : <div className={styles.placeholder} aria-hidden="true" />}
+          {coverUrl ? (
+            <img src={coverUrl} alt="" />
+          ) : (
+            <div className={styles.placeholder} aria-hidden="true" />
+          )}
         </div>
       </div>
 
@@ -96,7 +119,9 @@ export function PropertyCard({ property, coverUrl, metrics, onAction, enableQuic
         <header className={styles.cabecera}>
           <div>
             <h3 className={styles.titulo}>{property.title}</h3>
-            <span className={styles.precio}>{formatCurrency(property.price.amount, property.price.currency)}</span>
+            <span className={styles.precio}>
+              {formatCurrency(property.price.amount, property.price.currency)}
+            </span>
             <span className={styles.ubicacion}>
               {property.address.city}, {property.address.state}
             </span>

@@ -3,8 +3,8 @@ import type {
   DocumentDTO,
   DocumentTypeDTO,
   VerificationStatusDTO,
-} from "../../application/dto/DocumentDTO";
-import { formatDate, formatVerification } from "../utils/format";
+} from "../../../../application/dto/DocumentDTO";
+import { formatDate, formatVerification } from "../../../utils/format";
 import styles from "./DocumentCard.module.css";
 
 const LABELS: Record<DocumentTypeDTO, string> = {

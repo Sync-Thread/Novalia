@@ -33,8 +33,22 @@ import {
   formatVerification,
   shortenId,
 } from "../utils/format";
-
-type VerificationState = "pending" | "verified" | "rejected";
+import {
+  PROPERTY_TYPE_LABEL,
+  OPERATION_LABEL,
+  RPP_BADGE,
+  CHECKLIST_LABELS,
+  STORAGE_KEY_COPY,
+  focusableSelectors,
+  STEP_LINKS,
+  type VerificationState,
+} from "./PropertyQuickView/constants";
+import {
+  computeChecklist,
+  getStatusTone,
+  getBadgeClass,
+  deriveRppStatus,
+} from "./PropertyQuickView/helpers";
 
 type ExtendedProperty = PropertyDTO & {
   metrics?: {
@@ -46,41 +60,6 @@ type ExtendedProperty = PropertyDTO & {
   media?: Array<{ id: string }>;
 };
 
-const PROPERTY_TYPE_LABEL: Record<PropertyDTO["propertyType"], string> = {
-  house: "Casa",
-  apartment: "Departamento",
-  land: "Terreno",
-  office: "Oficina",
-  commercial: "Comercial",
-  industrial: "Industrial",
-  other: "Otro",
-};
-
-const OPERATION_LABEL: Record<PropertyDTO["operationType"], string> = {
-  sale: "Venta",
-  rent: "Renta",
-};
-
-const STATUS_BADGE: Record<PropertyDTO["status"], "success" | "warning" | "neutral"> = {
-  draft: "warning",
-  published: "success",
-  sold: "success",
-  archived: "neutral",
-};
-
-const RPP_BADGE: Record<VerificationState, { label: string; tone: "success" | "warning" | "danger" }> = {
-  pending: { label: "RPP pendiente", tone: "warning" },
-  verified: { label: "RPP verificado", tone: "success" },
-  rejected: { label: "RPP rechazado", tone: "danger" },
-};
-
-const CHECKLIST_LABELS = {
-  kycOk: "KYC del publicador verificado",
-  completenessOk: "Completitud ≥ 80%",
-  rppOk: "RPP cargado",
-  coreOk: "Precio, tipo y ubicación definidos",
-};
-
 export interface PropertyQuickViewProps {
   open: boolean;
   onClose: () => void;
@@ -88,79 +67,6 @@ export interface PropertyQuickViewProps {
   onRefresh?: () => void;
   onEdit?: (propertyId: string, step?: string) => void;
 }
-
-interface ChecklistState {
-  kycOk: boolean;
-  completenessOk: boolean;
-  rppOk: boolean;
-  coreOk: boolean;
-}
-
-const STORAGE_KEY_COPY = "property-quickview-id";
-
-const focusableSelectors = [
-  "a[href]",
-  "area[href]",
-  "button:not([disabled])",
-  "input:not([disabled])",
-  "select:not([disabled])",
-  "textarea:not([disabled])",
-  "[tabindex]:not([tabindex='-1'])",
-].join(",");
-
-// Cálculo UI-only. No reemplaza políticas de dominio.
-function computeChecklist(
-  property: PropertyDTO | null,
-  docs: DocumentDTO[],
-  profile: AuthProfile | null,
-): ChecklistState {
-  const kycOk = (profile?.kycStatus ?? "pending") === "verified";
-  const completenessOk = (property?.completenessScore ?? 0) >= 80;
-  const rppDoc =
-    docs.find((doc) => doc.docType === "rpp_certificate") ?? null;
-  const rppOk = Boolean(
-    rppDoc && rppDoc.verification !== "rejected",
-  );
-  const priceDefined = Boolean(
-    property?.price && Number(property.price.amount) > 0,
-  );
-  const typeDefined = Boolean(property?.propertyType);
-  const locationDefined = Boolean(
-    property?.address?.city && property?.address?.state,
-  );
-  const coreOk = priceDefined && typeDefined && locationDefined;
-  return { kycOk, completenessOk, rppOk, coreOk };
-}
-
-function getStatusTone(status: PropertyDTO["status"]): "success" | "warning" | "neutral" {
-  return STATUS_BADGE[status] ?? "neutral";
-}
-
-function getBadgeClass(tone: "success" | "warning" | "neutral" | "danger"): string {
-  switch (tone) {
-    case "success":
-      return "badge badge-success";
-    case "warning":
-      return "badge badge-warning";
-    case "danger":
-      return "badge badge-danger";
-    default:
-      return "badge badge-neutral";
-  }
-}
-
-function deriveRppStatus(docs: DocumentDTO[], verification?: VerificationState | null): VerificationState {
-  if (verification) return verification;
-  const doc = docs.find((item) => item.docType === "rpp_certificate");
-  return doc?.verification ?? "pending";
-}
-
-const STEP_LINKS: Array<{ key: keyof ChecklistState; step: string }> = [
-  { key: "kycOk", step: "basics" },
-  { key: "completenessOk", step: "publish" },
-  { key: "rppOk", step: "publish" },
-  { key: "coreOk", step: "location" },
-];
 
 export function PropertyQuickView({
   open,
@@ -199,10 +105,13 @@ export function PropertyQuickView({
 
   const checklist = useMemo(
     () => computeChecklist(property, documents, authProfile),
-    [authProfile, documents, property],
+    [authProfile, documents, property]
   );
 
-  const mediaCount = useMemo(() => property?.media?.length ?? 0, [property?.media]);
+  const mediaCount = useMemo(
+    () => property?.media?.length ?? 0,
+    [property?.media]
+  );
   const extraMedia = useMemo(() => Math.max(mediaCount - 2, 0), [mediaCount]);
 
   useEffect(() => {
@@ -269,7 +178,7 @@ export function PropertyQuickView({
       const panel = panelRef.current;
       if (!panel) return;
       const focusable = Array.from(
-        panel.querySelectorAll<HTMLElement>(focusableSelectors),
+        panel.querySelectorAll<HTMLElement>(focusableSelectors)
       ).filter((element) => element.offsetParent !== null);
       if (focusable.length === 0) {
         panel.focus();
@@ -306,7 +215,8 @@ export function PropertyQuickView({
     const body = document.body;
     const previousOverflow = body.style.overflow;
     const previousPadding = body.style.paddingRight;
-    const scrollBarWidth = window.innerWidth - document.documentElement.clientWidth;
+    const scrollBarWidth =
+      window.innerWidth - document.documentElement.clientWidth;
     body.style.overflow = "hidden";
     if (scrollBarWidth > 0) {
       body.style.paddingRight = `${scrollBarWidth}px`;
@@ -385,12 +295,14 @@ export function PropertyQuickView({
       }
       closeSheet();
     },
-    [closeSheet, navigate, onEdit, property],
+    [closeSheet, navigate, onEdit, property]
   );
 
   const isDraft = property?.status === "draft";
   const savedCompleteness = Math.round(property?.completenessScore ?? 0);
-  const publishButtonClass = isDraft ? "btn btn-primary btn-sm quickview-cta" : "btn btn-ghost btn-sm quickview-cta";
+  const publishButtonClass = isDraft
+    ? "btn btn-primary btn-sm quickview-cta"
+    : "btn btn-ghost btn-sm quickview-cta";
 
   if (!open) return null;
 
@@ -434,12 +346,18 @@ export function PropertyQuickView({
                   </h2>
                   <div className="quickview-header__tags">
                     {property && (
-                      <span className={getBadgeClass(getStatusTone(property.status))}>
+                      <span
+                        className={getBadgeClass(
+                          getStatusTone(property.status)
+                        )}
+                      >
                         {formatStatus(property.status)}
                       </span>
                     )}
                     {property?.id && (
-                      <span className="badge badge-neutral quickview-id">{shortenId(property.id)}</span>
+                      <span className="badge badge-neutral quickview-id">
+                        {shortenId(property.id)}
+                      </span>
                     )}
                     {property?.id && (
                       <button
@@ -456,7 +374,10 @@ export function PropertyQuickView({
                 {property && (
                   <div className="quickview-header__subtitle">
                     <span className="quickview-price">
-                      {formatCurrency(property.price.amount, property.price.currency)}
+                      {formatCurrency(
+                        property.price.amount,
+                        property.price.currency
+                      )}
                     </span>
                     <span className="muted">
                       <MapPin size={14} />
@@ -464,7 +385,8 @@ export function PropertyQuickView({
                     </span>
                     <span className="muted">
                       <Layers size={14} />
-                      {PROPERTY_TYPE_LABEL[property.propertyType]} • {OPERATION_LABEL[property.operationType]}
+                      {PROPERTY_TYPE_LABEL[property.propertyType]} •{" "}
+                      {OPERATION_LABEL[property.operationType]}
                     </span>
                   </div>
                 )}
@@ -553,7 +475,11 @@ export function PropertyQuickView({
                       <span>Año</span>
                     </div>
                     <div>
-                      <strong>{property.createdAt ? formatDate(property.createdAt) : "—"}</strong>
+                      <strong>
+                        {property.createdAt
+                          ? formatDate(property.createdAt)
+                          : "—"}
+                      </strong>
                       <span>Creada</span>
                     </div>
                   </div>
@@ -573,8 +499,17 @@ export function PropertyQuickView({
                       return (
                         <li key={key}>
                           <div className="quickview-checklist__item">
-                            <Icon size={18} className={ok ? "quickview-icon--ok" : "quickview-icon--warn"} />
-                            <span className="quickview-checklist__label ellipsis">{CHECKLIST_LABELS[key]}</span>
+                            <Icon
+                              size={18}
+                              className={
+                                ok
+                                  ? "quickview-icon--ok"
+                                  : "quickview-icon--warn"
+                              }
+                            />
+                            <span className="quickview-checklist__label ellipsis">
+                              {CHECKLIST_LABELS[key]}
+                            </span>
                           </div>
                           {!ok && (
                             <button
@@ -631,9 +566,13 @@ export function PropertyQuickView({
                       <span>Planos</span>
                       <strong>0</strong>
                     </div>
-                    <div className={`quickview-docs__rpp quickview-docs__rpp--${rppStatus}`}>
+                    <div
+                      className={`quickview-docs__rpp quickview-docs__rpp--${rppStatus}`}
+                    >
                       <span>RPP</span>
-                      <span className={getBadgeClass(RPP_BADGE[rppStatus].tone)}>
+                      <span
+                        className={getBadgeClass(RPP_BADGE[rppStatus].tone)}
+                      >
                         {formatVerification(rppStatus)}
                       </span>
                     </div>
@@ -673,7 +612,9 @@ export function PropertyQuickView({
                 type="button"
                 className={publishButtonClass}
                 onClick={isDraft ? handlePublish : undefined}
-                disabled={!property || (isDraft ? loading.publishProperty : true)}
+                disabled={
+                  !property || (isDraft ? loading.publishProperty : true)
+                }
                 title={
                   isDraft
                     ? "Publica la propiedad para que aparezca en tu inventario."
@@ -687,7 +628,11 @@ export function PropertyQuickView({
                     ) : (
                       <Rocket size={14} aria-hidden="true" />
                     )}
-                    <span>{loading.publishProperty ? "Publicando..." : "Publicar propiedad"}</span>
+                    <span>
+                      {loading.publishProperty
+                        ? "Publicando..."
+                        : "Publicar propiedad"}
+                    </span>
                   </>
                 ) : (
                   <>
@@ -707,7 +652,11 @@ export function PropertyQuickView({
         title="¿Eliminar propiedad?"
         actions={
           <>
-            <button type="button" className="btn btn-ghost" onClick={() => setConfirmDeleteOpen(false)}>
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={() => setConfirmDeleteOpen(false)}
+            >
               Cancelar
             </button>
             <button
@@ -721,7 +670,10 @@ export function PropertyQuickView({
           </>
         }
       >
-        <p>Esta acción no puede deshacerse. La propiedad se eliminará del listado.</p>
+        <p>
+          Esta acción no puede deshacerse. La propiedad se eliminará del
+          listado.
+        </p>
       </Modal>
     </>
   );

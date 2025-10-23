@@ -1,8 +1,12 @@
 import type { Result } from "../_shared/result";
-// import type {Coords} from "../../application/dto/CoordsDTO";
-import type { Coords } from "../../UI/utils/geolocation";
+
+export interface Coords {
+  lat: number;
+  lng: number;
+}
 
 export interface AuthProfile {
+  name: string | null;
   userId: string;
   orgId: string | null;
   kycStatus: "verified" | "pending" | "rejected";

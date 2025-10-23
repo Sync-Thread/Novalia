@@ -3,9 +3,12 @@ import { Grid, List, RotateCcw, Search, SlidersHorizontal } from "lucide-react";
 import type {
   PropertyListFilters,
   PropertyStatusFilter,
-} from "../hooks/usePropertyList";
-import type { ListFiltersInput } from "../../application/validators/filters.schema";
-import { CustomSelect, type SelectOption } from "./CustomSelect";
+} from "../../../hooks/usePropertyList";
+import type { ListFiltersInput } from "../../../../application/validators/filters.schema";
+import {
+  CustomSelect,
+  type SelectOption,
+} from "../../../components/CustomSelect";
 
 export type ViewMode = "grid" | "list";
 

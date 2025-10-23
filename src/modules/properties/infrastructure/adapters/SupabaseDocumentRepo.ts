@@ -7,7 +7,7 @@ import {
   mapAttachDocumentToInsertPayload,
   mapDocumentRowToDTO,
   mapVerificationToDb,
-} from "../mappers/document.mappers";
+} from "../../application/mappers/document.mapper";
 import type { DocumentRow } from "../types/supabase-rows";
 import { scopeByContext } from "./scopeByContext";
 

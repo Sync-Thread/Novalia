@@ -1,43 +1,43 @@
 // Wizard moderno para publicar propiedades. Mantener la logica de negocio intacta.
 import React, { useMemo, useState, useEffect, useRef } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { PropertiesProvider } from "../containers/PropertiesProvider";
-import { usePropertiesActions } from "../hooks/usePropertiesActions";
+import { PropertiesProvider } from "../../containers/PropertiesProvider";
+import { usePropertiesActions } from "../../hooks/usePropertiesActions";
 import AmenityChips, {
   DEFAULT_AMENITY_GROUPS,
-} from "../components/AmenityChips";
-import MediaDropzone from "../components/MediaDropzone";
-import DocumentCard from "../components/DocumentCard";
-import DesignBanner from "../utils/DesignBanner";
+} from "./components/AmenityChips";
+import MediaDropzone from "./components/MediaDropzone";
+import DocumentCard from "./components/DocumentCard";
+import DesignBanner from "../../utils/DesignBanner";
 import {
   isGeolocationSupported,
   getCurrentPosition,
-} from "../utils/geolocation";
-import type { Coords } from "../utils/geolocation";
-import type { MediaDTO } from "../../application/dto/MediaDTO";
+} from "../../utils/geolocation";
+import type { Coords } from "../../utils/geolocation";
+import type { MediaDTO } from "../../../application/dto/MediaDTO";
 import type {
   DocumentDTO,
   DocumentTypeDTO,
   VerificationStatusDTO,
-} from "../../application/dto/DocumentDTO";
-import type { PropertyDTO } from "../../application/dto/PropertyDTO";
-import type { Currency, PropertyType } from "../../domain/enums";
+} from "../../../application/dto/DocumentDTO";
+import type { PropertyDTO } from "../../../application/dto/PropertyDTO";
+import type { Currency, PropertyType } from "../../../domain/enums";
 import {
   CURRENCY_VALUES,
   PROPERTY_TYPE,
   PROPERTY_TYPE_VALUES,
-} from "../../domain/enums";
+} from "../../../domain/enums";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import {
   uploadFile,
   getPresignedUrlForDisplay,
-} from "../../infrastructure/adapters/MediaStorage";
-import { supabase } from "../../../../core/supabase/client";
-import { SupabaseMediaStorage } from "../../infrastructure/adapters/SupabaseMediaStorage";
-import { SupabaseDocumentStorage } from "../../infrastructure/adapters/SupabaseDocumentStorage";
-import { SupabaseAuthService } from "../../infrastructure/adapters/SupabaseAuthService";
-import { descargarCoordenadasDePropiedad } from "../utils/downloadscoords";
+} from "../../../infrastructure/adapters/MediaStorage";
+import { supabase } from "../../../../../core/supabase/client";
+import { SupabaseMediaStorage } from "../../../infrastructure/adapters/SupabaseMediaStorage";
+import { SupabaseDocumentStorage } from "../../../infrastructure/adapters/SupabaseDocumentStorage";
+import { SupabaseAuthService } from "../../../infrastructure/adapters/SupabaseAuthService";
+import { descargarCoordenadasDePropiedad } from "../../utils/downloadscoords";
 
 // Instanciar los adaptadores
 const authService = new SupabaseAuthService({ client: supabase });
