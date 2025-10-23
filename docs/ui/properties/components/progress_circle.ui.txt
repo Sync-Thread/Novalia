@@ -1,0 +1,8 @@
+TITLE: Progress Circle
+ID: cmp-progress-circle
+MODULE: properties
+
+### PROPS
+- value       | number  | 0..100
+- thresholds  | config  | {warn:50, good:80}
+- aria_label  | string  | Completitud

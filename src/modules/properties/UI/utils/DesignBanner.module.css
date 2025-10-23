@@ -1,0 +1,52 @@
+.banner {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  padding: 14px 18px;
+  border-radius: 12px;
+  border: 1px dashed rgba(41, 93, 255, 0.4);
+  background: rgba(41, 93, 255, 0.08);
+  color: var(--text-700, #334155);
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 14px;
+  align-items: center;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(41, 93, 255, 0.15);
+  color: #295dff;
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.note {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dismiss {
+  border: none;
+  background: transparent;
+  color: #295dff;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 6px 8px;
+  border-radius: 8px;
+}
+
+.dismiss:focus-visible {
+  outline: 2px solid rgba(41, 93, 255, 0.3);
+  outline-offset: 2px;
+}
+
+@media (max-width: 640px) {
+  .banner {
+    grid-template-columns: 1fr;
+  }
+}

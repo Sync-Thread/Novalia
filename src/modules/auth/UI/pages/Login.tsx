@@ -18,6 +18,7 @@ import Button from "../../../../shared/UI/Button";
 import PasswordField from "../../../../shared/UI/fields/PasswordField";
 import TextField from "../../../../shared/UI/fields/TextField";
 import Notice from "../../../../shared/UI/Notice";
+import { registerAdapter } from "../../infrastructure/supabase/adapters/registerAdapter";
 
 type Form = { email: string; password: string };
 
@@ -40,7 +41,7 @@ export default function Login() {
   // Si ya hay sesión → dashboard
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) nav("/dashboard");
+      if (data.session) nav("/properties");
     });
   }, [nav]);
 
@@ -124,7 +125,26 @@ export default function Login() {
       return;
     }
 
-    nav("/dashboard");
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const userId = sessionData.session?.user?.id ?? null;
+      const accountTypeMeta = sessionData.session?.user?.user_metadata?.account_type;
+      const accountType =
+        accountTypeMeta === "agent" || accountTypeMeta === "owner" || accountTypeMeta === "buyer"
+          ? accountTypeMeta
+          : "buyer";
+      if (userId) {
+        await registerAdapter.validateBootstrap(userId, {
+          accountType,
+          flow: "email",
+          expectMembership: accountType === "owner",
+        });
+      }
+    } catch (err) {
+      console.warn("[login] bootstrap validation skipped", err);
+    }
+
+    nav("/properties");
   };
 
   const goRegister = (t: "buyer" | "agent" | "owner" | null) => {

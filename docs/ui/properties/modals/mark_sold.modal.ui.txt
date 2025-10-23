@@ -1,0 +1,12 @@
+TITLE: Marcar como Vendida
+ID: modal-mark-sold
+MODULE: properties
+USES: MarkSold
+
+### FIELDS
+- sold_at      | datetime | Fecha de venta      | form.soldAt | req
+- note         | text     | Nota (opcional)     | form.note   | max=200
+
+### ACTIONS
+- confirm      | action   | Confirmar           | MarkSold.exec({id, soldAt: form.soldAt, note: form.note})
+- cancel       | action   | Cancelar            | UI.closeModal()

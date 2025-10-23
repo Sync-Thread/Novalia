@@ -1,0 +1,46 @@
+.grupo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 14px;
+  color: var(--text-700, #334155);
+}
+
+.etiqueta {
+  font-weight: 600;
+}
+
+.control {
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  padding: 12px 14px;
+  font-size: 15px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.control:focus-visible {
+  outline: none;
+  border-color: #295dff;
+  box-shadow: 0 0 0 3px rgba(41, 93, 255, 0.18);
+}
+
+.control:disabled {
+  background: rgba(148, 163, 184, 0.12);
+  cursor: not-allowed;
+}
+
+.error {
+  border-color: var(--danger, #ef4444);
+}
+
+.ayuda {
+  font-size: 12px;
+  color: var(--text-500, #64748b);
+}
+
+.mensajeError {
+  font-size: 12px;
+  color: var(--danger, #ef4444);
+  font-weight: 500;
+}

@@ -1,0 +1,75 @@
+TITLE: Propiedad · Detalle (Admin)
+ID: properties-detail-admin
+MODULE: properties
+USES: GetProperty, UpdateProperty, UploadMedia, AttachDocument, PublishProperty, PauseProperty, MarkSold, DeleteProperty
+
+### SECTION_GENERAL
+- status            | badge   | Estado                  | property.status
+- completeness      | circle  | Completitud %           | property.completenessScore
+- rpp_verification  | badge   | RPP                     | property.rppVerification
+- title             | text    | Título                  | property.title        | req | max=80
+- description       | rich    | Descripción             | property.description  |     | max=2000
+- price             | money   | Precio (MXN)            | property.price.amount | req | min=0
+- property_type     | select  | Tipo                    | property.propertyType | req | enum=house|apartment|land|office|commercial|industrial|other
+- internal_id       | text    | ID interno              | property.internalId
+- tags              | chips   | Etiquetas               | property.tags[]
+
+### SECTION_LOCATION
+- address_line      | text    | Dirección               | property.address.addressLine
+- neighborhood      | text    | Colonia                 | property.address.neighborhood
+- city              | text    | Ciudad                  | property.address.city  | req
+- state             | text    | Estado                  | property.address.state | req
+- postal_code       | text    | Código Postal           | property.address.postalCode
+- country           | text    | País                    | property.address.country | req
+- display_address   | toggle  | Mostrar dirección aprox.| property.address.displayAddress | default=false
+- lat               | number  | Latitud                 | property.location.lat
+- lng               | number  | Longitud                | property.location.lng
+- normalized_status | badge   | Dirección normalizada   | property.normalizedStatus
+
+### SECTION_DETAILS
+- bedrooms          | number  | Recámaras               | property.bedrooms
+- bathrooms         | number  | Baños                   | property.bathrooms     | step=0.5
+- parking_spots     | number  | Estacionamientos        | property.parkingSpots
+- construction_m2   | number  | m² construcción         | property.constructionM2
+- land_m2           | number  | m² terreno              | property.landM2
+- levels            | number  | Niveles                 | property.levels
+- year_built        | number  | Año construcción        | property.yearBuilt
+- floor             | number  | Piso                    | property.floor
+- hoa_fee           | number  | Cuota mantenimiento     | property.hoaFee
+- condition         | select  | Condición               | property.condition     | enum=new|excellent|good|needs_renovation|unknown
+- furnished         | toggle  | Amueblado               | property.furnished
+- pet_friendly      | toggle  | Pet friendly            | property.petFriendly
+- orientation       | select  | Orientación             | property.orientation   | enum=north|northeast|east|southeast|south|southwest|west|northwest
+
+### SECTION_AMENITIES
+- amenities         | chips   | Amenidades              | property.amenities[]
+- amenities_extra   | text    | Otras amenidades        | property.amenitiesExtra
+
+### SECTION_MEDIA
+- gallery           | list    | Media                   | media.items[]
+- upload            | drop    | Subir archivos          | media.files[]          | accept=image/*,video/*,pdf
+- set_cover         | action  | Marcar portada          | SetCoverMedia({mediaId})
+- reorder           | action  | Reordenar               | ReorderMedia({ids})
+- delete_media      | action  | Eliminar                | RemoveMedia({mediaId})
+
+### SECTION_DOCUMENTS
+- rpp               | file    | Certificado RPP         | documents.rpp
+- deed              | file    | Escritura               | documents.deed
+- id_doc            | file    | Identificación          | documents.id_doc
+- floorplan         | file    | Plano                   | documents.floorplan
+- other             | file    | Otro                    | documents.other
+- verification      | badge   | Verificación RPP        | documents.rpp.verification
+
+### SECTION_TIMES
+- created_at        | display | Creada                  | property.createdAt
+- published_at      | display | Publicada               | property.publishedAt
+- sold_at           | display | Vendida                 | property.soldAt
+- updated_at        | display | Actualizada             | property.updatedAt
+
+### ACTIONS
+- save              | action  | Guardar cambios         | UpdateProperty.exec({id, patch})
+- publish_now       | action  | Publicar                | PublishProperty.exec({id})              | if status==draft
+- schedule_publish  | action  | Programar publicación   | PublishProperty.exec({id, scheduledAt})
+- pause             | action  | Pausar (a borrador)     | PauseProperty.exec({id})                | if status==published
+- mark_sold         | action  | Marcar vendida          | MarkSold.exec({id, soldAt})
+- delete            | action  | Eliminar                | DeleteProperty.exec({id}) | confirm

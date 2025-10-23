@@ -1,0 +1,23 @@
+TITLE: Property Card
+ID: cmp-property-card
+MODULE: properties
+
+### PROPS
+- id                | string  | ID
+- title             | string  | Título
+- price             | money   | Precio (MXN)
+- city              | string  | Ciudad
+- state             | string  | Estado
+- status            | enum    | Estado (draft|published|sold)
+- property_type     | enum    | Tipo
+- bedrooms          | number  | Rec
+- bathrooms         | number  | Ba (0.5 steps)
+- parking_spots     | number  | Est
+- completeness      | number  | Completitud %
+- rpp_verification  | enum    | RPP (pending|verified|rejected)
+- cover_url         | string  | Portada
+- metrics           | object  | {views, leads, chats}
+- slug              | string  | Slug público
+
+### ACTIONS (context)
+- quick_view, edit, publish, pause, mark_sold, duplicate, view_public, delete

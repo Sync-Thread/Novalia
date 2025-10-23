@@ -1,0 +1,66 @@
+.acciones {
+  display: inline-flex;
+  gap: 10px;
+}
+
+.boton {
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  background: #ffffff;
+  color: var(--text-600, #475569);
+}
+
+.boton:hover {
+  border-color: rgba(41, 93, 255, 0.35);
+  color: #295dff;
+}
+
+.boton:focus-visible {
+  outline: 2px solid rgba(41, 93, 255, 0.3);
+  outline-offset: 2px;
+}
+
+.botonPrincipal {
+  border: none;
+  background: linear-gradient(135deg, #295dff, #1d4ed8);
+  color: #ffffff;
+  box-shadow: 0 16px 34px rgba(41, 93, 255, 0.24);
+}
+
+.botonPrincipal:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.texto {
+  margin: 0 0 8px;
+  font-size: 14px;
+  color: var(--text-600, #475569);
+}
+
+.nota {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--text-600, #475569);
+}
+
+.textarea {
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  padding: 12px 14px;
+  resize: vertical;
+  min-height: 96px;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+.textarea:focus-visible {
+  outline: none;
+  border-color: #295dff;
+  box-shadow: 0 0 0 3px rgba(41, 93, 255, 0.18);
+}

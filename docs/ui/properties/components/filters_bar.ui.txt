@@ -1,0 +1,15 @@
+TITLE: Filters Bar
+ID: cmp-filters-bar
+MODULE: properties
+
+### FIELDS
+- q              | search | Buscar por título o ID  | filters.q
+- status         | select | Estado                  | filters.status         | enum=draft|published|sold|all
+- property_type  | select | Tipo de propiedad       | filters.propertyType   | enum=house|apartment|land|office|commercial|industrial|other
+- city           | text   | Ciudad                  | filters.city
+- state          | text   | Estado                  | filters.state
+- price_min      | number | Precio min (MXN)        | filters.priceMin
+- price_max      | number | Precio max (MXN)        | filters.priceMax
+- sort_by        | select | Ordenar por             | filters.sortBy        | enum=recent|price_asc|price_desc|completeness_desc
+- view_mode      | toggle | Vista Grid/Lista        | ui.viewMode           | values=grid|list
+- reset          | button | Limpiar filtros         | action.reset
