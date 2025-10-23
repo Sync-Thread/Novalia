@@ -14,7 +14,7 @@ export { default as DateTimePicker } from "./pages/PublishWizardPage/components/
 // Shared components
 export { default as ProgressCircle } from "./components/ProgressCircle";
 export { default as KycBanner } from "./components/KycBanner";
-export { default as PropertyQuickView } from "./pages/MyPropertiesPage/components/PropertyQuickView";
+export { default as PropertyQuickView } from "./pages/MyPropertiesPage/components/PropertyQuickView/PropertyQuickView";
 
 // Utils
 export { DesignBanner } from "./utils/DesignBanner";
