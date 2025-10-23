@@ -9,6 +9,9 @@ export class InMemoryMediaStorage implements MediaStorage {
   constructor(seed: MediaDTO[] = []) {
     this.media = seed.map(item => ({ ...item }));
   }
+  listMedia(propertyId: string): Promise<Result<MediaDTO[]>> {
+    throw new Error("Method not implemented.");
+  }
 
   async upload(propertyId: string, file: MediaUploadDTO): Promise<Result<MediaDTO>> {
     const id = generateId();

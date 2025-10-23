@@ -35,7 +35,6 @@ export * from "./use-cases/documents/VerifyRpp";
 export * from "./use-cases/documents/ListPropertyDocuments";
 export * from "./use-cases/documents/DeleteDocument";
 export * from "./use-cases/auth/GetAuthProfile";
-
 export * from "./fakes/InMemoryPropertyRepo";
 export * from "./fakes/InMemoryDocumentRepo";
 export * from "./fakes/InMemoryMediaStorage";
