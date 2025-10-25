@@ -11,7 +11,7 @@ import KycBanner from "../../components/KycBanner";
 import PropertyCard, {
   type PropertyCardAction,
 } from "./components/PropertyCard";
-import PropertyQuickView from "./components/PropertyQuickView";
+import PropertyQuickView from "./components/PropertyQuickView/PropertyQuickView";
 import MarkSoldModal from "../../modals/MarkSoldModal";
 import DeletePropertyModal from "../../modals/DeletePropertyModal";
 import DesignBanner from "../../utils/DesignBanner";
