@@ -10,4 +10,5 @@ export interface DocumentRepo {
     docId: string,
     status: "pending" | "verified" | "rejected",
   ): Promise<Result<void>>;
+  getAllS3Keys(propertyId: string): Promise<Result<string[]>>;
 }

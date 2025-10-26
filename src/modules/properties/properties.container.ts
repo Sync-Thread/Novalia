@@ -81,7 +81,12 @@ export function createPropertiesContainer(deps: PropertiesContainerDeps = {}): P
       pauseProperty: new PauseProperty({ repo: propertyRepo, clock }),
       schedulePublish: new SchedulePublish({ repo: propertyRepo, clock }),
       markSold: new MarkSold({ repo: propertyRepo, clock }),
-      deleteProperty: new DeleteProperty({ repo: propertyRepo, clock }),
+      deleteProperty: new DeleteProperty({ 
+        repo: propertyRepo, 
+        clock, 
+        mediaStorage, 
+        documentRepo 
+      }),
       uploadMedia: new UploadMedia({ media: mediaStorage, properties: propertyRepo }),
       removeMedia: new RemoveMedia({ media: mediaStorage }),
       setCoverMedia: new SetCoverMedia({ media: mediaStorage }),

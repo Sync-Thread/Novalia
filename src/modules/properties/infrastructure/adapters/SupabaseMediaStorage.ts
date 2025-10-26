@@ -422,7 +422,7 @@ export class SupabaseMediaStorage implements MediaStorage {
         return Result.fail(mediaError("AUTH", "Not authenticated", authResult.error));
       }
       
-      const profile = authResult.value;
+      // const profile = authResult.value;
       // if (!profile.orgId) {
       //   return Result.fail(mediaError("AUTH", "No org context available"));
       // }
@@ -460,6 +460,40 @@ export class SupabaseMediaStorage implements MediaStorage {
     } catch (error) {
       return Result.fail(
         mediaError("UNKNOWN", "Unexpected error listing media", error)
+      );
+    }
+  }
+
+  /**
+   * Obtiene todos los s3Keys de media assets de una propiedad
+   * Útil para eliminación en lote de archivos de S3
+   */
+  async getAllS3Keys(propertyId: string): Promise<Result<string[]>> {
+    try {
+      const authResult = await this.authService.getCurrent();
+      if (authResult.isErr()) {
+        return Result.fail(mediaError("AUTH", "Not authenticated", authResult.error));
+      }
+
+      const { data, error } = await this.supabase
+        .from("media_assets")
+        .select("s3_key")
+        .eq("property_id", propertyId);
+
+      if (error) {
+        return Result.fail(
+          mediaError("UNKNOWN", "Failed to get media s3 keys", error)
+        );
+      }
+
+      const s3Keys = (data ?? [])
+        .map((row) => row.s3_key)
+        .filter((key): key is string => typeof key === "string" && key.length > 0);
+
+      return Result.ok(s3Keys);
+    } catch (error) {
+      return Result.fail(
+        mediaError("UNKNOWN", "Unexpected error getting s3 keys", error)
       );
     }
   }

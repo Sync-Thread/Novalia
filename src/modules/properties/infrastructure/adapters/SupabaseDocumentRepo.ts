@@ -189,4 +189,37 @@ export class SupabaseDocumentRepo implements DocumentRepo {
 
     return Result.ok(undefined);
   }
+
+  /**
+   * Obtiene todos los s3Keys de documentos de una propiedad
+   * Útil para eliminación en lote de archivos de S3
+   */
+  async getAllS3Keys(propertyId: string): Promise<Result<string[]>> {
+    const authResult = await this.auth.getCurrent();
+    if (authResult.isErr()) {
+      return Result.fail(docError("AUTH", "Cannot resolve authenticated context", authResult.error));
+    }
+
+    const { orgId, userId } = authResult.value;
+
+    let keysQuery = this.client
+      .from("documents")
+      .select("s3_key")
+      .eq("related_type", "property")
+      .eq("related_id", propertyId);
+
+    keysQuery = scopeByContext(keysQuery, { orgId, userId, listerColumn: null });
+
+    const { data, error } = await keysQuery;
+
+    if (error) {
+      return Result.fail(mapPostgrestError(error));
+    }
+
+    const s3Keys = (data ?? [])
+      .map((row) => row.s3_key)
+      .filter((key): key is string => typeof key === "string" && key.length > 0);
+
+    return Result.ok(s3Keys);
+  }
 }
