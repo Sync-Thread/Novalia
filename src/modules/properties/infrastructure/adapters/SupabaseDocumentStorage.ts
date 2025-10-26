@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { DocumentDTO, DocumentTypeDTO } from "../../application/dto/DocumentDTO";
 import type { AuthService } from "../../application/ports/AuthService";
 import { Result } from "../../application/_shared/result";
+import { mapDbDocTypeToDto } from "../../application/mappers/document.mapper";
 
 type DocumentErrorCode = "AUTH" | "NOT_FOUND" | "VALIDATION" | "UNKNOWN";
 
@@ -134,7 +135,7 @@ export class SupabaseDocumentStorage {
         id: row.id,
         // orgId: row.org_id,
         propertyId: row.related_id,
-        docType: row.doc_type,
+        docType: mapDbDocTypeToDto(row.doc_type),
         url: row.url,
         s3Key: row.s3_key,
         verification: row.verification,

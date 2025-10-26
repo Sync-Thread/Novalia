@@ -1,5 +1,11 @@
 // Wizard moderno para publicar propiedades. Mantener la logica de negocio intacta.
-import React, { useMemo, useState, useEffect, useRef } from "react";
+import React, {
+  useMemo,
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+} from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { PropertiesProvider } from "../../containers/PropertiesProvider";
 import { usePropertiesActions } from "../../hooks/usePropertiesActions";
@@ -27,7 +33,7 @@ import {
   PROPERTY_TYPE,
   PROPERTY_TYPE_VALUES,
 } from "../../../domain/enums";
-import L from "leaflet";
+import L, { DivOverlay } from "leaflet";
 import "leaflet/dist/leaflet.css";
 import {
   uploadFile,
@@ -301,86 +307,78 @@ function PublishWizard() {
     };
   }, [editingId, getProperty, listDocuments]);
 
+  // Función para recargar medias desde BD
+  const reloadMediaFromDatabase = useCallback(async () => {
+    if (!form.propertyId) return;
+
+    console.log(
+      "🔄 Recargando imágenes desde BD para propiedad:",
+      form.propertyId
+    );
+
+    // 1. Obtener registros de media_assets
+    const mediaResult = await mediaStorage.listMedia(form.propertyId);
+
+    if (mediaResult.isErr()) {
+      console.error("Error al cargar media desde BD:", mediaResult.error);
+      setMessage("⚠️ No se pudieron cargar las imágenes");
+      return;
+    }
+
+    const mediaRecords = mediaResult.value;
+    console.log(
+      `✅ Se encontraron ${mediaRecords.length} registros de media en BD`
+    );
+
+    if (mediaRecords.length === 0) {
+      setMediaItems([]);
+      return;
+    }
+
+    // 2. Descargar cada imagen usando presigned URLs
+    const mediaWithBlobUrls = await Promise.all(
+      mediaRecords.map(async (mediaRecord) => {
+        try {
+          if (!mediaRecord.s3Key) {
+            console.warn("Media sin s3Key:", mediaRecord.id);
+            return mediaRecord;
+          }
+
+          console.log("⬇️ Descargando imagen:", mediaRecord.s3Key);
+
+          // Obtener presigned URL y descargar como blob
+          const blobUrl = await getPresignedUrlForDisplay(mediaRecord.s3Key);
+
+          console.log("✅ Imagen descargada como blob:", blobUrl);
+
+          // Retornar MediaDTO con blob URL local
+          return {
+            ...mediaRecord,
+            url: blobUrl, // Usar blob URL en lugar de S3 URL
+          };
+        } catch (error) {
+          console.error("Error descargando imagen:", mediaRecord.s3Key, error);
+          // Retornar el registro sin modificar si falla
+          return mediaRecord;
+        }
+      })
+    );
+
+    // 3. Actualizar estado con las imágenes descargadas
+    setMediaItems(mediaWithBlobUrls);
+    console.log("✅ Todas las imágenes cargadas y listas para mostrar");
+  }, [form.propertyId]);
+
   // Cargar imágenes desde BD cuando llegue al paso "media"
   useEffect(() => {
     // Solo cargar si estamos en el paso "media" (índice 3) y tenemos propertyId
     if (currentStep !== 3 || !form.propertyId) return;
 
-    let active = true;
+    console.log("📸 Paso 'media' detectado, cargando imágenes...");
 
-    const loadMediaFromDatabase = async () => {
-      console.log(
-        "📸 Cargando imágenes desde BD para propiedad:",
-        form.propertyId
-      );
-
-      // 1. Obtener registros de media_assets
-      const mediaResult = await mediaStorage.listMedia(form.propertyId!);
-
-      if (!active) return;
-
-      if (mediaResult.isErr()) {
-        console.error("Error al cargar media desde BD:", mediaResult.error);
-        setMessage("⚠️ No se pudieron cargar las imágenes");
-        return;
-      }
-
-      const mediaRecords = mediaResult.value;
-      console.log(
-        `✅ Se encontraron ${mediaRecords.length} registros de media en BD`
-      );
-
-      if (mediaRecords.length === 0) {
-        // No hay imágenes guardadas
-        return;
-      }
-
-      // 2. Descargar cada imagen usando presigned URLs
-      const mediaWithBlobUrls = await Promise.all(
-        mediaRecords.map(async (mediaRecord) => {
-          try {
-            if (!mediaRecord.s3Key) {
-              console.warn("Media sin s3Key:", mediaRecord.id);
-              return mediaRecord;
-            }
-
-            console.log("⬇️ Descargando imagen:", mediaRecord.s3Key);
-
-            // Obtener presigned URL y descargar como blob
-            const blobUrl = await getPresignedUrlForDisplay(mediaRecord.s3Key);
-
-            console.log("✅ Imagen descargada como blob:", blobUrl);
-
-            // Retornar MediaDTO con blob URL local
-            return {
-              ...mediaRecord,
-              url: blobUrl, // Usar blob URL en lugar de S3 URL
-            };
-          } catch (error) {
-            console.error(
-              "Error descargando imagen:",
-              mediaRecord.s3Key,
-              error
-            );
-            // Retornar el registro sin modificar si falla
-            return mediaRecord;
-          }
-        })
-      );
-
-      if (!active) return;
-
-      // 3. Actualizar estado con las imágenes descargadas
-      setMediaItems(mediaWithBlobUrls);
-      console.log("✅ Todas las imágenes cargadas y listas para mostrar");
-    };
-
-    loadMediaFromDatabase();
-
-    return () => {
-      active = false;
-    };
-  }, [currentStep, form.propertyId]);
+    // Simplemente llamar a la función de recarga
+    reloadMediaFromDatabase();
+  }, [currentStep, form.propertyId, reloadMediaFromDatabase]);
 
   // Cargar documentos desde BD cuando llegue al paso "publish"
   useEffect(() => {
@@ -405,7 +403,7 @@ function PublishWizard() {
       }
 
       const docs = docsResult.value;
-      console.log(`✅ Se encontraron ${docs.length} documentos en BD`);
+      // console.log(`✅ Se encontraron ${docs.length} documentos en BD`);
 
       setDocuments(docs);
     };
@@ -463,11 +461,11 @@ function PublishWizard() {
     const payload = buildDraftPayload();
 
     if (!form.propertyId) {
-      console.log('antes de "crear"');
+      // console.log('antes de "crear"');
 
       const result = await createProperty(payload);
-      console.log("despues de crear, mas result");
-      console.log(result);
+      // console.log("despues de crear, mas result");
+      // console.log(result);
 
       if (result.isOk()) {
         const id = result.value.id;
@@ -585,7 +583,7 @@ function PublishWizard() {
         const uploadResult = await uploadFile(file, "uploads", form.propertyId);
 
         if (uploadResult?.objectUrl) {
-          console.log("Archivo subido a S3:", uploadResult);
+          // console.log("Archivo subido a S3:", uploadResult);
 
           // 5. Guardar en la base de datos
           const dbResult = await mediaStorage.insertMediaFromS3({
@@ -670,11 +668,20 @@ function PublishWizard() {
 
   const handleSetCover = async (mediaId: string) => {
     if (!form.propertyId) return;
+    console.log("🖼️ Estableciendo nueva portada...");
+
     const result = await setCoverMedia({
       propertyId: form.propertyId,
       mediaId,
     });
-    if (result.isOk()) setMediaItems(result.value);
+
+    if (result.isOk()) {
+      console.log("✅ Portada actualizada en BD, recargando imágenes...");
+      // Recargar las imágenes desde BD para reflejar el cambio de isCover
+      await reloadMediaFromDatabase();
+    } else {
+      console.error("❌ Error al actualizar portada:", result.error);
+    }
   };
 
   const handleReorder = async (order: string[]) => {
@@ -792,6 +799,13 @@ function PublishWizard() {
   }, [searchParams]);
 
   const requirements = useMemo(() => {
+    // console.log("recargo?... :C");
+    // if (mediaItems) {
+    //   console.log("el mediaitems no esta vacio: ", mediaItems.length);
+    // } else {
+    //   console.log("no hay titulo");
+    // }
+
     return [
       { label: "Titulo (Paso 1)", valid: form.title.trim().length > 0 },
       { label: "Tipo (Paso 1)", valid: form.propertyType.trim().length > 0 },
@@ -807,7 +821,7 @@ function PublishWizard() {
         valid:
           form.amenities.length > 0 || form.amenitiesExtra.trim().length > 0,
       },
-      { label: "Fotos min. 1 (Paso 4)", valid: mediaItems.length > 0 },
+      { label: "Fotos min. 1 (Paso 4)", valid: mediaItems?.length > 0 },
       {
         label: "Documentos (Paso 5)",
         valid: documents.length >= 1, // Al menos un documento (escritura, planos u otros)
@@ -1092,7 +1106,7 @@ function PublishWizard() {
 
                     return (
                       <DocumentCard
-                        key={type}
+                        key={`${type}-${singleDoc?.id || docsForType.map((d) => d.id).join("-") || "empty"}`}
                         docType={type}
                         documents={isMultiple ? docsForType : undefined}
                         document={!isMultiple ? singleDoc : undefined}

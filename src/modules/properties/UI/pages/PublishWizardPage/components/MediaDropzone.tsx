@@ -49,6 +49,8 @@ export function MediaDropzone({
 
   const counts = useMemo(() => {
     const base = { images: 0, videos: 0, floorplans: 0 };
+    if (!items || items.length === 0) console.log("noitems");
+    if (!items || items.length === 0) return base;
     for (const item of items) {
       if (item.type === "video") base.videos += 1;
       else if (item.type === "floorplan") base.floorplans += 1;
@@ -116,7 +118,7 @@ export function MediaDropzone({
         <span>Planos: {counts.floorplans}</span>
       </div>
 
-      {items.length > 0 && (
+      {items! && items.length > 0 && (
         <div className={styles.rejilla}>
           {items.map((item, index) => {
             const isCover = item.isCover;

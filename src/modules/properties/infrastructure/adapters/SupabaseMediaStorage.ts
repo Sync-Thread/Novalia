@@ -182,15 +182,24 @@ export class SupabaseMediaStorage implements MediaStorage {
    */
   async setCover(propertyId: string, mediaId: string): Promise<Result<void>> {
     try {
+      console.log('llego? id');
+      
       const authResult = await this.authService.getCurrent();
       if (authResult.isErr()) {
+        console.log('error auth');
+        
         return Result.fail(mediaError("AUTH", "Not authenticated", authResult.error));
       }
       
-      const profile = authResult.value;
-      if (!profile.orgId) {
-        return Result.fail(mediaError("AUTH", "No org context available"));
-      }
+      // const profile = authResult.value;
+      // if (!profile.orgId) {
+      //   console.log('fallo la organizacion');
+        
+      //   return Result.fail(mediaError("AUTH", "No org context available"));
+      // }
+      // else{
+      //   console.log('no fallo org');
+      // }
 
       // Estrategia: actualizar metadata para marcar isCover
       const { data: targetMedia, error: fetchError } = await this.supabase
@@ -210,8 +219,8 @@ export class SupabaseMediaStorage implements MediaStorage {
       const { data: allMedia, error: allError } = await this.supabase
         .from("media_assets")
         .select("id, metadata")
-        .eq("property_id", propertyId)
-        .eq("org_id", profile.orgId);
+        .eq("property_id", propertyId);
+        // .eq("org_id", profile.orgId);
 
       if (allError) {
         return Result.fail(
