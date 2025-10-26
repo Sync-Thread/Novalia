@@ -9,7 +9,6 @@ import React, {
 import {
   AlertCircle,
   CheckCircle2,
-  Copy,
   ExternalLink,
   ImageIcon,
   Layers,
@@ -17,6 +16,7 @@ import {
   MapPin,
   Rocket,
   ShieldAlert,
+  ShoppingBag,
   X,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -26,6 +26,7 @@ import type { AuthProfile } from "../../../../../application/ports/AuthService";
 import { usePropertiesActions } from "../../../../hooks/usePropertiesActions";
 import ProgressCircle from "../../../../components/ProgressCircle";
 import Modal from "../../../../components/Modal";
+import MarkSoldModal from "../../../../modals/MarkSoldModal";
 import {
   formatCurrency,
   formatDate,
@@ -38,7 +39,6 @@ import {
   OPERATION_LABEL,
   RPP_BADGE,
   CHECKLIST_LABELS,
-  STORAGE_KEY_COPY,
   focusableSelectors,
   STEP_LINKS,
   type VerificationState,
@@ -80,6 +80,7 @@ export function PropertyQuickView({
     listDocuments,
     publishProperty,
     pauseProperty,
+    markSold,
     deleteProperty,
     getAuthProfile,
     loading,
@@ -95,6 +96,7 @@ export function PropertyQuickView({
   const [loadingData, setLoadingData] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [markSoldOpen, setMarkSoldOpen] = useState(false);
 
   const rppStatus = useMemo<VerificationState>(() => {
     if (!property) {
@@ -207,6 +209,7 @@ export function PropertyQuickView({
         lastFocusedElement.current.focus();
       }
       setConfirmDeleteOpen(false);
+      setMarkSoldOpen(false);
     };
   }, [onClose, open]);
 
@@ -230,18 +233,6 @@ export function PropertyQuickView({
   const closeSheet = useCallback(() => {
     onClose();
   }, [onClose]);
-
-  const handleCopyId = useCallback(() => {
-    if (!property?.id) return;
-    try {
-      if (navigator.clipboard?.writeText) {
-        void navigator.clipboard.writeText(property.id);
-      }
-    } catch {
-      // Ignorar errores de clipboard en navegadores sin soporte.
-    }
-    sessionStorage.setItem(STORAGE_KEY_COPY, property.id);
-  }, [property?.id]);
 
   const refreshAndClose = useCallback(() => {
     onRefresh?.();
@@ -273,6 +264,18 @@ export function PropertyQuickView({
       refreshAndClose();
     }
   }, [deleteProperty, property, refreshAndClose]);
+
+  const handleMarkSold = useCallback(
+    async (soldAt: Date) => {
+      if (!property) return;
+      const result = await markSold({ id: property.id, soldAt });
+      if (result.isOk()) {
+        setMarkSoldOpen(false);
+        refreshAndClose();
+      }
+    },
+    [markSold, property, refreshAndClose]
+  );
 
   const handleEdit = useCallback(() => {
     if (!property) return;
@@ -358,16 +361,6 @@ export function PropertyQuickView({
                       <span className="badge badge-neutral quickview-id">
                         {shortenId(property.id)}
                       </span>
-                    )}
-                    {property?.id && (
-                      <button
-                        type="button"
-                        className="btn btn-ghost btn-sm quickview-copy"
-                        onClick={handleCopyId}
-                      >
-                        <Copy size={14} />
-                        Copiar ID
-                      </button>
                     )}
                   </div>
                 </div>
@@ -588,7 +581,12 @@ export function PropertyQuickView({
                 type="button"
                 className="btn btn-outline btn-sm"
                 onClick={handlePause}
-                disabled={loading.pauseProperty || !property}
+                disabled={isDraft || loading.pauseProperty || !property}
+                title={
+                  isDraft
+                    ? "No se puede pausar una propiedad en borrador"
+                    : "Pausar publicación"
+                }
               >
                 {loading.pauseProperty ? "Pausando..." : "Pausar"}
               </button>
@@ -641,6 +639,18 @@ export function PropertyQuickView({
                   </>
                 )}
               </button>
+              {!isDraft && property?.status === "published" && (
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  onClick={() => setMarkSoldOpen(true)}
+                  disabled={loading.markSold || !property}
+                  title="Marcar esta propiedad como vendida"
+                >
+                  <ShoppingBag size={14} aria-hidden="true" />
+                  <span>Marcar como vendida</span>
+                </button>
+              )}
             </div>
           </footer>
         </aside>
@@ -675,6 +685,16 @@ export function PropertyQuickView({
           listado.
         </p>
       </Modal>
+
+      <MarkSoldModal
+        open={markSoldOpen}
+        onClose={() => setMarkSoldOpen(false)}
+        defaultDate={property?.soldAt ?? undefined}
+        loading={loading.markSold}
+        onConfirm={({ soldAt }) => {
+          void handleMarkSold(new Date(soldAt));
+        }}
+      />
     </>
   );
 }
