@@ -9,9 +9,17 @@ export interface ModalProps {
   title: string;
   actions?: React.ReactNode;
   children: React.ReactNode;
+  zIndex?: number;
 }
 
-export function Modal({ open, onClose, title, actions, children }: ModalProps) {
+export function Modal({
+  open,
+  onClose,
+  title,
+  actions,
+  children,
+  zIndex = 1000,
+}: ModalProps) {
   const titleId = useId();
 
   useEffect(() => {
@@ -28,13 +36,35 @@ export function Modal({ open, onClose, title, actions, children }: ModalProps) {
   if (!open) return null;
 
   return (
-    <div className="overlay" role="presentation" onClick={onClose}>
+    <div
+      role="presentation"
+      onClick={onClose}
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(15, 23, 42, 0.5)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "var(--gap, 16px)",
+        zIndex: zIndex,
+      }}
+    >
       <section
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="modal"
-        onClick={event => event.stopPropagation()}
+        onClick={(event) => event.stopPropagation()}
+        style={{
+          width: "min(480px, 100%)",
+          borderRadius: "var(--radius, 8px)",
+          background: "var(--bg, white)",
+          boxShadow: "var(--shadow, 0 4px 6px -1px rgba(0, 0, 0, 0.1))",
+          display: "flex",
+          flexDirection: "column",
+          gap: "var(--gap, 16px)",
+          padding: "calc(var(--gap, 16px) * 1.25)",
+        }}
       >
         <header className="modal-header">
           <div>
@@ -42,7 +72,12 @@ export function Modal({ open, onClose, title, actions, children }: ModalProps) {
               {title}
             </h2>
           </div>
-          <button type="button" onClick={onClose} className="btn btn-ghost btn-icon" aria-label="Cerrar modal">
+          <button
+            type="button"
+            onClick={onClose}
+            className="btn btn-ghost btn-icon"
+            aria-label="Cerrar modal"
+          >
             <X size={18} />
           </button>
         </header>

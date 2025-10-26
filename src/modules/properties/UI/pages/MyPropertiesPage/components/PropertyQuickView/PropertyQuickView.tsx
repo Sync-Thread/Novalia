@@ -656,15 +656,17 @@ export function PropertyQuickView({
         </aside>
       </div>
 
+      {/* Modal de confirmación de eliminación */}
       <Modal
         open={confirmDeleteOpen}
         onClose={() => setConfirmDeleteOpen(false)}
         title="¿Eliminar propiedad?"
+        zIndex={1100}
         actions={
           <>
             <button
               type="button"
-              className="btn btn-ghost"
+              className="btn btn-outline"
               onClick={() => setConfirmDeleteOpen(false)}
             >
               Cancelar
@@ -672,7 +674,10 @@ export function PropertyQuickView({
             <button
               type="button"
               className="btn btn-danger"
-              onClick={handleDelete}
+              onClick={async () => {
+                setConfirmDeleteOpen(false);
+                await handleDelete();
+              }}
               disabled={loading.deleteProperty}
             >
               {loading.deleteProperty ? "Eliminando..." : "Eliminar"}
@@ -680,9 +685,11 @@ export function PropertyQuickView({
           </>
         }
       >
-        <p>
-          Esta acción no puede deshacerse. La propiedad se eliminará del
-          listado.
+        <p style={{ fontSize: "14px", lineHeight: "1.5" }}>
+          Esta acción eliminará permanentemente la propiedad{" "}
+          <strong>{property?.title ? `"${property.title}"` : ""}</strong>,
+          incluyendo todas sus imágenes, documentos y datos asociados. Esta
+          operación no se puede deshacer.
         </p>
       </Modal>
 
