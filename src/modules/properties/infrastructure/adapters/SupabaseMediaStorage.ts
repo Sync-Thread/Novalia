@@ -46,10 +46,10 @@ export class SupabaseMediaStorage implements MediaStorage {
         return Result.fail(mediaError("AUTH", "Not authenticated", authResult.error));
       }
       
-      const profile = authResult.value;
-      if (!profile.orgId) {
-        return Result.fail(mediaError("AUTH", "No org context available"));
-      }
+      // const profile = authResult.value;
+      // if (!profile.orgId) {
+      //   return Result.fail(mediaError("AUTH", "No org context available"));
+      // }
 
       // 1. Determinar posición (última + 1)
       const { data: existingMedia, error: countError } = await this.supabase
@@ -94,7 +94,7 @@ export class SupabaseMediaStorage implements MediaStorage {
       const { data, error } = await this.supabase
         .from("media_assets")
         .insert({
-          org_id: profile.orgId,
+          // org_id: profile.orgId,
           property_id: propertyId,
           media_type: file.type,
           s3_key: s3Key,
@@ -149,17 +149,17 @@ export class SupabaseMediaStorage implements MediaStorage {
         return Result.fail(mediaError("AUTH", "Not authenticated", authResult.error));
       }
       
-      const profile = authResult.value;
-      if (!profile.orgId) {
-        return Result.fail(mediaError("AUTH", "No org context available"));
-      }
+      // const profile = authResult.value;
+      // if (!profile.orgId) {
+      //   return Result.fail(mediaError("AUTH", "No org context available"));
+      // }
 
       const { error } = await this.supabase
         .from("media_assets")
         .delete()
         .eq("id", mediaId)
         .eq("property_id", propertyId)
-        .eq("org_id", profile.orgId);
+        // .eq("org_id", profile.orgId);
 
       if (error) {
         return Result.fail(
@@ -277,10 +277,10 @@ export class SupabaseMediaStorage implements MediaStorage {
         return Result.fail(mediaError("AUTH", "Not authenticated", authResult.error));
       }
       
-      const profile = authResult.value;
-      if (!profile.orgId) {
-        return Result.fail(mediaError("AUTH", "No org context available"));
-      }
+      // const profile = authResult.value;
+      // if (!profile.orgId) {
+      //   return Result.fail(mediaError("AUTH", "No org context available"));
+      // }
 
       // Actualizar position de cada media según el orden
       const updates = orderedIds.map((id, index) =>
@@ -289,7 +289,7 @@ export class SupabaseMediaStorage implements MediaStorage {
           .update({ position: index })
           .eq("id", id)
           .eq("property_id", propertyId)
-          .eq("org_id", profile.orgId)
+          // .eq("org_id", profile.orgId)
       );
 
       await Promise.all(updates);
@@ -320,7 +320,7 @@ export class SupabaseMediaStorage implements MediaStorage {
         return Result.fail(mediaError("AUTH", "Not authenticated", authResult.error));
       }
       
-      const profile = authResult.value;
+      // const profile = authResult.value;
       // if (!profile.orgId) {
       //   return Result.fail(mediaError("AUTH", "No org context available"));
       // }
@@ -363,7 +363,7 @@ export class SupabaseMediaStorage implements MediaStorage {
       const { data, error } = await this.supabase
         .from("media_assets")
         .insert({
-          org_id: profile.orgId,
+          // org_id: profile.orgId,
           property_id: params.propertyId,
           media_type: params.type,
           s3_key: params.s3Key,

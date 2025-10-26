@@ -33,7 +33,7 @@ import {
   PROPERTY_TYPE,
   PROPERTY_TYPE_VALUES,
 } from "../../../domain/enums";
-import L, { DivOverlay } from "leaflet";
+import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import {
   uploadFile,
@@ -369,16 +369,52 @@ function PublishWizard() {
     console.log("✅ Todas las imágenes cargadas y listas para mostrar");
   }, [form.propertyId]);
 
-  // Cargar imágenes desde BD cuando llegue al paso "media"
+  // Auto-guardar borrador y cargar imágenes cuando llegue al paso "media"
   useEffect(() => {
-    // Solo cargar si estamos en el paso "media" (índice 3) y tenemos propertyId
-    if (currentStep !== 3 || !form.propertyId) return;
+    // Solo procesar si estamos en el paso "media" (índice 3)
+    if (currentStep !== 3) return;
 
-    console.log("📸 Paso 'media' detectado, cargando imágenes...");
+    let active = true;
 
-    // Simplemente llamar a la función de recarga
-    reloadMediaFromDatabase();
-  }, [currentStep, form.propertyId, reloadMediaFromDatabase]);
+    const prepareMediaStep = async () => {
+      // Si no hay propertyId, guardar borrador automáticamente primero
+      if (!form.propertyId) {
+        console.log(
+          "📝 Paso media detectado sin propertyId, guardando borrador..."
+        );
+        setMessage("Guardando borrador antes de cargar archivos...");
+
+        const savedPropertyId = await handleSave();
+
+        if (!active) return;
+
+        if (!savedPropertyId) {
+          setMessage(
+            "❌ No pudimos guardar el borrador. Por favor, completa los campos requeridos."
+          );
+          return;
+        }
+
+        console.log(
+          "✅ Borrador guardado automáticamente con ID:",
+          savedPropertyId
+        );
+        setMessage("✅ Borrador guardado. Ya puedes subir archivos.");
+      }
+
+      // Si ya hay propertyId, cargar imágenes desde BD (solo si no hay imágenes ya)
+      if (form.propertyId && mediaItems.length === 0) {
+        console.log("📸 Cargando imágenes desde BD...");
+        await reloadMediaFromDatabase();
+      }
+    };
+
+    prepareMediaStep();
+
+    return () => {
+      active = false;
+    };
+  }, [currentStep, form.propertyId]);
 
   // Cargar documentos desde BD cuando llegue al paso "publish"
   useEffect(() => {
@@ -455,7 +491,7 @@ function PublishWizard() {
     location: coords ? { lat: coords.lat, lng: coords.lng } : null,
   });
 
-  const handleSave = async () => {
+  const handleSave = async (): Promise<string | null> => {
     setSaving(true);
     setMessage(null);
     const payload = buildDraftPayload();
@@ -463,7 +499,7 @@ function PublishWizard() {
     if (!form.propertyId) {
       // console.log('antes de "crear"');
 
-      const result = await createProperty(payload);
+      const result = await createProperty(payload as any);
       // console.log("despues de crear, mas result");
       // console.log(result);
 
@@ -473,8 +509,12 @@ function PublishWizard() {
         await refreshDocs(id);
         setMessage("Borrador guardado.");
         setSavedCompleteness(completion);
+        setSaving(false);
+        return id; // Retornar el nuevo propertyId
       } else {
         setMessage("No pudimos guardar el borrador.");
+        setSaving(false);
+        return null;
       }
     } else {
       const result = await updateProperty({
@@ -491,10 +531,11 @@ function PublishWizard() {
       if (success && isEditing) {
         setSaving(false);
         navigate("/properties");
-        return;
+        return form.propertyId;
       }
+      setSaving(false);
+      return success ? form.propertyId : null;
     }
-    setSaving(false);
   };
 
   const refreshDocs = async (propertyId: string) => {
@@ -541,12 +582,21 @@ function PublishWizard() {
   };
 
   const handleUploadMedia = async (files: File[]) => {
+    // En este punto, el propertyId SIEMPRE debe existir (el useEffect lo garantiza)
     if (!form.propertyId) {
-      setMessage("Guarda el borrador antes de subir media.");
+      setMessage(
+        "❌ Error: No hay propertyId. Por favor, guarda el borrador primero."
+      );
       return;
     }
 
-    // Procesar cada archivo
+    const currentPropertyId = form.propertyId;
+    console.log(
+      "📤 Iniciando upload de archivos para propertyId:",
+      currentPropertyId
+    );
+
+    // Procesar cada archivo usando currentPropertyId
     for (const file of files) {
       const tempId = crypto.randomUUID();
 
@@ -558,7 +608,7 @@ function PublishWizard() {
         const tempMedia: MediaDTO = {
           id: tempId,
           orgId: null,
-          propertyId: form.propertyId,
+          propertyId: currentPropertyId,
           url: localUrl, // URL local temporal (blob:http://...)
           s3Key: null,
           type: file.type.startsWith("video/") ? "video" : "image",
@@ -580,14 +630,18 @@ function PublishWizard() {
         setMediaItems((prev) => [...prev, tempMedia]);
 
         // 4. Subir a S3 en segundo plano
-        const uploadResult = await uploadFile(file, "uploads", form.propertyId);
+        const uploadResult = await uploadFile(
+          file,
+          "uploads",
+          currentPropertyId
+        );
 
         if (uploadResult?.objectUrl) {
           // console.log("Archivo subido a S3:", uploadResult);
 
           // 5. Guardar en la base de datos
           const dbResult = await mediaStorage.insertMediaFromS3({
-            propertyId: form.propertyId,
+            propertyId: currentPropertyId,
             s3Key: uploadResult.key,
             url: uploadResult.objectUrl,
             type: file.type.startsWith("video/") ? "video" : "image",
@@ -694,16 +748,25 @@ function PublishWizard() {
   };
 
   const handleAttachDocument = async (type: DocumentTypeDTO, file: File) => {
+    // En este punto, el propertyId SIEMPRE debe existir (similar al paso media)
     if (!form.propertyId) {
-      setMessage("Guarda el borrador antes de adjuntar documentos.");
+      setMessage(
+        "❌ Error: No hay propertyId. Por favor, guarda el borrador primero."
+      );
       return;
     }
+
+    const currentPropertyId = form.propertyId;
 
     try {
       console.log("📄 Subiendo documento:", file.name);
 
       // 1. Subir a S3
-      const uploadResult = await uploadFile(file, "documents", form.propertyId);
+      const uploadResult = await uploadFile(
+        file,
+        "documents",
+        currentPropertyId
+      );
 
       if (!uploadResult?.objectUrl) {
         setMessage(`❌ Error al subir ${file.name} a S3`);
@@ -714,7 +777,7 @@ function PublishWizard() {
 
       // 2. Guardar en la base de datos
       const dbResult = await documentStorage.insertDocumentFromS3({
-        propertyId: form.propertyId,
+        propertyId: currentPropertyId,
         docType: type,
         s3Key: uploadResult.key,
         url: uploadResult.objectUrl,
@@ -728,7 +791,7 @@ function PublishWizard() {
         setMessage(`✅ ${file.name} subido correctamente`);
 
         // Recargar lista de documentos
-        await refreshDocs(form.propertyId);
+        await refreshDocs(currentPropertyId);
       } else {
         console.error("Error guardando documento en BD:", dbResult.error);
         setMessage(`⚠️ ${file.name} subido a S3 pero error guardando en BD`);
@@ -1081,6 +1144,7 @@ function PublishWizard() {
                   onRemove={handleRemoveMedia}
                   onSetCover={handleSetCover}
                   onReorder={handleReorder}
+                  disabled={!form.propertyId || saving}
                 />
               </div>
             </div>

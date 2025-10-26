@@ -11,6 +11,7 @@ export interface MediaDropzoneProps {
   uploading?: boolean;
   maxFiles?: number;
   accept?: string;
+  disabled?: boolean; // Nuevo: deshabilitar dropzone si no hay propertyId
 }
 
 /**
@@ -25,6 +26,7 @@ export function MediaDropzone({
   uploading,
   maxFiles,
   accept = "image/*,video/*,.pdf",
+  disabled = false,
 }: MediaDropzoneProps) {
   const [dragging, setDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -75,28 +77,33 @@ export function MediaDropzone({
         className={`${styles.dropzone} ${dragging ? styles.dropzoneActivo : ""}`.trim()}
         onDragOver={(event) => {
           event.preventDefault();
-          if (!uploading) setDragging(true);
+          if (!uploading && !disabled) setDragging(true);
         }}
         onDragLeave={() => setDragging(false)}
-        onDrop={handleDrop}
-        onClick={() => !uploading && inputRef.current?.click()}
+        onDrop={disabled ? undefined : handleDrop}
+        onClick={() => !uploading && !disabled && inputRef.current?.click()}
         role="button"
-        tabIndex={0}
+        tabIndex={disabled ? -1 : 0}
         onKeyDown={(event) => {
+          if (disabled) return;
           if (event.key === "Enter" || event.key === " ") {
             event.preventDefault();
             inputRef.current?.click();
           }
         }}
+        style={disabled ? { opacity: 0.5, cursor: "not-allowed" } : undefined}
       >
         <strong>
-          {uploading
-            ? "Subiendo archivos..."
-            : "Arrastra archivos o haz clic para seleccionar"}
+          {disabled
+            ? "Guardando borrador..."
+            : uploading
+              ? "Subiendo archivos..."
+              : "Arrastra archivos o haz clic para seleccionar"}
         </strong>
         <span>
-          Acepta imágenes, videos o PDFs. Recomendado mínimo 8 fotos
-          {maxFiles ? ` (máximo ${maxFiles})` : ""}.
+          {disabled
+            ? "Espera un momento mientras preparamos todo para subir archivos"
+            : `Acepta imágenes, videos o PDFs. Recomendado mínimo 8 fotos${maxFiles ? ` (máximo ${maxFiles})` : ""}.`}
         </span>
       </div>
 
