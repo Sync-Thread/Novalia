@@ -22,11 +22,16 @@ import {
 import { useNavigate } from "react-router-dom";
 import type { PropertyDTO } from "../../../../../application/dto/PropertyDTO";
 import type { DocumentDTO } from "../../../../../application/dto/DocumentDTO";
+import type { MediaDTO } from "../../../../../application/dto/MediaDTO";
 import type { AuthProfile } from "../../../../../application/ports/AuthService";
 import { usePropertiesActions } from "../../../../hooks/usePropertiesActions";
 import ProgressCircle from "../../../../components/ProgressCircle";
 import Modal from "../../../../components/Modal";
 import MarkSoldModal from "../../../../modals/MarkSoldModal";
+import { supabase } from "../../../../../../../core/supabase/client";
+import { SupabaseMediaStorage } from "../../../../../infrastructure/adapters/SupabaseMediaStorage";
+import { SupabaseAuthService } from "../../../../../infrastructure/adapters/SupabaseAuthService";
+import { getPresignedUrlForDisplay } from "../../../../../infrastructure/adapters/MediaStorage";
 import {
   formatCurrency,
   formatDate,
@@ -49,6 +54,9 @@ import {
   getBadgeClass,
   deriveRppStatus,
 } from "./helpers";
+
+const authService = new SupabaseAuthService({ client: supabase });
+const mediaStorage = new SupabaseMediaStorage({ supabase, authService });
 
 type ExtendedProperty = PropertyDTO & {
   metrics?: {
@@ -92,6 +100,8 @@ export function PropertyQuickView({
 
   const [property, setProperty] = useState<ExtendedProperty | null>(null);
   const [documents, setDocuments] = useState<DocumentDTO[]>([]);
+  const [mediaItems, setMediaItems] = useState<MediaDTO[]>([]);
+  const [loadingMedia, setLoadingMedia] = useState(false);
   const [authProfile, setAuthProfile] = useState<AuthProfile | null>(null);
   const [loadingData, setLoadingData] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -110,11 +120,13 @@ export function PropertyQuickView({
     [authProfile, documents, property]
   );
 
-  const mediaCount = useMemo(
-    () => property?.media?.length ?? 0,
-    [property?.media]
-  );
-  const extraMedia = useMemo(() => Math.max(mediaCount - 2, 0), [mediaCount]);
+  const mediaCount = useMemo(() => mediaItems.length, [mediaItems]);
+
+  // Mostrar solo las primeras 3 imágenes
+  const displayMedia = useMemo(() => mediaItems.slice(0, 3), [mediaItems]);
+
+  // Contador de imágenes adicionales (más allá de las 3 mostradas)
+  const extraMedia = useMemo(() => Math.max(mediaCount - 3, 0), [mediaCount]);
 
   useEffect(() => {
     if (!open || !propertyId) return;
@@ -123,6 +135,7 @@ export function PropertyQuickView({
     setError(null);
     setProperty(null);
     setDocuments([]);
+    setMediaItems([]);
 
     const fetchData = async () => {
       const propertyResult = await getProperty(propertyId);
@@ -148,6 +161,83 @@ export function PropertyQuickView({
       active = false;
     };
   }, [getProperty, listDocuments, open, propertyId]);
+
+  // Cargar media cuando se abre el QuickView
+  useEffect(() => {
+    if (!open || !propertyId) return;
+
+    let active = true;
+    setLoadingMedia(true);
+
+    const loadMedia = async () => {
+      try {
+        // 1. Obtener registros de media_assets desde BD
+        const mediaResult = await mediaStorage.listMedia(propertyId);
+
+        if (!active) return;
+
+        if (mediaResult.isErr()) {
+          console.error("Error al cargar media:", mediaResult.error);
+          setLoadingMedia(false);
+          return;
+        }
+
+        const mediaRecords = mediaResult.value;
+
+        if (mediaRecords.length === 0) {
+          setMediaItems([]);
+          setLoadingMedia(false);
+          return;
+        }
+
+        // 2. Descargar cada imagen usando presigned URLs
+        const mediaWithBlobUrls = await Promise.all(
+          mediaRecords.map(async (mediaRecord) => {
+            try {
+              if (!mediaRecord.s3Key || mediaRecord.type !== "image") {
+                return mediaRecord;
+              }
+
+              // Obtener presigned URL y descargar como blob
+              const blobUrl = await getPresignedUrlForDisplay(
+                mediaRecord.s3Key
+              );
+
+              // Retornar MediaDTO con blob URL local
+              return {
+                ...mediaRecord,
+                url: blobUrl,
+              };
+            } catch (error) {
+              console.error(
+                "Error descargando imagen:",
+                mediaRecord.s3Key,
+                error
+              );
+              return mediaRecord;
+            }
+          })
+        );
+
+        if (!active) return;
+
+        // 3. Actualizar estado con las imágenes descargadas
+        setMediaItems(mediaWithBlobUrls);
+      } catch (error) {
+        console.error("Error cargando media:", error);
+      } finally {
+        if (active) {
+          setLoadingMedia(false);
+        }
+      }
+    };
+
+    loadMedia();
+
+    return () => {
+      active = false;
+    };
+  }, [open, propertyId]);
 
   useEffect(() => {
     if (!open || authProfile) return;
@@ -416,24 +506,104 @@ export function PropertyQuickView({
               <>
                 <section className="quickview-section">
                   <h3>Resumen visual</h3>
-                  <div className="quickview-gallery">
-                    <div className="quickview-thumb">
-                      <div className="placeholder" aria-hidden="true">
-                        <ImageIcon size={24} />
+                  {loadingMedia ? (
+                    <div className="quickview-gallery">
+                      <div className="quickview-thumb">
+                        <div className="placeholder" aria-hidden="true">
+                          <Loader2 size={24} />
+                        </div>
                       </div>
                     </div>
-                    <div className="quickview-thumb">
-                      <div className="placeholder" aria-hidden="true">
-                        <ImageIcon size={24} />
+                  ) : mediaCount === 0 ? (
+                    <div className="quickview-gallery">
+                      <div className="quickview-thumb">
+                        <div className="placeholder" aria-hidden="true">
+                          <ImageIcon size={24} />
+                        </div>
                       </div>
+                      <p
+                        className="muted"
+                        style={{ fontSize: "12px", marginTop: "8px" }}
+                      >
+                        No hay imágenes disponibles
+                      </p>
                     </div>
-                    <div className="quickview-thumb quickview-thumb--more">
-                      <div className="placeholder" aria-hidden="true">
-                        <span>{extraMedia > 0 ? `+${extraMedia}` : "+N"}</span>
-                      </div>
+                  ) : (
+                    <div className="quickview-gallery">
+                      {displayMedia.map((media, index) => {
+                        const isLast = index === 2;
+                        const showCounter = isLast && extraMedia > 0;
+
+                        return (
+                          <div
+                            key={media.id}
+                            className={`quickview-thumb ${showCounter ? "quickview-thumb--more" : ""}`}
+                          >
+                            {media.url && media.type === "image" ? (
+                              <div
+                                style={{
+                                  position: "relative",
+                                  height: "110px",
+                                }}
+                              >
+                                <img
+                                  src={media.url}
+                                  alt={`Imagen ${index + 1}`}
+                                  style={{
+                                    width: "100%",
+                                    height: "100%",
+                                    objectFit: "cover",
+                                  }}
+                                  onError={(e) => {
+                                    console.error(
+                                      "Error cargando imagen:",
+                                      media.url
+                                    );
+                                    e.currentTarget.style.display = "none";
+                                  }}
+                                />
+                                {showCounter && (
+                                  <div
+                                    className="placeholder mediacounter"
+                                    aria-hidden="true"
+                                    style={{
+                                      position: "absolute",
+                                      //darle margen auto
+                                      height: "99.5%",
+                                      top: 0,
+                                      left: 0,
+                                      // right: 0,
+                                      // bottom: 0,
+                                      background: "rgba(0, 0, 0, 0.6)",
+                                      display: "flex",
+                                      alignItems: "center",
+                                      justifyContent: "center",
+                                      placeItems: "center",
+                                      color: "white",
+                                      fontSize: "18px",
+                                      fontWeight: "bold",
+                                    }}
+                                  >
+                                    <span
+                                      style={{
+                                        position: "absolute",
+                                      }}
+                                    >
+                                      +{extraMedia}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <div className="placeholder" aria-hidden="true">
+                                <ImageIcon size={24} />
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
-                  </div>
-                  {/* TODO(IMAGEN): integrar galería real cuando media API esté disponible. */}
+                  )}
                 </section>
 
                 <section className="quickview-section">
