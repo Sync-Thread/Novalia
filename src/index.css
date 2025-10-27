@@ -1597,7 +1597,7 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
   grid-column: 1 / -1;
 }
 .wizard-field--compact {
-  max-width: 180px;
+  max-width: 160px;
 }
 .wizard-field--compact .wizard-field__control {
   text-align: center;
@@ -1619,10 +1619,25 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 }
 .wizard-features-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 160px));
+  grid-template-columns: repeat(5, 160px);
   gap: var(--gap-lg);
+  justify-content: space-between;
   grid-column: 1 / -1;
 }
+@media (max-width: 960px) {
+  .wizard-features-grid {
+    grid-template-columns: repeat(3, 160px);
+  }
+}
+@media (max-width: 640px) {
+  .wizard-features-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .wizard-field--compact {
+    max-width: none;
+  }
+}
+
 .wizard-field__label {
   font-weight: 600;
   color: #1f2937;
