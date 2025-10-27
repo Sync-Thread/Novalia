@@ -230,96 +230,104 @@ export function FiltersBar({
       </div>
 
       <div className="filters-bar__actions">
-        {hasFilters && (
-          <button
-            type="button"
-            onClick={handleReset}
-            disabled={disabled}
-            className="filters-bar__reset"
-            aria-label="Restablecer filtros"
-          >
-            <RotateCcw size={16} />
-          </button>
-        )}
-        <div ref={moreRef} className="filters-bar__more">
-          <button
-            type="button"
-            onClick={() => setMoreOpen((prev) => !prev)}
-            className="filters-bar__more-button"
-            aria-expanded={moreOpen}
-            aria-haspopup="dialog"
-            disabled={disabled}
-            data-active={extraFiltersActive || undefined}
-          >
-            <SlidersHorizontal size={16} aria-hidden="true" />
-            Más filtros
-          </button>
-          {moreOpen && !disabled && (
-            <div
-              className="filters-bar__more-panel"
-              role="dialog"
-              aria-label="Filtros adicionales"
+        <div className="filters-bar__actions-left">
+          {hasFilters && (
+            <button
+              type="button"
+              onClick={handleReset}
+              disabled={disabled}
+              className="filters-bar__reset"
+              aria-label="Restablecer filtros"
             >
-              <div className="filters-bar__more-field">
-                <span className="filters-bar__more-label">Ciudad</span>
-                <input
-                  type="text"
-                  value={local.city}
-                  onChange={(event) =>
-                    setLocal((prev) => ({ ...prev, city: event.target.value }))
-                  }
-                  className="filters-bar__more-input"
-                  placeholder="Todas"
-                />
-              </div>
-              <div className="filters-bar__more-field">
-                <span className="filters-bar__more-label">Estado</span>
-                <input
-                  type="text"
-                  value={local.state}
-                  onChange={(event) =>
-                    setLocal((prev) => ({ ...prev, state: event.target.value }))
-                  }
-                  className="filters-bar__more-input"
-                  placeholder="Todos"
-                />
-              </div>
-              <div className="filters-bar__more-group">
-                <div className="filters-bar__more-field">
-                  <span className="filters-bar__more-label">Precio mín.</span>
-                  <input
-                    type="number"
-                    min={0}
-                    value={local.priceMin}
-                    onChange={(event) =>
-                      setLocal((prev) => ({
-                        ...prev,
-                        priceMin: event.target.value,
-                      }))
-                    }
-                    className="filters-bar__more-input"
-                    placeholder="0"
-                  />
-                </div>
-                <div className="filters-bar__more-field">
-                  <span className="filters-bar__more-label">Precio máx.</span>
-                  <input
-                    type="number"
-                    min={0}
-                    value={local.priceMax}
-                    onChange={(event) =>
-                      setLocal((prev) => ({
-                        ...prev,
-                        priceMax: event.target.value,
-                      }))
-                    }
-                    className="filters-bar__more-input"
-                    placeholder="∞"
-                  />
-                </div>
-              </div>
-            </div>
+              <RotateCcw size={16} />
+            </button>
           )}
+          <div ref={moreRef} className="filters-bar__more">
+            <button
+              type="button"
+              onClick={() => setMoreOpen((prev) => !prev)}
+              className="filters-bar__more-button"
+              aria-expanded={moreOpen}
+              aria-haspopup="dialog"
+              disabled={disabled}
+              data-active={extraFiltersActive || undefined}
+            >
+              <SlidersHorizontal size={16} aria-hidden="true" />
+              Más filtros
+            </button>
+            {moreOpen && !disabled && (
+              <div
+                className="filters-bar__more-panel"
+                role="dialog"
+                aria-label="Filtros adicionales"
+              >
+                <div className="filters-bar__more-field">
+                  <span className="filters-bar__more-label">Ciudad</span>
+                  <input
+                    type="text"
+                    value={local.city}
+                    onChange={(event) =>
+                      setLocal((prev) => ({
+                        ...prev,
+                        city: event.target.value,
+                      }))
+                    }
+                    className="filters-bar__more-input"
+                    placeholder="Todas"
+                  />
+                </div>
+                <div className="filters-bar__more-field">
+                  <span className="filters-bar__more-label">Estado</span>
+                  <input
+                    type="text"
+                    value={local.state}
+                    onChange={(event) =>
+                      setLocal((prev) => ({
+                        ...prev,
+                        state: event.target.value,
+                      }))
+                    }
+                    className="filters-bar__more-input"
+                    placeholder="Todos"
+                  />
+                </div>
+                <div className="filters-bar__more-group">
+                  <div className="filters-bar__more-field">
+                    <span className="filters-bar__more-label">Precio mín.</span>
+                    <input
+                      type="number"
+                      min={0}
+                      value={local.priceMin}
+                      onChange={(event) =>
+                        setLocal((prev) => ({
+                          ...prev,
+                          priceMin: event.target.value,
+                        }))
+                      }
+                      className="filters-bar__more-input"
+                      placeholder="0"
+                    />
+                  </div>
+                  <div className="filters-bar__more-field">
+                    <span className="filters-bar__more-label">Precio máx.</span>
+                    <input
+                      type="number"
+                      min={0}
+                      value={local.priceMax}
+                      onChange={(event) =>
+                        setLocal((prev) => ({
+                          ...prev,
+                          priceMax: event.target.value,
+                        }))
+                      }
+                      className="filters-bar__more-input"
+                      placeholder="∞"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
         <div
           role="group"

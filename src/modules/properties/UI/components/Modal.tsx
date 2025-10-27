@@ -1,6 +1,7 @@
 // Modal mínimo accesible.
 // No tocar lógica de Application/Domain.
 import { useEffect, useId } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
 export interface ModalProps {
@@ -12,15 +13,28 @@ export interface ModalProps {
   zIndex?: number;
 }
 
+const MODAL_ROOT_ID = "novalia-modal-root";
+
+const ensureModalRoot = (): HTMLElement | null => {
+  if (typeof document === "undefined") return null;
+  const existing = document.getElementById(MODAL_ROOT_ID);
+  if (existing) return existing;
+  const node = document.createElement("div");
+  node.id = MODAL_ROOT_ID;
+  document.body.appendChild(node);
+  return node;
+};
+
 export function Modal({
   open,
   onClose,
   title,
   actions,
   children,
-  zIndex = 1000,
+  zIndex = 1600,
 }: ModalProps) {
   const titleId = useId();
+  const resolvedZIndex = Math.max(1600, zIndex);
 
   useEffect(() => {
     if (!open) return;
@@ -35,19 +49,22 @@ export function Modal({
 
   if (!open) return null;
 
-  return (
+  const modalRoot = ensureModalRoot();
+  if (!modalRoot) return null;
+
+  const overlay = (
     <div
       role="presentation"
       onClick={onClose}
       style={{
         position: "fixed",
         inset: 0,
-        background: "rgba(15, 23, 42, 0.5)",
+        background: "rgba(15, 23, 42, 0.55)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         padding: "var(--gap, 16px)",
-        zIndex: zIndex,
+        zIndex: resolvedZIndex,
       }}
     >
       <section
@@ -88,6 +105,8 @@ export function Modal({
       </section>
     </div>
   );
+
+  return createPortal(overlay, modalRoot);
 }
 
 export default Modal;
