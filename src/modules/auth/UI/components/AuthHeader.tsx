@@ -7,7 +7,7 @@ export default function AuthHeader() {
   return (
     <header className="auth-header">
       <div className="auth-header__bar">
-        <Link
+        {/* <Link
           to="/"
           className="auth-header__back"
           aria-label="Regresar al inicio publico"
@@ -16,7 +16,7 @@ export default function AuthHeader() {
             <ArrowLeftIcon />
           </span>
           <span className="auth-header__back-text">Regresar</span>
-        </Link>
+        </Link> */}
         <Link
           to="/"
           className="auth-header__brand"
@@ -25,7 +25,7 @@ export default function AuthHeader() {
           <img src={logo} alt="" width={24} height={24} aria-hidden="true" />
           <span>Novalia</span>
         </Link>
-        <div style={{ width: "102px" }} aria-hidden="true" />
+        {/* <div style={{ width: "102px" }} aria-hidden="true" /> */}
       </div>
     </header>
   );
