@@ -31,12 +31,14 @@ export default function Notice({
         background: bg,
         border: `1px solid ${border}`,
         color: text,
-        borderRadius: 10,
-        padding: "10px 12px",
+        borderRadius: 12,
+        padding: "12px 14px",
         display: "flex",
         alignItems: "flex-start",
         gap: 10,
-        margin: "8px 0 14px",
+        margin: "0 0 20px",
+        fontSize: "14px",
+        lineHeight: "1.5",
       }}
     >
       <div style={{ flex: 1 }}>

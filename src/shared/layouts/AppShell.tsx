@@ -1,21 +1,35 @@
-import { Outlet, useNavigate } from "react-router-dom";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import HeaderUpbarNovalia from "../components/HeaderUpbarNovalia/HeaderUpbarNovalia";
 import { supabase } from "../../core/supabase/client";
 
 export default function AppShell() {
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const buildAuthPath = (basePath: string) => {
+    const current = `${location.pathname}${location.search}${location.hash}`;
+    if (current.startsWith("/auth")) {
+      return basePath;
+    }
+    const target = current || "/";
+    const separator = basePath.includes("?") ? "&" : "?";
+    return `${basePath}${separator}returnTo=${encodeURIComponent(target)}`;
+  };
 
   const handleSignIn = () => {
-    navigate("/auth/login");
+    navigate(buildAuthPath("/auth/login"));
   };
 
   const handleSignUp = () => {
-    navigate("/auth/register");
+    navigate(buildAuthPath("/auth/register"));
   };
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    navigate("/auth/login");
+    try {
+      await supabase.auth.signOut();
+    } finally {
+      navigate("/", { replace: true });
+    }
   };
 
   return (

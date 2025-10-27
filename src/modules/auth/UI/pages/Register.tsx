@@ -34,6 +34,23 @@ export default function Register() {
     text: React.ReactNode;
   } | null>(null);
 
+  const returnTo = useMemo(() => {
+    const candidate = sp.get("returnTo");
+    if (candidate && candidate.startsWith("/")) {
+      return candidate;
+    }
+    return "/properties";
+  }, [sp]);
+
+  const oauthRedirect = useMemo(() => {
+  const base = env.VITE_OAUTH_REDIRECT_URL;
+  const fallback = typeof window !== "undefined" ? window.location.origin : "/";
+  const redirectBase = base && base.length > 0 ? base : fallback;
+  if (!returnTo) return redirectBase;
+  const separator = redirectBase.includes("?") ? "&" : "?";
+  return `${redirectBase}${separator}returnTo=${encodeURIComponent(returnTo)}`;
+}, [returnTo]);
+
   const accountType = useMemo<AccountType | null>(() => {
     const t = sp.get("type");
     return t === "buyer" || t === "agent" || t === "owner" ? t : null;
@@ -159,7 +176,7 @@ export default function Register() {
                   onClick={() =>
                     supabase.auth.signInWithOAuth({
                       provider: "google",
-                      options: { redirectTo: env.VITE_OAUTH_REDIRECT_URL },
+                      options: { redirectTo: oauthRedirect },
                     })
                   }
                 />
@@ -171,7 +188,7 @@ export default function Register() {
                   onClick={() =>
                     supabase.auth.signInWithOAuth({
                       provider: "apple",
-                      options: { redirectTo: env.VITE_OAUTH_REDIRECT_URL },
+                      options: { redirectTo: oauthRedirect },
                     })
                   }
                 /> */}
@@ -191,17 +208,15 @@ export default function Register() {
               {accountType === "owner" && <OwnerExtras register={register} errors={errors} />}
             </div>
 
-            <Button type="submit" disabled={isSubmitting} style={{ marginTop: 12 }}>
-              {isSubmitting ? "Creando..." : "Crear cuenta"}
-            </Button>
+            <div className="auth-actions">
+              <Button type="submit" disabled={isSubmitting} className="auth-actions__primary">
+                {isSubmitting ? "Creando..." : "Crear cuenta"}
+              </Button>
+              <Link to={`/auth/login?returnTo=${encodeURIComponent(returnTo)}`} className="btn btn-outline auth-actions__secondary">
+                Iniciar sesion
+              </Link>
+            </div>
           </form>
-
-          <p style={{ textAlign: "center", marginTop: 14, color: "var(--text-600)" }}>
-            ¿Ya tienes cuenta?{" "}
-            <Link to="/auth/login" style={{ color: "var(--brand-700)", fontWeight: 600 }}>
-              Inicia sesión aquí
-            </Link>
-          </p>
         </AuthCard>
       </AuthLayout>
       <SiteFooter/>

@@ -2,7 +2,7 @@ import type { SupabaseClient, PostgrestError } from "@supabase/supabase-js";
 import type { AuthProfile, AuthService } from "../../application/ports/AuthService";
 import { Result } from "../../application/_shared/result";
 
-type AuthErrorCode = "SESSION_ERROR" | "NOT_AUTHENTICATED" | "PROFILE_ERROR" | "ORG_MISSING";
+type AuthErrorCode = "SESSION_ERROR" | "NOT_AUTHENTICATED" | "PROFILE_ERROR" | "ORG_MISSING" | "NEEDS_USER_TYPE";
 
 export type AuthInfraError = {
   scope: "auth";
@@ -23,6 +23,18 @@ function mapKycStatus(input: string | null | undefined): AuthProfile["kycStatus"
   if (input === "verified") return "verified";
   if (input === "rejected") return "rejected";
   return "pending";
+}
+
+function normalizeUserType(input: string | null | undefined): AuthProfile["userType"] {
+  if (!input) return null;
+  const normalized = input.toLowerCase();
+  if (normalized === "buyer" || normalized === "agent" || normalized === "owner") {
+    return normalized;
+  }
+  if (normalized === "org" || normalized === "org_admin" || normalized === "agent_org") {
+    return "owner";
+  }
+  return null;
 }
 
 async function wait(ms: number) {
@@ -90,6 +102,21 @@ export class SupabaseAuthService implements AuthService {
     }
 
     const orgId = profile.org_id ?? null;
+    const profileUserType = normalizeUserType(profile.role_hint ?? null);
+    const metadataUserType = normalizeUserType(
+      (user.user_metadata?.account_type as string | null | undefined) ??
+        (user.app_metadata?.role as string | null | undefined) ??
+        null,
+    );
+    const userType = profileUserType ?? metadataUserType ?? null;
+
+    if (!userType) {
+      return Result.fail(
+        authError("NEEDS_USER_TYPE", "Authenticated profile requires user type to continue", {
+          userId: user.id,
+        }),
+      );
+    }
 
     const { data: kycRow, error: kycError } = await this.client
       .from("kyc_verifications")
@@ -113,6 +140,7 @@ export class SupabaseAuthService implements AuthService {
       email: profile.email ?? user.email ?? null,
       phone: profile.phone ?? null,
       roleHint: profile.role_hint ?? null,
+      userType,
     });
   }
 }

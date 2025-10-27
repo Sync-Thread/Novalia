@@ -1,0 +1,23 @@
+import type { PriceDTO, Page } from "./PropertyDTO";
+
+export interface PublicPropertySummaryDTO {
+  id: string;
+  title: string;
+  description?: string | null;
+  price: PriceDTO;
+  city: string | null;
+  state: string | null;
+  publishedAt: string | null;
+  coverImageUrl: string | null;
+}
+
+export type PublicPropertyPage = Page<PublicPropertySummaryDTO>;
+
+export interface PublicPropertyListFiltersDTO {
+  q?: string;
+  city?: string;
+  state?: string;
+  sortBy?: "recent" | "price_asc" | "price_desc";
+  page: number;
+  pageSize: number;
+}

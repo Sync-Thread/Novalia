@@ -1,6 +1,7 @@
-// Header global de Novalia. Reutilizable. No modificar logica de negocio aqui.
+﻿// Header global de Novalia. Reutilizable. No modificar logica de negocio aqui.
 import {
   type KeyboardEvent,
+  type MouseEvent,
   type ReactNode,
   useCallback,
   useEffect,
@@ -11,6 +12,7 @@ import {
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import logoSvg from "../../assets/icons/logo.svg";
 import { supabase } from "../../../core/supabase/client";
+import Modal from "../../UI/Modal";
 
 type HeaderRole = "visitor" | "buyer" | "agent_org";
 type HeaderSize = "desktop" | "mobile";
@@ -37,6 +39,7 @@ interface NavItem {
   icon: ReactNode;
   match?: (input: { pathname: string; searchParams: URLSearchParams }) => boolean;
   "aria-label"?: string;
+  requiresAuth?: boolean;
 }
 
 interface DropdownItem {
@@ -52,18 +55,27 @@ const MOBILE_BREAKPOINT = 768;
 const navItemsByRole: Record<HeaderRole, NavItem[]> = {
   visitor: [
     {
+      key: "home",
+      label: "Inicio",
+      to: "/",
+      icon: <HomeIcon />,
+      match: ({ pathname }) => pathname === "/",
+    },
+    {
       key: "saved",
-      label: "Guardados 🔒",
+      label: "Guardados",
       to: "/auth/login",
       icon: <BookmarkIcon />,
-      "aria-label": "Abrir guardados (requiere iniciar sesion)",
+      "aria-label": "Abrir guardados (requiere iniciar sesiÃ³n)",
+      requiresAuth: true,
     },
     {
       key: "chats",
-      label: "Chats 🔒",
+      label: "Chats",
       to: "/auth/login",
       icon: <MailIcon />,
-      "aria-label": "Abrir chats (requiere iniciar sesion)",
+      "aria-label": "Abrir chats (requiere iniciar sesiÃ³n)",
+      requiresAuth: true,
     },
   ],
   buyer: [
@@ -71,10 +83,9 @@ const navItemsByRole: Record<HeaderRole, NavItem[]> = {
     {
       key: "home",
       label: "Inicio",
-      to: "/dashboard",
+      to: "/",
       icon: <HomeIcon />,
-      match: ({ pathname, searchParams }) =>
-        pathname === "/dashboard" && !searchParams.has("view"),
+      match: ({ pathname }) => pathname === "/",
     },
     {
       key: "saved",
@@ -98,9 +109,9 @@ const navItemsByRole: Record<HeaderRole, NavItem[]> = {
     {
       key: "home",
       label: "Inicio",
-      to: "/dashboard",
+      to: "/",
       icon: <HomeIcon />,
-      match: ({ pathname, searchParams }) => pathname === "/dashboard" && !searchParams.has("view"),
+      match: ({ pathname }) => pathname === "/",
     },
     {
       key: "properties",
@@ -242,8 +253,22 @@ function useHeaderAuth(roleOverride?: HeaderRole) {
 
     void load();
 
+    // Escuchar cambios de autenticación en tiempo real
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!isMounted) return;
+      
+      if (!session) {
+        setState({ role: "visitor", user: null, loading: false });
+        return;
+      }
+
+      // Recargar perfil cuando cambia la sesión
+      void load();
+    });
+
     return () => {
       isMounted = false;
+      subscription.unsubscribe();
     };
   }, [roleOverride]);
 
@@ -302,11 +327,26 @@ export default function HeaderUpbarNovalia({
   const isMobile = size === "mobile";
   const isOnPropertiesList = location.pathname === "/properties";
 
+  const buildAuthPath = useCallback(
+    (basePath: string) => {
+      const current = `${location.pathname}${location.search}${location.hash}`;
+      if (current.startsWith("/auth")) {
+        return basePath;
+      }
+      const target = current || "/";
+      const separator = basePath.includes("?") ? "&" : "?";
+      return `${basePath}${separator}returnTo=${encodeURIComponent(target)}`;
+    },
+    [location.hash, location.pathname, location.search],
+  );
+
   const [sheetOpen, setSheetOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
   const dropdownItemsRef = useRef<(HTMLAnchorElement | HTMLButtonElement | null)[]>([]);
   const sheetCloseRef = useRef<HTMLButtonElement | null>(null);
+  const [authPromptOpen, setAuthPromptOpen] = useState(false);
+  const closeAuthPrompt = useCallback(() => setAuthPromptOpen(false), []);
 
   const navItems = navItemsByRole[role];
 
@@ -371,22 +411,22 @@ export default function HeaderUpbarNovalia({
   }, [isMobile]);
 
   const handleSignIn = useCallback(() => {
+    closeAuthPrompt();
     if (onSignIn) {
-      void onSignIn();
+      onSignIn();
       return;
     }
-    // TODO(LOGICA): conectar onSignIn con el modulo de Auth.
-    navigate("/auth/login");
-  }, [navigate, onSignIn]);
+    navigate(buildAuthPath("/auth/login"));
+  }, [buildAuthPath, closeAuthPrompt, navigate, onSignIn]);
 
   const handleSignUp = useCallback(() => {
+    closeAuthPrompt();
     if (onSignUp) {
-      void onSignUp();
+      onSignUp();
       return;
     }
-    // TODO(LOGICA): conectar onSignUp con el modulo de Auth.
-    navigate("/auth/register");
-  }, [navigate, onSignUp]);
+    navigate(buildAuthPath("/auth/register"));
+  }, [buildAuthPath, closeAuthPrompt, navigate, onSignUp]);
 
   const handleSignOut = useCallback(async () => {
     setDropdownOpen(false);
@@ -521,15 +561,30 @@ export default function HeaderUpbarNovalia({
     return location.search === `?${search}`;
   };
 
-  const renderNavItem = (item: NavItem) => {
+  const renderNavItem = (item: NavItem, options: { closeSheet?: boolean } = {}) => {
     const isActive = isNavItemActive(item);
+    const requiresAuth = role === "visitor" && item.requiresAuth;
+
+    const handleNavItemClick = (event: MouseEvent<HTMLAnchorElement>) => {
+      if (requiresAuth) {
+        event.preventDefault();
+        event.stopPropagation();
+        setAuthPromptOpen(true);
+        return;
+      }
+      if (options.closeSheet) {
+        setSheetOpen(false);
+      }
+    };
+    const ariaLabel = item["aria-label"] ?? (requiresAuth ? `${item.label} (requiere iniciar sesion)` : undefined);
 
     return (
       <Link
         key={item.key}
         to={item.to}
-        className={`nav-item${isActive ? " nav-item--active" : ""}`}
-        aria-label={item["aria-label"]}
+        className={`nav-item${isActive ? " nav-item--active" : ""}${requiresAuth ? " nav-item--blocked" : ""}`}
+        aria-label={ariaLabel}
+        onClick={handleNavItemClick}
       >
         <span className="nav-icon" aria-hidden="true">
           {item.icon}
@@ -670,22 +725,7 @@ export default function HeaderUpbarNovalia({
   const sheetNav = (
     <nav aria-label="Navegacion principal movil">
       <div className="nav nav--stacked">
-        {navItems.map(item => {
-          const active = isNavItemActive(item);
-          return (
-            <Link
-              key={item.key}
-              to={item.to}
-              className={`nav-item${active ? " nav-item--active" : ""}`}
-              onClick={() => setSheetOpen(false)}
-            >
-              <span className="nav-icon" aria-hidden="true">
-                {item.icon}
-              </span>
-              <span>{item.label}</span>
-            </Link>
-          );
-        })}
+        {navItems.map(item => renderNavItem(item, { closeSheet: true }))}
       </div>
     </nav>
   );
@@ -727,12 +767,23 @@ export default function HeaderUpbarNovalia({
     </div>
   );
 
+  const authPromptActions = (
+    <div className="auth-prompt-actions">
+      <button type="button" className="btn btn-outline" onClick={handleSignUp}>
+        Crear cuenta
+      </button>
+      <button type="button" className="btn btn-primary" onClick={handleSignIn}>
+        Iniciar sesion
+      </button>
+    </div>
+  );
+
   return (
     <>
       <header className={`upbar${isMobile ? " upbar--mobile" : ""}`} role="navigation" aria-label="Barra superior Novalia">
         <div className="app-container upbar-inner">
           <div className="upbar-left">
-            <Link className="upbar-brand" to={role === "visitor" ? "/" : "/dashboard"} aria-label="Ir al inicio">
+            <Link className="upbar-brand" to="/" aria-label="Ir al inicio">
               <img src={logoSvg} alt="" aria-hidden="true" />
               <span>Novalia</span>
             </Link>
@@ -767,7 +818,7 @@ export default function HeaderUpbarNovalia({
         <div className="sheet" role="dialog" aria-modal="true" aria-label="Menu principal" onClick={handleSheetOverlayClick}>
           <div className="sheet-panel">
             <div className="sheet-header">
-              <Link className="upbar-brand" to={role === "visitor" ? "/" : "/dashboard"} onClick={closeSheet}>
+              <Link className="upbar-brand" to="/" onClick={closeSheet}>
                 <img src={logoSvg} alt="" aria-hidden="true" />
                 <span>Novalia</span>
               </Link>
@@ -802,6 +853,16 @@ export default function HeaderUpbarNovalia({
           </div>
         </div>
       )}
+      <Modal
+        open={authPromptOpen}
+        onClose={closeAuthPrompt}
+        title="Inicia sesion o registrate"
+        actions={authPromptActions}
+      >
+        <p style={{ margin: 0, color: "#334155", fontSize: 15 }}>
+          Para acceder a Guardados y Chats necesitas iniciar sesion o crear una cuenta en Novalia.
+        </p>
+      </Modal>
     </>
   );
 }
@@ -925,3 +986,4 @@ function CloseIcon() {
     </svg>
   );
 }
+

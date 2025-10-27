@@ -21,11 +21,13 @@ import {
   ListPropertyDocuments,
   DeleteDocument as DeleteDocumentUseCase,
   GetAuthProfile,
+  ListPublishedPropertiesPublic,
 } from "./application";
 import { SupabaseAuthService } from "./infrastructure/adapters/SupabaseAuthService";
 import { SupabasePropertyRepo } from "./infrastructure/adapters/SupabasePropertyRepo";
 import { SupabaseDocumentRepo } from "./infrastructure/adapters/SupabaseDocumentRepo";
 import { SupabaseMediaStorage } from "./infrastructure/adapters/SupabaseMediaStorage";
+import { SupabasePublicPropertyRepo } from "./infrastructure/adapters/SupabasePublicPropertyRepo";
 
 export interface PropertiesContainerDeps {
   client?: SupabaseClient;
@@ -52,6 +54,7 @@ export interface PropertiesUseCases {
   listDocuments: ListPropertyDocuments;
   deleteDocument: DeleteDocumentUseCase;
   getAuthProfile: GetAuthProfile;
+  listPublishedPublic: ListPublishedPropertiesPublic;
 }
 
 export interface PropertiesContainer {
@@ -70,6 +73,7 @@ export function createPropertiesContainer(deps: PropertiesContainerDeps = {}): P
   const propertyRepo = new SupabasePropertyRepo({ client, auth, clock });
   const documentRepo = new SupabaseDocumentRepo({ client, auth });
   const mediaStorage = new SupabaseMediaStorage({ supabase: client, authService: auth });
+  const publicPropertyRepo = new SupabasePublicPropertyRepo({ client });
 
   return {
     useCases: {
@@ -96,6 +100,7 @@ export function createPropertiesContainer(deps: PropertiesContainerDeps = {}): P
       listDocuments: new ListPropertyDocuments({ documents: documentRepo }),
       deleteDocument: new DeleteDocumentUseCase({ documents: documentRepo }),
       getAuthProfile: new GetAuthProfile({ auth }),
+      listPublishedPublic: new ListPublishedPropertiesPublic({ repo: publicPropertyRepo }),
     },
   };
 }
