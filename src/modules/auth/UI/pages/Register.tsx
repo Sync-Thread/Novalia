@@ -22,7 +22,6 @@ import OwnerExtras from "../forms/OwnerExtras";
 import Button from "../../../../shared/UI/Button";
 import SiteFooter from "../components/SiteFooter";
 
-
 type Form = any;
 
 export default function Register() {
@@ -43,23 +42,30 @@ export default function Register() {
   }, [sp]);
 
   const oauthRedirect = useMemo(() => {
-  const base = env.VITE_OAUTH_REDIRECT_URL;
-  const fallback = typeof window !== "undefined" ? window.location.origin : "/";
-  const redirectBase = base && base.length > 0 ? base : fallback;
-  if (!returnTo) return redirectBase;
-  const separator = redirectBase.includes("?") ? "&" : "?";
-  return `${redirectBase}${separator}returnTo=${encodeURIComponent(returnTo)}`;
-}, [returnTo]);
+    const base = env.VITE_OAUTH_REDIRECT_URL;
+    const fallback =
+      typeof window !== "undefined" ? window.location.origin : "/";
+    const redirectBase = base && base.length > 0 ? base : fallback;
+    if (!returnTo) return redirectBase;
+    const separator = redirectBase.includes("?") ? "&" : "?";
+    return `${redirectBase}${separator}returnTo=${encodeURIComponent(returnTo)}`;
+  }, [returnTo]);
 
   const accountType = useMemo<AccountType | null>(() => {
     const t = sp.get("type");
     return t === "buyer" || t === "agent" || t === "owner" ? t : null;
   }, [sp]);
 
-  const schema = useMemo(() => getRegisterSchema(accountType ?? "buyer"), [accountType]);
+  const schema = useMemo(
+    () => getRegisterSchema(accountType ?? "buyer"),
+    [accountType]
+  );
 
   const {
-    register, handleSubmit, watch, setValue,
+    register,
+    handleSubmit,
+    watch,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<Form>({ resolver: zodResolver(schema) });
 
@@ -80,8 +86,9 @@ export default function Register() {
           email: f.email,
           password: f.password,
           phone: f.phone,
-          belongs_to_org: accountType === "agent" ? !!f.belongs_to_org : undefined,
-          org_code: accountType === "agent" ? (f.org_code || null) : null,
+          belongs_to_org:
+            accountType === "agent" ? !!f.belongs_to_org : undefined,
+          org_code: accountType === "agent" ? f.org_code || null : null,
           org_name: accountType === "owner" ? f.org_name : null,
         },
         registerAdapter
@@ -101,56 +108,61 @@ export default function Register() {
         nav(`/auth/login?registered=1&email=${encodeURIComponent(f.email)}`);
       }, 800);
     } catch (e: any) {
-  const code = e?.code || e?.message;
-  const msg = (e?.message || "").toString().toLowerCase();
+      const code = e?.code || e?.message;
+      const msg = (e?.message || "").toString().toLowerCase();
 
-  if (code === "EMAIL_IN_USE") {
-    setNotice({
-      type: "warning",
-      text: (
-        <>
-          Este correo ya está registrado.{" "}
-          <Link to={`/auth/login?email=${encodeURIComponent(f.email)}`} style={{ color: "var(--brand-700)", fontWeight: 600 }}>
-            Inicia sesión
-          </Link>{" "}
-          o usa otro correo.
-        </>
-      ),
-    });
-    return;
-  }
+      if (code === "EMAIL_IN_USE") {
+        setNotice({
+          type: "warning",
+          text: (
+            <>
+              Este correo ya está registrado.{" "}
+              <Link
+                to={`/auth/login?email=${encodeURIComponent(f.email)}`}
+                style={{ color: "var(--brand-700)", fontWeight: 600 }}
+              >
+                Inicia sesión
+              </Link>{" "}
+              o usa otro correo.
+            </>
+          ),
+        });
+        return;
+      }
 
-  // fallback por si algún entorno antiguo devuelve texto en lugar de code
-  const isDupEmail =
-    e?.status === 400 ||
-    msg.includes("already registered") ||
-    msg.includes("already exists") ||
-    msg.includes("duplicate key") ||
-    msg.includes("user already") ||
-    msg.includes("email address is already registered");
+      // fallback por si algún entorno antiguo devuelve texto en lugar de code
+      const isDupEmail =
+        e?.status === 400 ||
+        msg.includes("already registered") ||
+        msg.includes("already exists") ||
+        msg.includes("duplicate key") ||
+        msg.includes("user already") ||
+        msg.includes("email address is already registered");
 
-  if (isDupEmail) {
-    setNotice({
-      type: "warning",
-      text: (
-        <>
-          Este correo ya está registrado.{" "}
-          <Link to={`/auth/login?email=${encodeURIComponent(f.email)}`} style={{ color: "var(--brand-700)", fontWeight: 600 }}>
-            Inicia sesión
-          </Link>{" "}
-          o usa otro correo.
-        </>
-      ),
-    });
-    return;
-  }
+      if (isDupEmail) {
+        setNotice({
+          type: "warning",
+          text: (
+            <>
+              Este correo ya está registrado.{" "}
+              <Link
+                to={`/auth/login?email=${encodeURIComponent(f.email)}`}
+                style={{ color: "var(--brand-700)", fontWeight: 600 }}
+              >
+                Inicia sesión
+              </Link>{" "}
+              o usa otro correo.
+            </>
+          ),
+        });
+        return;
+      }
 
-  setNotice({
-    type: "error",
-    text: e?.message ?? "Ocurrió un error durante el registro.",
-  });
-}
-
+      setNotice({
+        type: "error",
+        text: e?.message ?? "Ocurrió un error durante el registro.",
+      });
+    }
   };
 
   return (
@@ -203,23 +215,37 @@ export default function Register() {
             <div className="form-grid">
               <BaseFields register={register} errors={errors} />
               {accountType === "agent" && (
-                <AgentExtras register={register} watch={watch} setValue={setValue} errors={errors} />
+                <AgentExtras
+                  register={register}
+                  watch={watch}
+                  setValue={setValue}
+                  errors={errors}
+                />
               )}
-              {accountType === "owner" && <OwnerExtras register={register} errors={errors} />}
+              {accountType === "owner" && (
+                <OwnerExtras register={register} errors={errors} />
+              )}
             </div>
 
             <div className="auth-actions">
-              <Button type="submit" disabled={isSubmitting} className="auth-actions__primary">
+              <Button
+                type="submit"
+                disabled={isSubmitting}
+                className="auth-actions__primary"
+              >
                 {isSubmitting ? "Creando..." : "Crear cuenta"}
               </Button>
-              <Link to={`/auth/login?returnTo=${encodeURIComponent(returnTo)}`} className="btn btn-outline auth-actions__secondary">
+              <Link
+                to={`/auth/login?returnTo=${encodeURIComponent(returnTo)}`}
+                className="btn btn-outline auth-actions__secondary"
+              >
                 Iniciar sesion
               </Link>
             </div>
           </form>
         </AuthCard>
       </AuthLayout>
-      <SiteFooter/>
+      <SiteFooter />
     </>
   );
 }

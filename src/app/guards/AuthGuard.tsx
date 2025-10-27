@@ -1,8 +1,8 @@
 // src/app/guards/AuthGuard.tsx
-import { useEffect, useState } from 'react';
-import { Navigate, useLocation } from 'react-router-dom';
-import type { Session } from '@supabase/supabase-js';
-import { supabase } from '../../core/supabase/client';
+import { useEffect, useState } from "react";
+import { Navigate, useLocation } from "react-router-dom";
+import type { Session } from "@supabase/supabase-js";
+import { supabase } from "../../core/supabase/client";
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const location = useLocation();
@@ -20,7 +20,9 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     });
 
     // Escuchar cambios de autenticación
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!mounted) return;
       setSession(session);
       setChecking(false);
@@ -35,9 +37,10 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
   if (checking) return null;
   if (!session) {
     const pathWithQuery = `${location.pathname}${location.search ?? ""}${location.hash ?? ""}`;
-    const loginPath = pathWithQuery && pathWithQuery !== "/"
-      ? `/auth/login?returnTo=${encodeURIComponent(pathWithQuery)}`
-      : "/auth/login";
+    const loginPath =
+      pathWithQuery && pathWithQuery !== "/"
+        ? `/auth/login?returnTo=${encodeURIComponent(pathWithQuery)}`
+        : "/auth/login";
     return <Navigate to={loginPath} replace />;
   }
   return <>{children}</>;

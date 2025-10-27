@@ -14,12 +14,13 @@ export default function Notice({
   children?: React.ReactNode;
   onClose?: () => void;
 }) {
-  const palette: Record<Variant, { bg: string; border: string; text: string }> = {
-    success: { bg: "#e8f5e9", border: "#43a047", text: "#1b5e20" },
-    error:   { bg: "#ffebee", border: "#e53935", text: "#b71c1c" },
-    info:    { bg: "#e3f2fd", border: "#1e88e5", text: "#0d47a1" },
-    warning: { bg: "#fff8e1", border: "#f9a825", text: "#795548" },
-  };
+  const palette: Record<Variant, { bg: string; border: string; text: string }> =
+    {
+      success: { bg: "#e8f5e9", border: "#43a047", text: "#1b5e20" },
+      error: { bg: "#ffebee", border: "#e53935", text: "#b71c1c" },
+      info: { bg: "#e3f2fd", border: "#1e88e5", text: "#0d47a1" },
+      warning: { bg: "#fff8e1", border: "#f9a825", text: "#795548" },
+    };
 
   const { bg, border, text } = palette[variant];
 
@@ -42,7 +43,9 @@ export default function Notice({
       }}
     >
       <div style={{ flex: 1 }}>
-        {title && <strong style={{ display: "block", marginBottom: 4 }}>{title}</strong>}
+        {title && (
+          <strong style={{ display: "block", marginBottom: 4 }}>{title}</strong>
+        )}
         <div>{children}</div>
       </div>
       {onClose && (
