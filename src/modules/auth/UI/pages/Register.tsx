@@ -212,7 +212,7 @@ export default function Register() {
 
           {/* GRID 2 COLS */}
           <form onSubmit={handleSubmit(onSubmit)} noValidate>
-            <div className="form-grid">
+            <div className="form-grid" style={{ marginBottom: "20px" }}>
               <BaseFields register={register} errors={errors} />
               {accountType === "agent" && (
                 <AgentExtras
@@ -227,22 +227,37 @@ export default function Register() {
               )}
             </div>
 
-            <div className="auth-actions">
-              <Button
-                type="submit"
-                disabled={isSubmitting}
-                className="auth-actions__primary"
-              >
-                {isSubmitting ? "Creando..." : "Crear cuenta"}
-              </Button>
-              <Link
+            {/* <div className="auth-actions"> */}
+            <Button
+              type="submit"
+              disabled={isSubmitting}
+              className="auth-actions__primary"
+            >
+              {isSubmitting ? "Creando..." : "Crear cuenta"}
+            </Button>
+            {/* <Link
                 to={`/auth/login?returnTo=${encodeURIComponent(returnTo)}`}
                 className="btn btn-outline auth-actions__secondary"
               >
                 Iniciar sesion
-              </Link>
-            </div>
+              </Link> */}
+            {/* </div> */}
           </form>
+          <p
+            style={{
+              textAlign: "center",
+              marginTop: 14,
+              color: "var(--text-600)",
+            }}
+          >
+            ¿Ya tienes cuenta?{" "}
+            <Link
+              to="/auth/login"
+              style={{ color: "var(--brand-700)", fontWeight: 600 }}
+            >
+              Inicia sesión aquí
+            </Link>
+          </p>
         </AuthCard>
       </AuthLayout>
       <SiteFooter />
