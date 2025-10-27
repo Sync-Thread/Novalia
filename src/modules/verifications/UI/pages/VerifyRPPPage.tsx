@@ -446,13 +446,30 @@ function VerifyRPPPageContent() {
 
         <div className={styles.actions}>
           {isSuccess ? (
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={() => navigate("/properties")}
-            >
-              Ir a mis propiedades
-            </button>
+            <>
+              <button
+                type="button"
+                className="btn btn-outline"
+                onClick={() => {
+                  // Regresar al borrador en el paso de publicación (paso 5)
+                  if (propertyId) {
+                    navigate(`/properties/${propertyId}/edit?step=publish`);
+                  } else {
+                    // Fallback si no hay propertyId
+                    navigate("/properties");
+                  }
+                }}
+              >
+                Regresar al borrador
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => navigate("/properties")}
+              >
+                Ir a mis propiedades
+              </button>
+            </>
           ) : (
             <button
               type="button"
@@ -477,13 +494,16 @@ function VerifyRPPPageContent() {
             Registro Público de la Propiedad
           </p>
         </div>
-        <button
-          type="button"
-          className="btn btn-outline"
-          onClick={() => navigate(-1)}
-        >
-          Cancelar
-        </button>
+        {/* Ocultar botón Cancelar si la verificación fue exitosa */}
+        {!(currentStep === "result" && result?.verified) && (
+          <button
+            type="button"
+            className="btn btn-outline"
+            onClick={() => navigate(-1)}
+          >
+            Cancelar
+          </button>
+        )}
       </header>
 
       {renderStepIndicator()}
