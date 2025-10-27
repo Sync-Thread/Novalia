@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { PropertiesProvider } from "../../containers/PropertiesProvider";
 import { usePropertyList } from "../../hooks/usePropertyList";
 import { usePropertiesActions } from "../../hooks/usePropertiesActions";
+import { usePropertyCoverImages } from "../../hooks/usePropertyCoverImages";
 import FiltersBar, {
   type FiltersBarValues,
   type ViewMode,
@@ -57,6 +58,10 @@ function MyPropertiesPageContent() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [markSoldFor, setMarkSoldFor] = useState<PropertyDTO | null>(null);
   const [deleteFor, setDeleteFor] = useState<PropertyDTO | null>(null);
+
+  // Hook para cargar imágenes de portada
+  const propertyIds = useMemo(() => items.map((p) => p.id), [items]);
+  const { coverUrls } = usePropertyCoverImages(propertyIds);
 
   const closeQuickView = useCallback(() => {
     setQuickOpen(false);
@@ -195,6 +200,7 @@ function MyPropertiesPageContent() {
             <PropertyCard
               key={property.id}
               property={property}
+              coverUrl={coverUrls[property.id] || null}
               onAction={handleAction}
             />
           ))}
