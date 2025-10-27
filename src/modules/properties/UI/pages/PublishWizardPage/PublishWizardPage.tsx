@@ -75,6 +75,7 @@ interface DraftForm {
   city: string;
   state: string;
   description: string;
+  levels: number | null;
   bedrooms: number | null;
   bathrooms: number | null;
   parkingSpots: number | null;
@@ -93,6 +94,7 @@ const INITIAL_FORM: DraftForm = {
   city: "",
   state: "",
   description: "",
+  levels: null,
   bedrooms: null,
   bathrooms: null,
   parkingSpots: null,
@@ -325,6 +327,7 @@ function PublishWizard() {
           priceCurrency: data.price.currency,
           city: data.address.city ?? "",
           state: data.address.state ?? "",
+          levels: data.levels ?? null,
           bedrooms: data.bedrooms ?? null,
           bathrooms: data.bathrooms ?? null,
           parkingSpots: data.parkingSpots ?? null,
@@ -531,6 +534,7 @@ function PublishWizard() {
       currency: form.priceCurrency,
     },
     operationType: "sale" as const,
+    levels: form.levels,
     bedrooms: form.bedrooms,
     bathrooms: form.bathrooms,
     parkingSpots: form.parkingSpots,
@@ -1097,6 +1101,25 @@ function PublishWizard() {
               <div className="wizard-field-group">
                 <h4 className="wizard-field-group__title">Características</h4>
                 <div className="wizard-features-grid">
+                  <label className="wizard-field wizard-field--compact">
+                    <span className="wizard-field__label">Pisos</span>
+                    <input
+                      className="wizard-field__control"
+                      type="number"
+                      min={0}
+                      step="1"
+                      inputMode="numeric"
+                      value={form.levels ?? ""}
+                      onChange={(event) => {
+                        const raw = event.target.value;
+                        setForm((prev) => ({
+                          ...prev,
+                          levels: raw === "" ? null : Number(raw),
+                        }));
+                      }}
+                      placeholder="0"
+                    />
+                  </label>
                   <label className="wizard-field wizard-field--compact">
                     <span className="wizard-field__label">Recámaras</span>
                     <input

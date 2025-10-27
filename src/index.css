@@ -1597,11 +1597,12 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
   grid-column: 1 / -1;
 }
 .wizard-field--compact {
-  max-width: 160px;
+  max-width: 140px;
 }
 .wizard-field--compact .wizard-field__control {
   text-align: center;
-  padding: 12px 10px;
+  padding: 12px 8px;
+  font-size: 0.95rem;
 }
 .wizard-field-group {
   grid-column: 1 / -1;
@@ -1619,14 +1620,14 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 }
 .wizard-features-grid {
   display: grid;
-  grid-template-columns: repeat(5, 160px);
-  gap: var(--gap-lg);
+  grid-template-columns: repeat(6, minmax(120px, 140px));
+  gap: 16px;
   justify-content: space-between;
   grid-column: 1 / -1;
 }
 @media (max-width: 960px) {
   .wizard-features-grid {
-    grid-template-columns: repeat(3, 160px);
+    grid-template-columns: repeat(3, 1fr);
   }
 }
 @media (max-width: 640px) {
