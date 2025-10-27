@@ -117,6 +117,7 @@ function PublishWizard() {
     deleteDocument,
     verifyRpp,
     listDocuments,
+    getAuthProfile,
   } = usePropertiesActions();
 
   const [form, setForm] = useState<DraftForm>(INITIAL_FORM);
@@ -124,6 +125,9 @@ function PublishWizard() {
   const [documents, setDocuments] = useState<DocumentDTO[]>([]);
   const [hasVerifiedRppCertificate, setHasVerifiedRppCertificate] =
     useState(false);
+  const [userKycStatus, setUserKycStatus] = useState<
+    "verified" | "pending" | "rejected" | null
+  >(null);
   const [propertyStatus, setPropertyStatus] = useState<
     PropertyDTO["status"] | null
   >(null);
@@ -134,6 +138,8 @@ function PublishWizard() {
   const [message, setMessage] = useState<string | null>(null);
   const [currentStep, setCurrentStep] = useState(0);
   const [showSaveBeforeRppModal, setShowSaveBeforeRppModal] = useState(false);
+  const [showKycRequiredModal, setShowKycRequiredModal] = useState(false);
+  const [showRppRequiredModal, setShowRppRequiredModal] = useState(false);
   const [coords, setCoords] = useState<Coords | null>(null);
   const mapRef = React.useRef<HTMLDivElement | null>(null);
   const leafletMap = useRef<L.Map | null>(null);
@@ -263,6 +269,34 @@ function PublishWizard() {
     setSavedCompleteness(null);
     setCoords(null);
   }, [editingId]);
+
+  // Cargar el perfil del usuario al montar el componente
+  useEffect(() => {
+    let active = true;
+
+    const loadUserProfile = async () => {
+      console.log("👤 Cargando perfil del usuario...");
+      const profileResult = await getAuthProfile();
+
+      if (!active) return;
+
+      if (profileResult.isOk()) {
+        const profile = profileResult.value;
+        setUserKycStatus(profile.kycStatus);
+        console.log("✅ Perfil cargado. KYC Status:", profile.kycStatus);
+      } else {
+        console.error("❌ Error al cargar perfil:", profileResult.error);
+        setUserKycStatus("pending"); // Fallback a pending si falla
+      }
+    };
+
+    loadUserProfile();
+
+    return () => {
+      active = false;
+    };
+  }, [getAuthProfile]);
+
   useEffect(() => {
     if (!editingId) return;
     let active = true;
@@ -550,6 +584,32 @@ function PublishWizard() {
   const handlePublish = async () => {
     if (!form.propertyId) return;
     setMessage(null);
+
+    // ========================================
+    // VALIDACIONES ANTES DE PUBLICAR
+    // ========================================
+
+    // 1. Verificar que el usuario tenga INE verificado
+    if (userKycStatus !== "verified") {
+      console.log("⚠️ Usuario no tiene INE verificado. Status:", userKycStatus);
+      setShowKycRequiredModal(true);
+      return;
+    }
+
+    // 2. Verificar que la propiedad tenga RPP verificado
+    if (!hasVerifiedRppCertificate) {
+      console.log("⚠️ Propiedad no tiene RPP verificado");
+      setShowRppRequiredModal(true);
+      return;
+    }
+
+    console.log(
+      "✅ Todas las verificaciones pasadas. Procediendo a publicar..."
+    );
+
+    // ========================================
+    // LÓGICA DE PUBLICACIÓN
+    // ========================================
 
     if (isEditing && !isEditingDraft) {
       const updateResult = await updateProperty({
@@ -938,7 +998,7 @@ function PublishWizard() {
     }
 
     setMessage("✅ Borrador guardado. Redirigiendo a verificación RPP...");
-    
+
     // Pequeña pausa para que el usuario vea el mensaje
     setTimeout(() => {
       navigate(`/verify-rpp?propertyId=${savedPropertyId}`);
@@ -1417,6 +1477,92 @@ function PublishWizard() {
         </p>
         <p style={{ fontSize: "14px", lineHeight: "1.5", marginTop: "12px" }}>
           ¿Deseas guardar el borrador ahora y continuar con la verificación?
+        </p>
+      </Modal>
+
+      {/* Modal cuando falta verificación de INE (KYC) */}
+      <Modal
+        open={showKycRequiredModal}
+        onClose={() => setShowKycRequiredModal(false)}
+        title="Verificación de identidad requerida"
+        actions={
+          <>
+            <button
+              type="button"
+              className="btn btn-outline"
+              onClick={() => setShowKycRequiredModal(false)}
+            >
+              Ahora no
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => navigate("/verify-ine")}
+            >
+              Verificar mi INE
+            </button>
+          </>
+        }
+      >
+        <p style={{ fontSize: "14px", lineHeight: "1.5" }}>
+          Para publicar propiedades necesitas verificar tu identidad mediante tu
+          INE (Identificación Oficial).
+        </p>
+        <p style={{ fontSize: "14px", lineHeight: "1.5", marginTop: "12px" }}>
+          Este proceso es rápido y solo lo harás una vez. Una vez verificado,
+          podrás publicar todas tus propiedades.
+        </p>
+        <div
+          style={{
+            marginTop: "16px",
+            padding: "12px",
+            background: "#f0f9ff",
+            borderRadius: "8px",
+            fontSize: "13px",
+          }}
+        >
+          <strong>📋 Necesitarás:</strong>
+          <ul style={{ marginTop: "8px", paddingLeft: "20px" }}>
+            <li>Foto de tu INE (frente y reverso)</li>
+            <li>Una selfie sosteniendo tu INE</li>
+          </ul>
+        </div>
+      </Modal>
+
+      {/* Modal cuando falta verificación de RPP */}
+      <Modal
+        open={showRppRequiredModal}
+        onClose={() => setShowRppRequiredModal(false)}
+        title="Documento RPP no verificado"
+        actions={
+          <>
+            <button
+              type="button"
+              className="btn btn-outline"
+              onClick={() => setShowRppRequiredModal(false)}
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => {
+                setShowRppRequiredModal(false);
+                handleVerifyRppClick();
+              }}
+            >
+              Verificar RPP
+            </button>
+          </>
+        }
+      >
+        <p style={{ fontSize: "14px", lineHeight: "1.5" }}>
+          Para publicar esta propiedad necesitas verificar el documento del
+          Registro Público de la Propiedad (RPP).
+        </p>
+        <p style={{ fontSize: "14px", lineHeight: "1.5", marginTop: "12px" }}>
+          Este documento certifica la legalidad de la propiedad y es requerido
+          para proteger tanto a compradores como vendedores.
         </p>
       </Modal>
     </main>
