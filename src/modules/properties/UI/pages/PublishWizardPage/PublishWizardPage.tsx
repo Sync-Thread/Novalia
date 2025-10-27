@@ -14,6 +14,7 @@ import AmenityChips, {
 } from "./components/AmenityChips";
 import MediaDropzone from "./components/MediaDropzone";
 import DocumentCard from "./components/DocumentCard";
+import Modal from "../../components/Modal";
 import DesignBanner from "../../utils/DesignBanner";
 import {
   isGeolocationSupported,
@@ -132,6 +133,7 @@ function PublishWizard() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [currentStep, setCurrentStep] = useState(0);
+  const [showSaveBeforeRppModal, setShowSaveBeforeRppModal] = useState(false);
   const [coords, setCoords] = useState<Coords | null>(null);
   const mapRef = React.useRef<HTMLDivElement | null>(null);
   const leafletMap = useRef<L.Map | null>(null);
@@ -909,6 +911,40 @@ function PublishWizard() {
   const goPrev = () => setCurrentStep((prev) => Math.max(prev - 1, 0));
   const handleCancel = () => navigate("/properties");
 
+  // Manejar click en botón de verificar RPP
+  const handleVerifyRppClick = async () => {
+    // Si no hay propertyId, mostrar modal pidiendo guardar primero
+    if (!form.propertyId) {
+      setShowSaveBeforeRppModal(true);
+      return;
+    }
+
+    // Si ya hay propertyId, navegar directamente
+    navigate(`/verify-rpp?propertyId=${form.propertyId}`);
+  };
+
+  // Guardar y luego ir a verificación RPP
+  const handleSaveAndVerifyRpp = async () => {
+    setShowSaveBeforeRppModal(false);
+    setMessage("Guardando borrador antes de verificar RPP...");
+
+    const savedPropertyId = await handleSave();
+
+    if (!savedPropertyId) {
+      setMessage(
+        "❌ No pudimos guardar el borrador. Por favor, completa los campos requeridos."
+      );
+      return;
+    }
+
+    setMessage("✅ Borrador guardado. Redirigiendo a verificación RPP...");
+    
+    // Pequeña pausa para que el usuario vea el mensaje
+    setTimeout(() => {
+      navigate(`/verify-rpp?propertyId=${savedPropertyId}`);
+    }, 500);
+  };
+
   // Distribución a 2 columnas: igual a diseño de referencia. No tocar lógica.
   const renderStepContent = () => {
     switch (steps[currentStep].id) {
@@ -1254,7 +1290,7 @@ function PublishWizard() {
         <section className="wizard__main">{renderStepContent()}</section>
 
         <aside className="wizard__aside">
-          {!hasVerifiedRppCertificate && form.propertyId && (
+          {!hasVerifiedRppCertificate && (
             <div className="wizard-summary wizard-summary--alert">
               <strong>Verificación de documento RPP requerida</strong>
               <p>
@@ -1264,9 +1300,7 @@ function PublishWizard() {
               <button
                 type="button"
                 className="btn btn-primary btn-sm"
-                onClick={() =>
-                  navigate(`/verify-rpp?propertyId=${form.propertyId}`)
-                }
+                onClick={handleVerifyRppClick}
               >
                 Verificar documento ahora
               </button>
@@ -1351,6 +1385,40 @@ function PublishWizard() {
       </footer>
 
       {message && <p className="wizard__message">{message}</p>}
+
+      {/* Modal para guardar antes de verificar RPP */}
+      <Modal
+        open={showSaveBeforeRppModal}
+        onClose={() => setShowSaveBeforeRppModal(false)}
+        title="Guardar propiedad"
+        actions={
+          <>
+            <button
+              type="button"
+              className="btn btn-outline"
+              onClick={() => setShowSaveBeforeRppModal(false)}
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={handleSaveAndVerifyRpp}
+              disabled={saving}
+            >
+              {saving ? "Guardando..." : "Guardar y continuar"}
+            </button>
+          </>
+        }
+      >
+        <p style={{ fontSize: "14px", lineHeight: "1.5" }}>
+          Aún no has guardado esta propiedad. Para verificar el documento RPP,
+          primero necesitas guardar el borrador de la propiedad.
+        </p>
+        <p style={{ fontSize: "14px", lineHeight: "1.5", marginTop: "12px" }}>
+          ¿Deseas guardar el borrador ahora y continuar con la verificación?
+        </p>
+      </Modal>
     </main>
   );
 }
