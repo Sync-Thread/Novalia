@@ -75,6 +75,11 @@ interface DraftForm {
   city: string;
   state: string;
   description: string;
+  bedrooms: number | null;
+  bathrooms: number | null;
+  parkingSpots: number | null;
+  constructionM2: number | null;
+  landM2: number | null;
   amenities: string[];
   amenitiesExtra: string;
 }
@@ -88,6 +93,11 @@ const INITIAL_FORM: DraftForm = {
   city: "",
   state: "",
   description: "",
+  bedrooms: null,
+  bathrooms: null,
+  parkingSpots: null,
+  constructionM2: null,
+  landM2: null,
   amenities: [],
   amenitiesExtra: "",
 };
@@ -315,6 +325,11 @@ function PublishWizard() {
           priceCurrency: data.price.currency,
           city: data.address.city ?? "",
           state: data.address.state ?? "",
+          bedrooms: data.bedrooms ?? null,
+          bathrooms: data.bathrooms ?? null,
+          parkingSpots: data.parkingSpots ?? null,
+          constructionM2: data.constructionM2 ?? null,
+          landM2: data.landM2 ?? null,
           amenities: data.amenities ?? [],
           amenitiesExtra: data.amenitiesExtra ?? "",
         }));
@@ -516,6 +531,11 @@ function PublishWizard() {
       currency: form.priceCurrency,
     },
     operationType: "sale" as const,
+    bedrooms: form.bedrooms,
+    bathrooms: form.bathrooms,
+    parkingSpots: form.parkingSpots,
+    constructionM2: form.constructionM2,
+    landM2: form.landM2,
     address: {
       city: form.city.trim() || "Por definir",
       state: form.state.trim() || "Por definir",
@@ -1018,7 +1038,8 @@ function PublishWizard() {
               </p>
             </header>
             <div className="form-grid">
-              <label className="wizard-field">
+              {/* Información principal */}
+              <label className="wizard-field form-col-2">
                 <span className="wizard-field__label">Titulo *</span>
                 <input
                   className="wizard-field__control"
@@ -1029,6 +1050,7 @@ function PublishWizard() {
                   placeholder="Ej: Departamento moderno en Roma Norte"
                 />
               </label>
+
               <label className="wizard-field">
                 <span className="wizard-field__label">Tipo de propiedad *</span>
                 <div className="select-control">
@@ -1050,6 +1072,7 @@ function PublishWizard() {
                   </select>
                 </div>
               </label>
+
               <label className="wizard-field">
                 <span className="wizard-field__label">Precio *</span>
                 <input
@@ -1069,27 +1092,110 @@ function PublishWizard() {
                   placeholder="Ej: 2450000"
                 />
               </label>
-              <label className="wizard-field">
-                <span className="wizard-field__label">Moneda</span>
-                <div className="select-control">
-                  <select
-                    className="select-control__native"
-                    value={form.priceCurrency}
-                    onChange={(event) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        priceCurrency: event.target.value as Currency,
-                      }))
-                    }
-                  >
-                    {CURRENCY_VALUES.map((value) => (
-                      <option key={value} value={value}>
-                        {value}
-                      </option>
-                    ))}
-                  </select>
+
+              {/* Características de la propiedad */}
+              <div className="wizard-field-group">
+                <h4 className="wizard-field-group__title">Características</h4>
+                <div className="wizard-features-grid">
+                  <label className="wizard-field wizard-field--compact">
+                    <span className="wizard-field__label">Recámaras</span>
+                    <input
+                      className="wizard-field__control"
+                      type="number"
+                      min={0}
+                      step="1"
+                      inputMode="numeric"
+                      value={form.bedrooms ?? ""}
+                      onChange={(event) => {
+                        const raw = event.target.value;
+                        setForm((prev) => ({
+                          ...prev,
+                          bedrooms: raw === "" ? null : Number(raw),
+                        }));
+                      }}
+                      placeholder="0"
+                    />
+                  </label>
+                  <label className="wizard-field wizard-field--compact">
+                    <span className="wizard-field__label">Baños</span>
+                    <input
+                      className="wizard-field__control"
+                      type="number"
+                      min={0}
+                      step="0.5"
+                      inputMode="decimal"
+                      value={form.bathrooms ?? ""}
+                      onChange={(event) => {
+                        const raw = event.target.value;
+                        setForm((prev) => ({
+                          ...prev,
+                          bathrooms: raw === "" ? null : Number(raw),
+                        }));
+                      }}
+                      placeholder="0"
+                    />
+                  </label>
+                  <label className="wizard-field wizard-field--compact">
+                    <span className="wizard-field__label">
+                      Estacionamientos
+                    </span>
+                    <input
+                      className="wizard-field__control"
+                      type="number"
+                      min={0}
+                      step="1"
+                      inputMode="numeric"
+                      value={form.parkingSpots ?? ""}
+                      onChange={(event) => {
+                        const raw = event.target.value;
+                        setForm((prev) => ({
+                          ...prev,
+                          parkingSpots: raw === "" ? null : Number(raw),
+                        }));
+                      }}
+                      placeholder="0"
+                    />
+                  </label>
+                  <label className="wizard-field wizard-field--compact">
+                    <span className="wizard-field__label">m² construcción</span>
+                    <input
+                      className="wizard-field__control"
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      inputMode="decimal"
+                      value={form.constructionM2 ?? ""}
+                      onChange={(event) => {
+                        const raw = event.target.value;
+                        setForm((prev) => ({
+                          ...prev,
+                          constructionM2: raw === "" ? null : Number(raw),
+                        }));
+                      }}
+                      placeholder="0"
+                    />
+                  </label>
+                  <label className="wizard-field wizard-field--compact">
+                    <span className="wizard-field__label">m² terreno</span>
+                    <input
+                      className="wizard-field__control"
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      inputMode="decimal"
+                      value={form.landM2 ?? ""}
+                      onChange={(event) => {
+                        const raw = event.target.value;
+                        setForm((prev) => ({
+                          ...prev,
+                          landM2: raw === "" ? null : Number(raw),
+                        }));
+                      }}
+                      placeholder="0"
+                    />
+                  </label>
                 </div>
-              </label>
+              </div>
               <label className="wizard-field form-col-2">
                 <span className="wizard-field__label">Descripcion *</span>
                 <textarea
@@ -1103,20 +1209,6 @@ function PublishWizard() {
                     }))
                   }
                   placeholder="Describe caracteristicas, acabados y beneficios principales."
-                />
-              </label>
-              <label className="wizard-field form-col-2">
-                <span className="wizard-field__label">Notas adicionales</span>
-                <input
-                  className="wizard-field__control"
-                  value={form.amenitiesExtra}
-                  onChange={(event) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      amenitiesExtra: event.target.value,
-                    }))
-                  }
-                  placeholder="Ej: Incluye mantenimiento, pet friendly..."
                 />
               </label>
             </div>
