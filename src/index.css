@@ -1114,8 +1114,7 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
   gap: calc(var(--gap) * 0.75);
   flex: 1 1 auto;
   min-width: 0;
-  overflow-x: auto;
-  scrollbar-width: none;
+  overflow: visible;
 }
 .filters-bar__pill {
   flex: 1 1 160px;
@@ -1290,7 +1289,8 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 .filters-bar__more-panel {
   position: absolute;
   top: calc(100% + 12px);
-  left: 0;
+  right: 0;
+  left: auto;
   min-width: 280px;
   padding: 16px;
   border-radius: 14px;
@@ -1299,6 +1299,7 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
   box-shadow: 0 16px 40px rgba(15, 23, 42, 0.18);
   display: grid;
   gap: 14px;
+  width: max(320px, 100%);
   z-index: 40;
 }
 .filters-bar__more-field {
@@ -1415,6 +1416,11 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
   .filters-bar__more-button {
     width: 100%;
     justify-content: center;
+  }
+  .filters-bar__more-panel {
+    left: 0;
+    right: 0;
+    width: 100%;
   }
   .filters-bar__view-toggle {
     margin-left: auto;
