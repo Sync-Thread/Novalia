@@ -67,41 +67,40 @@ const PROPERTY_TYPE_OPTIONS = PROPERTY_TYPE_VALUES.map((value) => ({
   label: PROPERTY_TYPE_LABELS[value],
 }));
 
-// Estados de México (32 estados)
+// Estados de México (32 estados) con sus IDs del INEGI
 const MEXICO_STATES_OPTIONS = [
-  { value: "Aguascalientes", label: "Aguascalientes" },
-  { value: "Baja California", label: "Baja California" },
-  { value: "Baja California Sur", label: "Baja California Sur" },
-  { value: "Campeche", label: "Campeche" },
-  { value: "Chiapas", label: "Chiapas" },
-  { value: "Chihuahua", label: "Chihuahua" },
-  { value: "Ciudad de México", label: "Ciudad de México" },
-  { value: "Coahuila", label: "Coahuila" },
-  { value: "Colima", label: "Colima" },
-  { value: "Durango", label: "Durango" },
-  { value: "Estado de México", label: "Estado de México" },
-  { value: "Guanajuato", label: "Guanajuato" },
-  { value: "Guerrero", label: "Guerrero" },
-  { value: "Hidalgo", label: "Hidalgo" },
-  { value: "Jalisco", label: "Jalisco" },
-  { value: "México", label: "México" },
-  { value: "Michoacán", label: "Michoacán" },
-  { value: "Morelos", label: "Morelos" },
-  { value: "Nayarit", label: "Nayarit" },
-  { value: "Nuevo León", label: "Nuevo León" },
-  { value: "Oaxaca", label: "Oaxaca" },
-  { value: "Puebla", label: "Puebla" },
-  { value: "Querétaro", label: "Querétaro" },
-  { value: "Quintana Roo", label: "Quintana Roo" },
-  { value: "San Luis Potosí", label: "San Luis Potosí" },
-  { value: "Sinaloa", label: "Sinaloa" },
-  { value: "Sonora", label: "Sonora" },
-  { value: "Tabasco", label: "Tabasco" },
-  { value: "Tamaulipas", label: "Tamaulipas" },
-  { value: "Tlaxcala", label: "Tlaxcala" },
-  { value: "Veracruz", label: "Veracruz" },
-  { value: "Yucatán", label: "Yucatán" },
-  { value: "Zacatecas", label: "Zacatecas" },
+  { value: "Aguascalientes", label: "Aguascalientes", inegiId: 1 },
+  { value: "Baja California", label: "Baja California", inegiId: 2 },
+  { value: "Baja California Sur", label: "Baja California Sur", inegiId: 3 },
+  { value: "Campeche", label: "Campeche", inegiId: 4 },
+  { value: "Chiapas", label: "Chiapas", inegiId: 7 },
+  { value: "Chihuahua", label: "Chihuahua", inegiId: 8 },
+  { value: "Ciudad de México", label: "Ciudad de México", inegiId: 9 },
+  { value: "Coahuila", label: "Coahuila", inegiId: 5 },
+  { value: "Colima", label: "Colima", inegiId: 6 },
+  { value: "Durango", label: "Durango", inegiId: 10 },
+  { value: "Guanajuato", label: "Guanajuato", inegiId: 11 },
+  { value: "Guerrero", label: "Guerrero", inegiId: 12 },
+  { value: "Hidalgo", label: "Hidalgo", inegiId: 13 },
+  { value: "Jalisco", label: "Jalisco", inegiId: 14 },
+  { value: "México", label: "México", inegiId: 15 },
+  { value: "Michoacán", label: "Michoacán", inegiId: 16 },
+  { value: "Morelos", label: "Morelos", inegiId: 17 },
+  { value: "Nayarit", label: "Nayarit", inegiId: 18 },
+  { value: "Nuevo León", label: "Nuevo León", inegiId: 19 },
+  { value: "Oaxaca", label: "Oaxaca", inegiId: 20 },
+  { value: "Puebla", label: "Puebla", inegiId: 21 },
+  { value: "Querétaro", label: "Querétaro", inegiId: 22 },
+  { value: "Quintana Roo", label: "Quintana Roo", inegiId: 23 },
+  { value: "San Luis Potosí", label: "San Luis Potosí", inegiId: 24 },
+  { value: "Sinaloa", label: "Sinaloa", inegiId: 25 },
+  { value: "Sonora", label: "Sonora", inegiId: 26 },
+  { value: "Tabasco", label: "Tabasco", inegiId: 27 },
+  { value: "Tamaulipas", label: "Tamaulipas", inegiId: 28 },
+  { value: "Tlaxcala", label: "Tlaxcala", inegiId: 29 },
+  { value: "Veracruz", label: "Veracruz", inegiId: 30 },
+  { value: "Yucatán", label: "Yucatán", inegiId: 31 },
+  { value: "Zacatecas", label: "Zacatecas", inegiId: 32 },
 ];
 
 interface DraftForm {
@@ -194,6 +193,12 @@ function PublishWizard() {
   const mapRef = React.useRef<HTMLDivElement | null>(null);
   const leafletMap = useRef<L.Map | null>(null);
   const markerRef = useRef<L.Marker | null>(null);
+
+  // Estado para municipios cargados dinámicamente
+  const [municipalities, setMunicipalities] = useState<
+    Array<{ value: string; label: string }>
+  >([]);
+  const [loadingMunicipalities, setLoadingMunicipalities] = useState(false);
 
   const isEditingDraft = isEditing && propertyStatus === "draft";
 
@@ -1286,25 +1291,96 @@ function PublishWizard() {
             </header>
             <div className="form-grid">
               <label className="wizard-field">
-                <span className="wizard-field__label">Ciudad *</span>
-                <input
-                  className="wizard-field__control"
-                  value={form.city}
-                  onChange={(event) =>
-                    setForm((prev) => ({ ...prev, city: event.target.value }))
-                  }
-                  placeholder="Ej: Ciudad de Mexico"
-                />
-              </label>
-              <label className="wizard-field">
                 <span className="wizard-field__label">Estado *</span>
                 <CustomSelect
                   value={form.state}
                   options={MEXICO_STATES_OPTIONS}
-                  onChange={(value) =>
-                    setForm((prev) => ({ ...prev, state: value }))
-                  }
+                  onChange={async (value) => {
+                    // Actualizar el estado seleccionado
+                    setForm((prev) => ({ ...prev, state: value, city: "" }));
+
+                    // Limpiar lista de municipios y ciudad seleccionada
+                    setMunicipalities([]);
+                    setLoadingMunicipalities(true);
+
+                    // Buscar el inegiId del estado seleccionado
+                    const selectedState = MEXICO_STATES_OPTIONS.find(
+                      (state) => state.value === value
+                    );
+
+                    if (selectedState?.inegiId) {
+                      console.log("🏙️ Cargando municipios del estado:", value);
+
+                      try {
+                        // Fetch de municipios desde GitHub
+                        const response = await fetch(
+                          `https://raw.githubusercontent.com/angelsantosa/inegi-lista-estados/refs/heads/master/cities/${selectedState.inegiId}.json`
+                        );
+
+                        if (!response.ok) {
+                          throw new Error(
+                            `HTTP error! status: ${response.status}`
+                          );
+                        }
+
+                        const data = await response.json();
+
+                        // Remover el primer elemento (índice 0) que contiene "Todo el estado"
+                        const municipalitiesData = data.slice(1);
+
+                        // Transformar a formato para CustomSelect
+                        const municipalitiesOptions = municipalitiesData
+                          .map((mun: any) => ({
+                            value: mun.nombre_municipio,
+                            label: mun.nombre_municipio,
+                          }))
+                          .sort(
+                            (
+                              a: { value: string; label: string },
+                              b: { value: string; label: string }
+                            ) => a.label.localeCompare(b.label, "es")
+                          ); // Ordenar alfabéticamente
+
+                        setMunicipalities(municipalitiesOptions);
+                        console.log(
+                          `✅ Se cargaron ${municipalitiesOptions.length} municipios`
+                        );
+                      } catch (error) {
+                        console.error("❌ Error al cargar municipios:", error);
+                        setMunicipalities([]);
+                      } finally {
+                        setLoadingMunicipalities(false);
+                      }
+                    } else {
+                      setLoadingMunicipalities(false);
+                    }
+                  }}
                   placeholder="Selecciona un estado"
+                  className="wizard-field__control"
+                />
+              </label>
+              <label className="wizard-field">
+                <span className="wizard-field__label">Ciudad/Municipio *</span>
+                <CustomSelect
+                  value={form.city}
+                  options={
+                    municipalities.length > 0
+                      ? municipalities
+                      : [{ value: "", label: "Sin ciudad" }]
+                  }
+                  onChange={(value) =>
+                    setForm((prev) => ({ ...prev, city: value }))
+                  }
+                  placeholder={
+                    loadingMunicipalities
+                      ? "Cargando municipios..."
+                      : municipalities.length === 0
+                        ? "Primero selecciona un estado"
+                        : "Selecciona un municipio"
+                  }
+                  disabled={
+                    municipalities.length === 0 || loadingMunicipalities
+                  }
                   className="wizard-field__control"
                 />
               </label>

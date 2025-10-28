@@ -1,11 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import styles from "./CustomSelect.module.css";
-import { set } from "zod";
 
 export interface SelectOption {
   value: string;
   label: string;
+  [key: string]: any; // Permitir propiedades adicionales
 }
 
 export interface CustomSelectProps {
@@ -67,16 +67,7 @@ export function CustomSelect({
     }
   };
 
-  const handleSelect = (optionValue: string) => {
-    // console.log("pero que pasa antes de esto? ");
-    onChange(optionValue);
-    // console.log("pero que pasa antes de esto? ");
-
-    // console.log(isOpen); //imprime true
-    // setIsOpen(false);
-    // console.log(isOpen); //imprime true
-  };
-
+  const handleSelect = (optionValue: string) => onChange(optionValue);
   const handleKeyDown = (event: React.KeyboardEvent) => {
     if (disabled) return;
 
@@ -122,8 +113,6 @@ export function CustomSelect({
         onClick={handleToggle}
         onBlur={() => {
           console.log("loga");
-          // setIsOpen(false);
-          // que pasen unos 300ms antes de cerrar
           setTimeout(() => setIsOpen(false), 300);
         }}
         onKeyDown={handleKeyDown}
