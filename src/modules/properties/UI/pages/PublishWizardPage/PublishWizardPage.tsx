@@ -14,6 +14,7 @@ import AmenityChips, {
 } from "./components/AmenityChips";
 import MediaDropzone from "./components/MediaDropzone";
 import DocumentCard from "./components/DocumentCard";
+import CustomSelect from "../../components/CustomSelect";
 import Modal from "../../components/Modal";
 import DesignBanner from "../../utils/DesignBanner";
 import {
@@ -65,6 +66,43 @@ const PROPERTY_TYPE_OPTIONS = PROPERTY_TYPE_VALUES.map((value) => ({
   value,
   label: PROPERTY_TYPE_LABELS[value],
 }));
+
+// Estados de México (32 estados)
+const MEXICO_STATES_OPTIONS = [
+  { value: "Aguascalientes", label: "Aguascalientes" },
+  { value: "Baja California", label: "Baja California" },
+  { value: "Baja California Sur", label: "Baja California Sur" },
+  { value: "Campeche", label: "Campeche" },
+  { value: "Chiapas", label: "Chiapas" },
+  { value: "Chihuahua", label: "Chihuahua" },
+  { value: "Ciudad de México", label: "Ciudad de México" },
+  { value: "Coahuila", label: "Coahuila" },
+  { value: "Colima", label: "Colima" },
+  { value: "Durango", label: "Durango" },
+  { value: "Estado de México", label: "Estado de México" },
+  { value: "Guanajuato", label: "Guanajuato" },
+  { value: "Guerrero", label: "Guerrero" },
+  { value: "Hidalgo", label: "Hidalgo" },
+  { value: "Jalisco", label: "Jalisco" },
+  { value: "México", label: "México" },
+  { value: "Michoacán", label: "Michoacán" },
+  { value: "Morelos", label: "Morelos" },
+  { value: "Nayarit", label: "Nayarit" },
+  { value: "Nuevo León", label: "Nuevo León" },
+  { value: "Oaxaca", label: "Oaxaca" },
+  { value: "Puebla", label: "Puebla" },
+  { value: "Querétaro", label: "Querétaro" },
+  { value: "Quintana Roo", label: "Quintana Roo" },
+  { value: "San Luis Potosí", label: "San Luis Potosí" },
+  { value: "Sinaloa", label: "Sinaloa" },
+  { value: "Sonora", label: "Sonora" },
+  { value: "Tabasco", label: "Tabasco" },
+  { value: "Tamaulipas", label: "Tamaulipas" },
+  { value: "Tlaxcala", label: "Tlaxcala" },
+  { value: "Veracruz", label: "Veracruz" },
+  { value: "Yucatán", label: "Yucatán" },
+  { value: "Zacatecas", label: "Zacatecas" },
+];
 
 interface DraftForm {
   propertyId: string | null;
@@ -1260,13 +1298,14 @@ function PublishWizard() {
               </label>
               <label className="wizard-field">
                 <span className="wizard-field__label">Estado *</span>
-                <input
-                  className="wizard-field__control"
+                <CustomSelect
                   value={form.state}
-                  onChange={(event) =>
-                    setForm((prev) => ({ ...prev, state: event.target.value }))
+                  options={MEXICO_STATES_OPTIONS}
+                  onChange={(value) =>
+                    setForm((prev) => ({ ...prev, state: value }))
                   }
-                  placeholder="Ej: CDMX"
+                  placeholder="Selecciona un estado"
+                  className="wizard-field__control"
                 />
               </label>
               <div className="wizard-map form-col-2">
