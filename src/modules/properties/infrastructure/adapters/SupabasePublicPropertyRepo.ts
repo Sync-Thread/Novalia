@@ -1,4 +1,4 @@
-import type { SupabaseClient, PostgrestError } from "@supabase/supabase-js";
+﻿import type { SupabaseClient, PostgrestError } from "@supabase/supabase-js";
 import { Result } from "../../application/_shared/result";
 import type {
   PublicPropertyListFiltersDTO,
@@ -23,8 +23,13 @@ type PublicPropertyRow = {
   description: string | null;
   price: string | number | null;
   currency: string | null;
+  property_type: string | null;
+  neighborhood: string | null;
   city: string | null;
   state: string | null;
+  bedrooms: number | null;
+  bathrooms: string | number | null;
+  construction_m2: string | number | null;
   published_at: string | null;
 };
 
@@ -34,8 +39,13 @@ const PUBLIC_COLUMNS = [
   "description",
   "price",
   "currency",
+  "property_type",
+  "neighborhood",
   "city",
   "state",
+  "bedrooms",
+  "bathrooms",
+  "construction_m2",
   "published_at",
 ].join(",");
 
@@ -58,10 +68,23 @@ function parsePrice(value: string | number | null): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function parseOptionalNumber(value: string | number | null | undefined): number | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : null;
+  }
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 function normalizeCurrency(value: string | null | undefined): Currency {
   if (!value) return "MXN";
   const upper = value.toUpperCase();
   return (CURRENCY_VALUES as string[]).includes(upper) ? (upper as Currency) : "MXN";
+}
+
+function normalizePropertyType(value: string | null | undefined): string | null {
+  return value?.trim() ? value.trim() : null;
 }
 
 function mapRowToSummary(row: PublicPropertyRow): PublicPropertySummaryDTO {
@@ -73,8 +96,13 @@ function mapRowToSummary(row: PublicPropertyRow): PublicPropertySummaryDTO {
       amount: parsePrice(row.price),
       currency: normalizeCurrency(row.currency),
     },
+    propertyType: normalizePropertyType(row.property_type),
+    neighborhood: row.neighborhood ?? null,
     city: row.city ?? null,
     state: row.state ?? null,
+    bedrooms: row.bedrooms ?? null,
+    bathrooms: parseOptionalNumber(row.bathrooms),
+    constructionSizeM2: parseOptionalNumber(row.construction_m2),
     publishedAt: row.published_at ?? null,
     coverImageUrl: null,
   };

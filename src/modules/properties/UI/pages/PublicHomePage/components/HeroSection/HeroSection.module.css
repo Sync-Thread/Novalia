@@ -3,7 +3,7 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: clamp(44px, 8vw, 84px) var(--pad-x) clamp(56px, 10vw, 92px);
+  padding: clamp(18px, 5vw, 54px) var(--pad-x) clamp(32px, 8vw, 70px);
   background-position: center;
   background-repeat: no-repeat;
   background-size: cover;
@@ -172,7 +172,7 @@
 
 @media (max-width: 768px) {
   .hero {
-    padding: 58px var(--pad-x) 72px;
+    padding: 32px var(--pad-x) 48px;
     text-align: left;
   }
 

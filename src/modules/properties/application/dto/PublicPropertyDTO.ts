@@ -5,8 +5,13 @@ export interface PublicPropertySummaryDTO {
   title: string;
   description?: string | null;
   price: PriceDTO;
+  propertyType?: string | null;
+  neighborhood?: string | null;
   city: string | null;
   state: string | null;
+  bedrooms?: number | null;
+  bathrooms?: number | null;
+  constructionSizeM2?: number | null;
   publishedAt: string | null;
   coverImageUrl: string | null;
 }
