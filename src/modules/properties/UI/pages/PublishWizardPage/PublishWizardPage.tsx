@@ -142,7 +142,7 @@ function PublishWizard() {
 
   // Estado para municipios cargados dinámicamente
   const [municipalities, setMunicipalities] = useState<
-    Array<{ value: string; label: string }>
+    Array<{ value: string; label: string; lat: number; lng: number }>
   >([]);
   const [loadingMunicipalities, setLoadingMunicipalities] = useState(false);
 
@@ -1274,16 +1274,28 @@ function PublishWizard() {
                         // Remover el primer elemento (índice 0) que contiene "Todo el estado"
                         const municipalitiesData = data.slice(1);
 
-                        // Transformar a formato para CustomSelect
+                        // Transformar a formato para CustomSelect, incluyendo coordenadas
                         const municipalitiesOptions = municipalitiesData
                           .map((mun: any) => ({
                             value: mun.nombre_municipio,
                             label: mun.nombre_municipio,
+                            lat: parseFloat(mun.lat),
+                            lng: parseFloat(mun.lng),
                           }))
                           .sort(
                             (
-                              a: { value: string; label: string },
-                              b: { value: string; label: string }
+                              a: {
+                                value: string;
+                                label: string;
+                                lat: number;
+                                lng: number;
+                              },
+                              b: {
+                                value: string;
+                                label: string;
+                                lat: number;
+                                lng: number;
+                              }
                             ) => a.label.localeCompare(b.label, "es")
                           ); // Ordenar alfabéticamente
 
@@ -1314,9 +1326,41 @@ function PublishWizard() {
                       ? municipalities
                       : [{ value: "", label: "Sin ciudad" }]
                   }
-                  onChange={(value) =>
-                    setForm((prev) => ({ ...prev, city: value }))
-                  }
+                  onChange={(value) => {
+                    setForm((prev) => ({ ...prev, city: value }));
+
+                    // Buscar las coordenadas del municipio seleccionado
+                    const selectedMunicipality = municipalities.find(
+                      (mun) => mun.value === value
+                    );
+
+                    if (
+                      selectedMunicipality &&
+                      selectedMunicipality.lat &&
+                      selectedMunicipality.lng
+                    ) {
+                      const { lat, lng } = selectedMunicipality;
+
+                      console.log("📍 Centrando mapa en municipio:", value, {
+                        lat,
+                        lng,
+                      });
+
+                      // Actualizar coordenadas en el estado
+                      setCoords({ lat, lng });
+
+                      // Mover el marker a la nueva ubicación
+                      if (markerRef.current) {
+                        markerRef.current.setLatLng([lat, lng]);
+                        markerRef.current.openPopup();
+                      }
+
+                      // Centrar el mapa en la nueva ubicación
+                      if (leafletMap.current) {
+                        leafletMap.current.setView([lat, lng], 13); // Zoom 13 para ver el municipio
+                      }
+                    }
+                  }}
                   placeholder={
                     loadingMunicipalities
                       ? "Cargando municipios..."
