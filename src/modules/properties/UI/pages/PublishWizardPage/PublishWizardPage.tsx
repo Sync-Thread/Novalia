@@ -1541,7 +1541,7 @@ function PublishWizard() {
         </button>
         {currentStep < steps.length - 1 ? (
           <button type="button" className="btn btn-primary" onClick={goNext}>
-            Continuar &gt;
+            Continuar
           </button>
         ) : (
           <button

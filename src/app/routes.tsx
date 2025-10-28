@@ -3,7 +3,7 @@ import { createBrowserRouter, Navigate } from "react-router-dom";
 import Dashboard from "../pages/Dashboard";
 import MyPropertiesPage from "../modules/properties/UI/pages/MyPropertiesPage";
 import PublishWizardPage from "../modules/properties/UI/pages/PublishWizardPage";
-import PublicHomePage from "../modules/properties/UI/pages/PublicHomePage";
+import PublicHomePage from "../modules/properties/UI/pages/PublicHomePage/PublicHomePage";
 import AuthGuard from "./guards/AuthGuard";
 import Login from "../modules/auth/UI/pages/Login";
 import Register from "../modules/auth/UI/pages/Register";
