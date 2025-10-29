@@ -95,7 +95,7 @@ export function PropertyQuickView({
     getAuthProfile,
     loading,
   } = usePropertiesActions();
-  const { trackPropertyView } = useTelemetry();
+  const { trackPropertyView, getPropertyMetrics } = useTelemetry();
   const navigate = useNavigate();
   const panelRef = useRef<HTMLElement | null>(null);
   const headingRef = useRef<HTMLHeadingElement | null>(null);
@@ -111,6 +111,12 @@ export function PropertyQuickView({
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [markSoldOpen, setMarkSoldOpen] = useState(false);
   const [showRppRequiredModal, setShowRppRequiredModal] = useState(false);
+  const [metrics, setMetrics] = useState<{
+    views: number;
+    leads: number;
+    chats: number;
+    updatedAt?: string;
+  } | null>(null);
 
   const rppStatus = useMemo<VerificationState>(() => {
     if (!property) {
@@ -140,6 +146,7 @@ export function PropertyQuickView({
     setProperty(null);
     setDocuments([]);
     setMediaItems([]);
+    setMetrics(null);
 
     const fetchData = async () => {
       const propertyResult = await getProperty(propertyId);
@@ -162,6 +169,20 @@ export function PropertyQuickView({
         setDocuments(docsResult.value);
       }
 
+      // Cargar métricas de telemetría
+      const metricsResult = await getPropertyMetrics(propertyId);
+      if (!active) return;
+      if (metricsResult) {
+        setMetrics({
+          views: metricsResult.viewsCount ?? 0,
+          leads: metricsResult.contactsCount ?? 0,
+          chats: metricsResult.chatMessagesCount ?? 0,
+          updatedAt: metricsResult.lastEventAt
+            ? metricsResult.lastEventAt.toISOString()
+            : undefined,
+        });
+      }
+
       setLoadingData(false);
     };
 
@@ -170,7 +191,14 @@ export function PropertyQuickView({
     return () => {
       active = false;
     };
-  }, [getProperty, listDocuments, open, propertyId, trackPropertyView]);
+  }, [
+    getProperty,
+    getPropertyMetrics,
+    listDocuments,
+    open,
+    propertyId,
+    trackPropertyView,
+  ]);
 
   // Cargar media cuando se abre el QuickView
   useEffect(() => {
@@ -793,24 +821,23 @@ export function PropertyQuickView({
                   <h3>Actividad</h3>
                   <div className="quickview-activity">
                     <div>
-                      <strong>{property.metrics?.views ?? 0}</strong>
-                      <span>Vistas (30d)</span>
+                      <strong>{metrics?.views ?? 0}</strong>
+                      <span>Vistas</span>
                     </div>
                     <div>
-                      <strong>{property.metrics?.leads ?? 0}</strong>
+                      <strong>{metrics?.leads ?? 0}</strong>
                       <span>Leads</span>
                     </div>
                     <div>
-                      <strong>{property.metrics?.chats ?? 0}</strong>
+                      <strong>{metrics?.chats ?? 0}</strong>
                       <span>Chats</span>
                     </div>
                   </div>
                   <p className="muted quickview-note">
-                    {/* TODO(MÉTRICAS): conectar con telemetría real. */}
                     Última actualización:{" "}
-                    {property.metrics?.updatedAt
-                      ? formatDate(property.metrics.updatedAt)
-                      : formatDate(property.updatedAt)}
+                    {metrics?.updatedAt
+                      ? formatDate(metrics.updatedAt)
+                      : "Sin actividad registrada"}
                   </p>
                 </section>
 
