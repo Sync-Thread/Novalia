@@ -375,16 +375,16 @@ export const PublicSearchBar = forwardRef<
             ariaDescribedBy={statusMessage ? cityStatusId : undefined}
           />
         </div>
-        {statusMessage && (
+        {/* {statusMessage && (
           <span
             className={styles.srOnly}
             id={cityStatusId}
             role="status"
             aria-live="polite"
           >
-            {statusMessage}
+            {statusMessage}dsd
           </span>
-        )}
+        )} */}
       </div>
 
       <div className={`${styles.control} ${styles.stateControl}`}>
@@ -488,7 +488,7 @@ export const PublicSearchBar = forwardRef<
         )}
       </div>
 
-      <div className={`${styles.control} ${styles.moreControl}`}>
+      <div className={`${styles.control} `}>
         <button
           type="button"
           className={styles.iconButton}
