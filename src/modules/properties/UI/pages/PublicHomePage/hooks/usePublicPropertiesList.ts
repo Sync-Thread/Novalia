@@ -235,7 +235,7 @@ export function usePublicPropertiesList(appliedFilters: PublicAppliedFilters) {
       items.map((item) => {
         return {
           id: item.id,
-          link: `/p/${item.id}`,
+          link: `/properties/${item.id}`,
           title: item.title,
           price: item.price,
           priceLabel: formatCurrency(item.price.amount ?? 0, item.price.currency ?? "MXN"),

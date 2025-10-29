@@ -1,6 +1,7 @@
 // Pages
 export { default as MyPropertiesPage } from "./pages/MyPropertiesPage";
 export { default as PublishWizardPage } from "./pages/PublishWizardPage";
+export { default as PropertyDetailPage } from "./pages/PropertyDetailPage";
 
 // MyPropertiesPage components
 export { default as FiltersBar } from "./pages/MyPropertiesPage/components/FiltersBar";

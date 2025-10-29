@@ -5,8 +5,11 @@ import type {
   PublicPropertyPage,
   PublicPropertySummaryDTO,
 } from "../../application/dto/PublicPropertyDTO";
+import type { PropertyDTO } from "../../application/dto/PropertyDTO";
 import type { PublicPropertyRepo } from "../../application/ports/PublicPropertyRepo";
 import { CURRENCY_VALUES, type Currency } from "../../domain/enums";
+import { mapPropertyRowToDTO } from "../../application/mappers/property.mapper";
+import type { PropertyRow } from "../types/supabase-rows";
 
 type PublicPropertyErrorCode = "UNKNOWN";
 
@@ -53,6 +56,52 @@ const PUBLIC_COLUMNS = [
   "parking_spots",
   "levels",
   "published_at",
+].join(",");
+
+// Columnas completas para obtener detalle de una propiedad pública
+const PROPERTY_DETAIL_COLUMNS = [
+  "id",
+  "org_id",
+  "lister_user_id",
+  "status",
+  "property_type",
+  "operation_type",
+  "title",
+  "description",
+  "price",
+  "currency",
+  "bedrooms",
+  "bathrooms",
+  "parking_spots",
+  "construction_m2",
+  "land_m2",
+  "amenities",
+  "address_line",
+  "neighborhood",
+  "city",
+  "state",
+  "postal_code",
+  "display_address",
+  "location",
+  "normalized_address",
+  "rpp_verified",
+  "completeness_score",
+  "trust_score",
+  "tags_cached",
+  "internal_id",
+  "levels",
+  "year_built",
+  "floor",
+  "hoa_fee",
+  "condition",
+  "furnished",
+  "pet_friendly",
+  "orientation",
+  "published_at",
+  "sold_at",
+  "deleted_at",
+  "created_at",
+  "updated_at",
 ].join(",");
 
 function publicError(code: PublicPropertyErrorCode, message: string, cause?: unknown): PublicPropertyInfraError {
@@ -224,5 +273,32 @@ export class SupabasePublicPropertyRepo implements PublicPropertyRepo {
       page,
       pageSize,
     });
+  }
+
+  async getPublishedById(id: string): Promise<Result<PropertyDTO>> {
+    const { data, error } = await this.client
+      .from("properties")
+      .select(PROPERTY_DETAIL_COLUMNS)
+      .eq("id", id)
+      .eq("status", "published")
+      .is("deleted_at", null)
+      .single();
+
+    if (error) {
+      if (error.code === "PGRST116" || error.details?.includes("Results contain 0 rows")) {
+        return Result.fail(publicError("UNKNOWN", "Propiedad no encontrada o no publicada", error));
+      }
+      return Result.fail(mapPostgrestError(error));
+    }
+
+    if (!data) {
+      return Result.fail(publicError("UNKNOWN", "Propiedad no encontrada"));
+    }
+
+    try {
+      return Result.ok(mapPropertyRowToDTO(data as unknown as PropertyRow));
+    } catch (cause) {
+      return Result.fail(publicError("UNKNOWN", "Error al mapear datos de la propiedad", cause));
+    }
   }
 }

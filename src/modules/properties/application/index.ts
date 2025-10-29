@@ -39,6 +39,7 @@ export * from "./use-cases/documents/ListPropertyDocuments";
 export * from "./use-cases/documents/DeleteDocument";
 export * from "./use-cases/auth/GetAuthProfile";
 export * from "./use-cases/public/ListPublishedPropertiesPublic";
+export * from "./use-cases/public/GetPublicProperty";
 export * from "./fakes/InMemoryPropertyRepo";
 export * from "./fakes/InMemoryDocumentRepo";
 export * from "./fakes/InMemoryMediaStorage";

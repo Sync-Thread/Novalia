@@ -22,6 +22,7 @@ import {
   DeleteDocument as DeleteDocumentUseCase,
   GetAuthProfile,
   ListPublishedPropertiesPublic,
+  GetPublicProperty,
 } from "./application";
 import { SupabaseAuthService } from "./infrastructure/adapters/SupabaseAuthService";
 import { SupabasePropertyRepo } from "./infrastructure/adapters/SupabasePropertyRepo";
@@ -55,6 +56,7 @@ export interface PropertiesUseCases {
   deleteDocument: DeleteDocumentUseCase;
   getAuthProfile: GetAuthProfile;
   listPublishedPublic: ListPublishedPropertiesPublic;
+  getPublicProperty: GetPublicProperty;
 }
 
 export interface PropertiesContainer {
@@ -101,6 +103,7 @@ export function createPropertiesContainer(deps: PropertiesContainerDeps = {}): P
       deleteDocument: new DeleteDocumentUseCase({ documents: documentRepo }),
       getAuthProfile: new GetAuthProfile({ auth }),
       listPublishedPublic: new ListPublishedPropertiesPublic({ repo: publicPropertyRepo }),
+      getPublicProperty: new GetPublicProperty({ repo: publicPropertyRepo }),
     },
   };
 }
