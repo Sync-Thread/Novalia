@@ -1,5 +1,5 @@
 ﻿// src/modules/auth/UI/pages/Register.tsx
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -21,12 +21,14 @@ import AgentExtras from "../forms/AgentExtras";
 import OwnerExtras from "../forms/OwnerExtras";
 import Button from "../../../../shared/UI/Button";
 import SiteFooter from "../components/SiteFooter";
+import AccountTypeModal from "../components/AccountTypeModal";
 
 type Form = any;
 
 export default function Register() {
   const [sp] = useSearchParams();
   const nav = useNavigate();
+  const [showAccountTypeModal, setShowAccountTypeModal] = useState(false);
 
   const [notice, setNotice] = useState<{
     type: "success" | "error" | "info" | "warning";
@@ -56,6 +58,13 @@ export default function Register() {
     return t === "buyer" || t === "agent" || t === "owner" ? t : null;
   }, [sp]);
 
+  // Mostrar modal si no hay tipo de cuenta seleccionado
+  useEffect(() => {
+    if (!accountType) {
+      setShowAccountTypeModal(true);
+    }
+  }, [accountType]);
+
   const schema = useMemo(
     () => getRegisterSchema(accountType ?? "buyer"),
     [accountType]
@@ -73,7 +82,11 @@ export default function Register() {
     setNotice(null);
 
     if (!accountType) {
-      setNotice({ type: "warning", text: "Selecciona un tipo de cuenta." });
+      setNotice({
+        type: "warning",
+        text: "Debes seleccionar un tipo de cuenta antes de continuar.",
+      });
+      setShowAccountTypeModal(true);
       return;
     }
 
@@ -165,6 +178,15 @@ export default function Register() {
     }
   };
 
+  const handleAccountTypeSelection = (selectedType: AccountType | null) => {
+    if (!selectedType) return;
+    setShowAccountTypeModal(false);
+    // Actualizar la URL con el tipo de cuenta seleccionado
+    const params = new URLSearchParams(sp);
+    params.set("type", selectedType);
+    nav(`/auth/register?${params.toString()}`, { replace: true });
+  };
+
   return (
     <>
       <AuthHeader />
@@ -176,6 +198,13 @@ export default function Register() {
           {notice && (
             <Notice variant={notice.type} onClose={() => setNotice(null)}>
               {notice.text}
+            </Notice>
+          )}
+
+          {!accountType && (
+            <Notice variant="info">
+              Por favor, selecciona un tipo de cuenta para continuar con el
+              registro.
             </Notice>
           )}
 
@@ -261,6 +290,18 @@ export default function Register() {
         </AuthCard>
       </AuthLayout>
       <SiteFooter />
+
+      <AccountTypeModal
+        open={showAccountTypeModal}
+        onClose={() => {
+          setShowAccountTypeModal(false);
+          // Si el usuario cierra el modal sin seleccionar, redirigir al login
+          if (!accountType) {
+            nav("/auth/login");
+          }
+        }}
+        onContinue={handleAccountTypeSelection}
+      />
     </>
   );
 }

@@ -13,6 +13,8 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import logoSvg from "../../assets/icons/logo.svg";
 import { supabase } from "../../../core/supabase/client";
 import Modal from "../../UI/Modal";
+import AccountTypeModal from "../../../modules/auth/UI/components/AccountTypeModal";
+import type { AccountType } from "../../types/auth";
 
 type HeaderRole = "visitor" | "buyer" | "agent_org";
 type HeaderSize = "desktop" | "mobile";
@@ -364,6 +366,7 @@ export default function HeaderUpbarNovalia({
   const sheetCloseRef = useRef<HTMLButtonElement | null>(null);
   const [authPromptOpen, setAuthPromptOpen] = useState(false);
   const closeAuthPrompt = useCallback(() => setAuthPromptOpen(false), []);
+  const [accountTypeModalOpen, setAccountTypeModalOpen] = useState(false);
 
   const navItems = navItemsByRole[role];
 
@@ -442,8 +445,9 @@ export default function HeaderUpbarNovalia({
       onSignUp();
       return;
     }
-    navigate(buildAuthPath("/auth/register"));
-  }, [buildAuthPath, closeAuthPrompt, navigate, onSignUp]);
+    // Mostrar modal de selección de tipo de cuenta
+    setAccountTypeModalOpen(true);
+  }, [closeAuthPrompt, onSignUp]);
 
   const handleSignOut = useCallback(async () => {
     setDropdownOpen(false);
@@ -456,6 +460,15 @@ export default function HeaderUpbarNovalia({
     await supabase.auth.signOut();
     navigate("/auth/login");
   }, [navigate, onSignOut]);
+
+  const handleAccountTypeSelection = useCallback(
+    (selectedType: AccountType | null) => {
+      if (!selectedType) return;
+      setAccountTypeModalOpen(false);
+      navigate(buildAuthPath(`/auth/register?type=${selectedType}`));
+    },
+    [buildAuthPath, navigate]
+  );
 
   const toggleSheet = () => setSheetOpen((prev) => !prev);
 
@@ -960,6 +973,12 @@ export default function HeaderUpbarNovalia({
           cuenta en Novalia.
         </p>
       </Modal>
+
+      <AccountTypeModal
+        open={accountTypeModalOpen}
+        onClose={() => setAccountTypeModalOpen(false)}
+        onContinue={handleAccountTypeSelection}
+      />
     </>
   );
 }
