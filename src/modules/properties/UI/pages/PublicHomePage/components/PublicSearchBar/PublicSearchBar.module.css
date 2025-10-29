@@ -1,15 +1,16 @@
 ﻿.searchBar {
   --control-h: 44px;
-  --search-min: clamp(320px, 38vw, 400px);
+  --search-min: clamp(300px, 35vw, 380px);
   --filter-gap: 12px;
   --z-searchbar: 10;
   --z-menu: 100;
   position: relative;
   z-index: var(--z-searchbar);
-  width: 100%;
+  width: fit-content;
   max-width: 100%;
+  margin: 0 auto;
   display: grid;
-  grid-template-columns: minmax(var(--search-min), 1.5fr) minmax(130px, 1fr) minmax(130px, 1fr) minmax(90px, auto) minmax(100px, auto) minmax(var(--control-h), auto) minmax(var(--control-h), auto);
+  grid-template-columns: minmax(var(--search-min), 1.5fr) minmax(130px, 1fr) 0 minmax(130px, 1fr) minmax(130px, 1fr) minmax(var(--control-h), auto);
   grid-auto-rows: minmax(var(--control-h), auto);
   gap: var(--filter-gap);
   align-items: center;
@@ -19,6 +20,19 @@
   box-shadow: 0 24px 52px rgba(15, 23, 42, 0.18);
   border: 1px solid rgba(15, 23, 42, 0.04);
   overflow: visible;
+  transition: grid-template-columns 0.3s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.searchBar:has(.cityControl[data-visible]) {
+  grid-template-columns: minmax(var(--search-min), 1.5fr) minmax(130px, 1fr) minmax(130px, 1fr) minmax(130px, 1fr) minmax(130px, 1fr) minmax(var(--control-h), auto);
+}
+
+.searchBar:has(.resetControl .iconButton) {
+  grid-template-columns: minmax(var(--search-min), 1.5fr) minmax(130px, 1fr) 0 minmax(130px, 1fr) minmax(130px, 1fr) minmax(var(--control-h), auto) minmax(var(--control-h), auto);
+}
+
+.searchBar:has(.cityControl[data-visible]):has(.resetControl .iconButton) {
+  grid-template-columns: minmax(var(--search-min), 1.5fr) minmax(130px, 1fr) minmax(130px, 1fr) minmax(130px, 1fr) minmax(130px, 1fr) minmax(var(--control-h), auto) minmax(var(--control-h), auto);
 }
 
 .srOnly {
@@ -44,6 +58,42 @@
 
 .searchControl {
   min-width: var(--search-min);
+}
+
+.typeControl,
+.stateControl,
+.priceControl,
+.moreControl {
+  min-width: 130px;
+}
+
+.typeControl {
+  grid-column: 2 / 3;
+}
+
+.stateControl {
+  grid-column: 4 / 5;
+}
+
+.priceControl {
+  grid-column: 5 / 6;
+}
+
+.moreControl {
+  grid-column: 6 / 7;
+}
+
+.resetControl {
+  min-width: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.searchBar:has(.resetControl .iconButton) .resetControl {
+  min-width: var(--control-h);
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .searchField {
@@ -243,13 +293,31 @@
 }
 
 .priceControl,
-.moreControl,
+.moreControl {
+  position: relative;
+  display: flex;
+  align-items: center;
+  overflow: visible;
+}
+
 .resetControl {
   position: relative;
   display: flex;
   align-items: center;
-  min-width: max-content;
   overflow: visible;
+  grid-column: 7 / 8;
+  min-width: 0;
+  width: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s cubic-bezier(0.2, 0.7, 0.2, 1), width 0.3s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.searchBar:has(.resetControl .iconButton) .resetControl {
+  min-width: var(--control-h);
+  width: auto;
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .trigger {
@@ -444,32 +512,27 @@
 }
 
 .cityControl {
-  display: none;
+  display: flex;
+  min-width: 0;
+  width: auto;
   opacity: 0;
-  grid-column: auto;
+  overflow: hidden;
+  pointer-events: none;
+  grid-column: 3 / 4;
+  transition: opacity 0.3s cubic-bezier(0.2, 0.7, 0.2, 1);
 }
 
 .cityControl[data-visible] {
-  display: flex;
-  animation: cityFadeIn 0.28s cubic-bezier(0.2, 0.7, 0.2, 1) forwards;
-}
-
-@keyframes cityFadeIn {
-  from {
-    opacity: 0;
-    transform: scale(0.98);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
+  opacity: 1;
+  overflow: visible;
+  pointer-events: auto;
 }
 
 @media (max-width: 1279px) {
-  .searchBar {
+  .searchBar,
+  .searchBar:has(.cityControl[data-visible]) {
     grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
     gap: 10px;
-    max-width: 100%;
   }
 
   .searchControl {
@@ -506,7 +569,8 @@
 }
 
 @media (max-width: 767px) {
-  .searchBar {
+  .searchBar,
+  .searchBar:has(.cityControl[data-visible]) {
     display: flex;
     align-items: stretch;
     overflow-x: auto;

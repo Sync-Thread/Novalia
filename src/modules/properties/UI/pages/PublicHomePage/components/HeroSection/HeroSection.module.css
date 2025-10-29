@@ -107,7 +107,8 @@
 }
 
 .card {
-  width: min(100%, 980px);
+  width: fit-content;
+  max-width: min(100%, 1280px);
   margin: 0 auto;
   overflow: visible;
   transition:
