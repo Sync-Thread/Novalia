@@ -7,12 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview",
-    "test": "vitest",
-    "test:ui": "vitest --ui",
-    "test:run": "vitest run",
-    "test:coverage": "vitest run --coverage",
-    "gen:types": "npx supabase gen types typescript --project-id szfretuzbmtrxhlzdcpy > src/core/supabase/types/supabase.ts"
+    "preview": "vite preview"
   },
   "dependencies": {
     "@fontsource/inter": "^5.2.8",
@@ -38,7 +33,6 @@
     "@types/react-dom": "^19.1.9",
     "@vitejs/plugin-react": "^5.0.3",
     "@vitest/coverage-v8": "^3.2.4",
-    "@vitest/ui": "^3.2.4",
     "eslint": "^9.37.0",
     "eslint-config-prettier": "^9.1.2",
     "eslint-plugin-import": "^2.32.0",
