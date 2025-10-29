@@ -1150,24 +1150,18 @@ function PublishWizard() {
 
               <label className="wizard-field">
                 <span className="wizard-field__label">Tipo de propiedad *</span>
-                <div className="select-control">
-                  <select
-                    className="select-control__native"
-                    value={form.propertyType}
-                    onChange={(event) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        propertyType: event.target.value as PropertyType,
-                      }))
-                    }
-                  >
-                    {PROPERTY_TYPE_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                <CustomSelect
+                  value={form.propertyType}
+                  options={PROPERTY_TYPE_OPTIONS}
+                  onChange={(value) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      propertyType: value as PropertyType,
+                    }))
+                  }
+                  placeholder="Selecciona tipo de propiedad"
+                  className="wizard-field__control"
+                />
               </label>
 
               <label className="wizard-field">
