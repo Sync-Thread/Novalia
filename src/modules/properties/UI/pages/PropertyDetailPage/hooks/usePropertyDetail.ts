@@ -4,7 +4,7 @@ import { supabase } from "../../../../../../core/supabase/client";
 import { createPropertiesContainer } from "../../../../properties.container";
 import { SupabaseAuthService } from "../../../../infrastructure/adapters/SupabaseAuthService";
 import { SupabaseMediaStorage } from "../../../../infrastructure/adapters/SupabaseMediaStorage";
-import { getPresignedUrlForDisplay } from "../../../../infrastructure/adapters/MediaStorage";
+import { getPresignedUrlForDisplay, getPresignedUrlDirect } from "../../../../infrastructure/adapters/MediaStorage";
 import type { PropertyDTO } from "../../../../application/dto/PropertyDTO";
 
 const authService = new SupabaseAuthService({ client: supabase });
@@ -58,20 +58,27 @@ export function usePropertyDetail(propertyId: string | undefined): UsePropertyDe
 
       const property = result.value;
 
-      // Cargar todas las imágenes de la galería
+      // Cargar todas las imágenes y videos de la galería
       let coverUrl: string | null = null;
       const galleryUrls: string[] = [];
       const mediaListResult = await mediaStorage.listMedia(propertyId);
 
       if (mediaListResult.isOk()) {
-        const allMedia = mediaListResult.value.filter((m) => m.type === "image");
-        const coverMedia = allMedia.find((m) => m.isCover) || allMedia[0];
+        // Incluir imágenes y videos
+        const allMedia = mediaListResult.value.filter((m) => m.type === "image" || m.type === "video");
+        const coverMedia = allMedia.find((m) => m.isCover && m.type === "image") || allMedia.find((m) => m.type === "image") || allMedia[0];
 
-        // Cargar URLs para todas las imágenes en paralelo
+        // Cargar URLs para todas las imágenes y videos en paralelo
+        // Para videos usar URL directa (streaming), para imágenes usar blob URL
         const urlPromises = allMedia.map(async (media) => {
           if (media.s3Key) {
             try {
-              return await getPresignedUrlForDisplay(media.s3Key);
+              // Usar URL directa para videos, blob URL para imágenes
+              if (media.type === "video") {
+                return await getPresignedUrlDirect(media.s3Key);
+              } else {
+                return await getPresignedUrlForDisplay(media.s3Key);
+              }
             } catch {
               return null;
             }
@@ -85,7 +92,7 @@ export function usePropertyDetail(propertyId: string | undefined): UsePropertyDe
         const validUrls = urls.filter((url): url is string => url !== null);
         galleryUrls.push(...validUrls);
 
-        // Establecer coverUrl (primera imagen o la marcada como cover)
+        // Establecer coverUrl (priorizar imágenes como cover)
         if (coverMedia?.s3Key) {
           coverUrl = await getPresignedUrlForDisplay(coverMedia.s3Key);
         }
