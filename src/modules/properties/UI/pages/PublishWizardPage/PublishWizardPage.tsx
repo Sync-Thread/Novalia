@@ -1342,12 +1342,17 @@ function PublishWizard() {
             <div className="form-grid">
               {/* Línea de dirección completa */}
               <label className="wizard-field form-col-2">
-                <span className="wizard-field__label">Dirección (Calle y número)</span>
+                <span className="wizard-field__label">
+                  Dirección (Calle y número)
+                </span>
                 <input
                   className="wizard-field__control"
                   value={form.addressLine}
                   onChange={(event) =>
-                    setForm((prev) => ({ ...prev, addressLine: event.target.value }))
+                    setForm((prev) => ({
+                      ...prev,
+                      addressLine: event.target.value,
+                    }))
                   }
                   placeholder="Ej: Av. Reforma 123, Int. 4B"
                 />
@@ -1360,7 +1365,10 @@ function PublishWizard() {
                   className="wizard-field__control"
                   value={form.neighborhood}
                   onChange={(event) =>
-                    setForm((prev) => ({ ...prev, neighborhood: event.target.value }))
+                    setForm((prev) => ({
+                      ...prev,
+                      neighborhood: event.target.value,
+                    }))
                   }
                   placeholder="Ej: Polanco"
                 />
