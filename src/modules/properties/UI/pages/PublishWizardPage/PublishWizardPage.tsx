@@ -145,8 +145,25 @@ function PublishWizard() {
     Array<{ value: string; label: string; lat: number; lng: number }>
   >([]);
   const [loadingMunicipalities, setLoadingMunicipalities] = useState(false);
+  const [isLoadingProperty, setIsLoadingProperty] = useState(false);
 
   const isEditingDraft = isEditing && propertyStatus === "draft";
+
+  // Función para verificar si el formulario tiene datos reales (no está vacío por carga pendiente)
+  const hasRealFormData = (): boolean => {
+    // Si hay propertyId, asumimos que ya tiene datos guardados
+    if (form.propertyId) return true;
+
+    // Si NO hay propertyId, verificar que al menos tenga datos básicos
+    const hasBasicData =
+      form.title.trim().length > 0 ||
+      form.description.trim().length > 0 ||
+      form.priceAmount > 0 ||
+      form.city.trim().length > 0 ||
+      form.state.trim().length > 0;
+
+    return hasBasicData;
+  };
 
   // const [coords, setCoords] = useState<Coords | null>(null);
 
@@ -302,6 +319,7 @@ function PublishWizard() {
     if (!editingId) return;
     let active = true;
     const load = async () => {
+      setIsLoadingProperty(true); // Marcar que estamos cargando
       const result = await getProperty(editingId);
       if (!active) return;
       if (result.isOk()) {
@@ -343,6 +361,7 @@ function PublishWizard() {
       } else {
         setMessage("No pudimos cargar los datos de la propiedad.");
       }
+      setIsLoadingProperty(false); // Marcar que terminamos de cargar
     };
     void load();
     return () => {
@@ -417,11 +436,25 @@ function PublishWizard() {
     // Solo procesar si estamos en el paso "media" (índice 3)
     if (currentStep !== 3) return;
 
+    // Si estamos cargando una propiedad existente, NO hacer nada
+    if (isLoadingProperty) {
+      console.log("⏸️ Esperando carga de propiedad desde BD...");
+      return;
+    }
+
     let active = true;
 
     const prepareMediaStep = async () => {
       // Si no hay propertyId, guardar borrador automáticamente primero
       if (!form.propertyId) {
+        // VALIDACIÓN CRÍTICA: Verificar que el formulario tenga datos reales
+        if (!hasRealFormData()) {
+          console.log(
+            "⏸️ Formulario sin datos reales detectado, esperando entrada del usuario..."
+          );
+          return; // No hacer nada, esperar a que se cargue el formulario o el usuario ingrese datos
+        }
+
         console.log(
           "📝 Paso media detectado sin propertyId, guardando borrador..."
         );
@@ -457,7 +490,7 @@ function PublishWizard() {
     return () => {
       active = false;
     };
-  }, [currentStep, form.propertyId]);
+  }, [currentStep, form.propertyId, isLoadingProperty]);
 
   // Cargar documentos desde BD cuando llegue al paso "publish"
   useEffect(() => {
@@ -541,31 +574,25 @@ function PublishWizard() {
   });
 
   const handleSave = async (): Promise<string | null> => {
-    setSaving(true);
-    setMessage(null);
-    const payload = buildDraftPayload();
+    // VALIDACIÓN: Evitar guardados duplicados
+    if (saving) {
+      console.log("⏸️ Ya hay un guardado en progreso, bloqueando duplicado...");
+      return null;
+    }
 
-    if (!form.propertyId) {
-      // console.log('antes de "crear"');
+    // VALIDACIÓN: Si estamos cargando, esperar
+    if (isLoadingProperty) {
+      console.log("⏸️ Cargando propiedad, bloqueando guardado...");
+      setMessage("⏳ Cargando datos, espera un momento...");
+      return null;
+    }
 
-      const result = await createProperty(payload as any);
-      // console.log("despues de crear, mas result");
-      // console.log(result);
+    // VALIDACIÓN: Si ya existe propertyId, solo actualizar
+    if (form.propertyId) {
+      setSaving(true);
+      setMessage(null);
+      const payload = buildDraftPayload();
 
-      if (result.isOk()) {
-        const id = result.value.id;
-        setForm((prev) => ({ ...prev, propertyId: id }));
-        await refreshDocs(id);
-        setMessage("Borrador guardado.");
-        setSavedCompleteness(completion);
-        setSaving(false);
-        return id; // Retornar el nuevo propertyId
-      } else {
-        setMessage("No pudimos guardar el borrador.");
-        setSaving(false);
-        return null;
-      }
-    } else {
       const result = await updateProperty({
         id: form.propertyId,
         patch: payload,
@@ -584,6 +611,33 @@ function PublishWizard() {
       }
       setSaving(false);
       return success ? form.propertyId : null;
+    }
+
+    // VALIDACIÓN: Si NO hay propertyId, verificar que tenga datos reales
+    if (!hasRealFormData()) {
+      setMessage("⚠️ Por favor, completa al menos algunos campos básicos.");
+      return null;
+    }
+
+    // Crear nueva propiedad
+    setSaving(true);
+    setMessage(null);
+    const payload = buildDraftPayload();
+
+    const result = await createProperty(payload as any);
+
+    if (result.isOk()) {
+      const id = result.value.id;
+      setForm((prev) => ({ ...prev, propertyId: id }));
+      await refreshDocs(id);
+      setMessage("Borrador guardado.");
+      setSavedCompleteness(completion);
+      setSaving(false);
+      return id; // Retornar el nuevo propertyId
+    } else {
+      setMessage("No pudimos guardar el borrador.");
+      setSaving(false);
+      return null;
     }
   };
 
@@ -986,18 +1040,41 @@ function PublishWizard() {
 
   // Manejar click en botón de verificar RPP
   const handleVerifyRppClick = async () => {
-    // Si no hay propertyId, mostrar modal pidiendo guardar primero
+    // VALIDACIÓN: Si estamos cargando la propiedad, no hacer nada
+    if (isLoadingProperty) {
+      console.log("⏸️ Esperando carga de propiedad, acción bloqueada...");
+      return;
+    }
+
+    // Si no hay propertyId, verificar que tenga datos reales antes de mostrar modal
     if (!form.propertyId) {
+      if (!hasRealFormData()) {
+        setMessage(
+          "⚠️ Por favor, completa al menos algunos campos básicos antes de verificar el RPP."
+        );
+        return;
+      }
       setShowSaveBeforeRppModal(true);
       return;
     }
 
-    // Si ya hay propertyId, navegar directamente
-    navigate(`/verify-rpp?propertyId=${form.propertyId}`);
+    // Guardar el paso actual para regresar después
+    const currentStepId = steps[currentStep].id;
+
+    // Si ya hay propertyId, navegar directamente pasando el step actual
+    navigate(
+      `/verify-rpp?propertyId=${form.propertyId}&returnStep=${currentStepId}`
+    );
   };
 
   // Guardar y luego ir a verificación RPP
   const handleSaveAndVerifyRpp = async () => {
+    // VALIDACIÓN: Evitar guardados duplicados
+    if (saving || isLoadingProperty) {
+      console.log("⏸️ Operación en progreso, bloqueando acción duplicada...");
+      return;
+    }
+
     setShowSaveBeforeRppModal(false);
     setMessage("Guardando borrador antes de verificar RPP...");
 
@@ -1012,9 +1089,14 @@ function PublishWizard() {
 
     setMessage("✅ Borrador guardado. Redirigiendo a verificación RPP...");
 
+    // Guardar el paso actual para regresar después
+    const currentStepId = steps[currentStep].id;
+
     // Pequeña pausa para que el usuario vea el mensaje
     setTimeout(() => {
-      navigate(`/verify-rpp?propertyId=${savedPropertyId}`);
+      navigate(
+        `/verify-rpp?propertyId=${savedPropertyId}&returnStep=${currentStepId}`
+      );
     }, 500);
   };
 
@@ -1581,8 +1663,11 @@ function PublishWizard() {
                 type="button"
                 className="btn btn-primary btn-sm"
                 onClick={handleVerifyRppClick}
+                disabled={isLoadingProperty || saving}
               >
-                Verificar documento ahora
+                {isLoadingProperty
+                  ? "Cargando..."
+                  : "Verificar documento ahora"}
               </button>
             </div>
           )}
@@ -1640,9 +1725,13 @@ function PublishWizard() {
           type="button"
           className="btn btn-outline"
           onClick={handleSave}
-          disabled={saving}
+          disabled={saving || isLoadingProperty}
         >
-          {saving ? "Guardando..." : "Guardar borrador"}
+          {saving
+            ? "Guardando..."
+            : isLoadingProperty
+              ? "Cargando..."
+              : "Guardar borrador"}
         </button>
         {currentStep < steps.length - 1 ? (
           <button type="button" className="btn btn-primary" onClick={goNext}>
@@ -1653,13 +1742,15 @@ function PublishWizard() {
             type="button"
             className="btn btn-primary"
             onClick={handlePublish}
-            disabled={!form.propertyId}
+            disabled={!form.propertyId || saving || isLoadingProperty}
           >
-            {isEditingDraft
-              ? "Publicar propiedad"
-              : isEditing
-                ? "Actualizar propiedad"
-                : "Publicar propiedad"}
+            {saving || isLoadingProperty
+              ? "Procesando..."
+              : isEditingDraft
+                ? "Publicar propiedad"
+                : isEditing
+                  ? "Actualizar propiedad"
+                  : "Publicar propiedad"}
           </button>
         )}
       </footer>
@@ -1684,9 +1775,11 @@ function PublishWizard() {
               type="button"
               className="btn btn-primary"
               onClick={handleSaveAndVerifyRpp}
-              disabled={saving}
+              disabled={saving || isLoadingProperty}
             >
-              {saving ? "Guardando..." : "Guardar y continuar"}
+              {saving || isLoadingProperty
+                ? "Guardando..."
+                : "Guardar y continuar"}
             </button>
           </>
         }
