@@ -52,12 +52,21 @@ export function useTelemetry() {
 
   /**
    * Registra una vista de propiedad
+   * 
+   * @param propertyId - ID de la propiedad vista
+   * @param metadata - Metadatos adicionales
+   * @param includeUserId - Si true, incluye el userId autenticado. Si false, solo usa fingerprint (para vistas públicas anónimas)
    */
   const trackPropertyView = useCallback(
-    async (propertyId: string, metadata?: Record<string, any>) => {
+    async (
+      propertyId: string,
+      metadata?: Record<string, any>,
+      includeUserId: boolean = true
+    ) => {
       await trackEvent({
         eventType: "page_view",
         propertyId,
+        userId: includeUserId ? undefined : null, // undefined = auto-detect, null = force anonymous
         metadata,
       });
     },
