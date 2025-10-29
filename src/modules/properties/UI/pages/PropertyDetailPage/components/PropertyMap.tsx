@@ -14,6 +14,7 @@ interface PropertyMapProps {
  * Componente de mapa interactivo que muestra la ubicación de una propiedad
  * Basado en la lógica del wizard de publicación
  */
+
 export default function PropertyMap({ lat, lng, label }: PropertyMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const leafletMap = useRef<L.Map | null>(null);
