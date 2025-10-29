@@ -47,7 +47,7 @@ export const PropertyPublicCard = memo(function PropertyPublicCard({
 
   const handleClick = async (event: React.MouseEvent<HTMLAnchorElement>) => {
     event.preventDefault(); // Prevenir navegación inmediata
-    
+
     try {
       // Registrar el click y esperar (con timeout de 500ms máximo)
       const trackingPromise = trackPropertyClick(id, {
@@ -55,11 +55,11 @@ export const PropertyPublicCard = memo(function PropertyPublicCard({
         propertyType: propertyTypeLabel,
         hasImage: Boolean(coverUrl),
       });
-      
+
       // Esperar máximo 500ms para no bloquear la UI
       await Promise.race([
         trackingPromise,
-        new Promise(resolve => setTimeout(resolve, 500))
+        new Promise((resolve) => setTimeout(resolve, 500)),
       ]);
     } catch (error) {
       console.warn("Error tracking click:", error);

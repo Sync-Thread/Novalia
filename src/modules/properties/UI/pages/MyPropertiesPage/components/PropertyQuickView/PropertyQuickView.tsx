@@ -145,7 +145,7 @@ export function PropertyQuickView({
       if (!active) return;
       if (propertyResult.isOk()) {
         setProperty(propertyResult.value as ExtendedProperty);
-        
+
         // Registrar vista de la propiedad en QuickView
         trackPropertyView(propertyId, {
           source: "quickview",
