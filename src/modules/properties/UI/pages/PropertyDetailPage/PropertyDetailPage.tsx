@@ -37,7 +37,7 @@ export default function PropertyDetailPage() {
     useSimilarProperties(data?.property || null, 3);
 
   const handleBack = () => {
-    navigate("/");
+    navigate(-1);
   };
 
   const handleContact = () => {
@@ -68,7 +68,7 @@ export default function PropertyDetailPage() {
             aria-label="Regresar a la búsqueda"
           >
             <ArrowLeft size={18} aria-hidden="true" />
-            Regresar a la búsqueda
+            Regresar
           </button>
 
           <div className={styles.errorBox} role="alert">
@@ -79,7 +79,7 @@ export default function PropertyDetailPage() {
     );
   }
 
-  const { property, coverUrl } = data;
+  const { property, coverUrl, galleryUrls } = data;
 
   return (
     <div className={styles.page}>
@@ -92,7 +92,7 @@ export default function PropertyDetailPage() {
           aria-label="Regresar a la búsqueda"
         >
           <ArrowLeft size={18} aria-hidden="true" />
-          Regresar a la búsqueda
+          Regresar
         </button>
 
         {/* Título */}
@@ -103,7 +103,11 @@ export default function PropertyDetailPage() {
           className={styles.headerBlock}
           aria-labelledby="header-section"
         >
-          <GalleryPlaceholder coverUrl={coverUrl} title={property.title} />
+          <GalleryPlaceholder
+            coverUrl={coverUrl}
+            galleryUrls={galleryUrls}
+            title={property.title}
+          />
           <SummaryPanel property={property} />
         </section>
 

@@ -13,6 +13,7 @@ const mediaStorage = new SupabaseMediaStorage({ supabase, authService });
 export interface PropertyDetailData {
   property: PropertyDTO;
   coverUrl: string | null;
+  galleryUrls: string[];
 }
 
 export interface UsePropertyDetailResult {
@@ -57,22 +58,40 @@ export function usePropertyDetail(propertyId: string | undefined): UsePropertyDe
 
       const property = result.value;
 
-      // Cargar imagen de portada
+      // Cargar todas las imágenes de la galería
       let coverUrl: string | null = null;
+      const galleryUrls: string[] = [];
       const mediaListResult = await mediaStorage.listMedia(propertyId);
 
       if (mediaListResult.isOk()) {
-        const coverMedia = mediaListResult.value.find((m) => m.isCover) 
-          || mediaListResult.value[0];
+        const allMedia = mediaListResult.value.filter((m) => m.type === "image");
+        const coverMedia = allMedia.find((m) => m.isCover) || allMedia[0];
 
+        // Cargar URLs para todas las imágenes en paralelo
+        const urlPromises = allMedia.map(async (media) => {
+          if (media.s3Key) {
+            try {
+              return await getPresignedUrlForDisplay(media.s3Key);
+            } catch {
+              return null;
+            }
+          }
+          return null;
+        });
+
+        const urls = await Promise.all(urlPromises);
+        
+        // Filtrar URLs válidas
+        const validUrls = urls.filter((url): url is string => url !== null);
+        galleryUrls.push(...validUrls);
+
+        // Establecer coverUrl (primera imagen o la marcada como cover)
         if (coverMedia?.s3Key) {
-          const urlResult = await getPresignedUrlForDisplay(coverMedia.s3Key);
-          // getPresignedUrlForDisplay returns string directly
-          coverUrl = urlResult;
+          coverUrl = await getPresignedUrlForDisplay(coverMedia.s3Key);
         }
       }
 
-      setData({ property, coverUrl });
+      setData({ property, coverUrl, galleryUrls });
       setLoading(false);
     } catch (err) {
       console.error("Error loading property detail:", err);

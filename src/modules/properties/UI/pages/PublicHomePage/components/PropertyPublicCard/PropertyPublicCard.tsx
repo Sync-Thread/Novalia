@@ -1,9 +1,12 @@
 import { memo } from "react";
 import { BedDouble, Bath, Ruler } from "lucide-react";
 import { formatAddress } from "../../../../utils/formatAddress";
+// import { useTelemetry } from "../../../../../telemetry/UI/hooks/useTelemetry";
+import { useTelemetry } from "../../../../../../telemetry/UI/hooks/useTelemetry";
 import styles from "./PropertyPublicCard.module.css";
 
 export interface PropertyPublicCardProps {
+  id: string; // Agregado para tracking
   title: string;
   priceLabel: string;
   href: string;
@@ -27,6 +30,7 @@ function formatAmenityValue(value?: number | null, fallback = "N/D") {
 
 // Card de propiedad pública para listado con amenidades básicas.
 export const PropertyPublicCard = memo(function PropertyPublicCard({
+  id,
   title,
   priceLabel,
   href,
@@ -39,11 +43,37 @@ export const PropertyPublicCard = memo(function PropertyPublicCard({
 }: PropertyPublicCardProps) {
   const locationLabel = formatAddress(address);
   const displayLocation = locationLabel || "Ubicación reservada";
+  const { trackPropertyClick } = useTelemetry();
+
+  const handleClick = async (event: React.MouseEvent<HTMLAnchorElement>) => {
+    event.preventDefault(); // Prevenir navegación inmediata
+
+    try {
+      // Registrar el click y esperar (con timeout de 500ms máximo)
+      const trackingPromise = trackPropertyClick(id, {
+        source: "public_home",
+        propertyType: propertyTypeLabel,
+        hasImage: Boolean(coverUrl),
+      });
+
+      // Esperar máximo 500ms para no bloquear la UI
+      await Promise.race([
+        trackingPromise,
+        new Promise((resolve) => setTimeout(resolve, 500)),
+      ]);
+    } catch (error) {
+      console.warn("Error tracking click:", error);
+    } finally {
+      // Navegar después del tracking (o timeout)
+      window.location.href = href;
+    }
+  };
 
   return (
     <a
       className={styles.card}
       href={href}
+      onClick={handleClick}
       aria-label={`Ver detalle de ${title}`}
     >
       <div className={styles.media}>
