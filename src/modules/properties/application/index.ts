@@ -3,14 +3,17 @@ export * from "./ports/DocumentRepo";
 export * from "./ports/MediaStorage";
 export * from "./ports/AuthService";
 export * from "./ports/Clock";
+export * from "./ports/PublicPropertyRepo";
 
 export * from "./dto/PropertyDTO";
 export * from "./dto/FiltersDTO";
 export * from "./dto/MediaDTO";
 export * from "./dto/DocumentDTO";
+export * from "./dto/PublicPropertyDTO";
 
 export * from "./validators/property.schema";
 export * from "./validators/filters.schema";
+export * from "./validators/publicFilters.schema";
 
 export * as PropertyMapper from "./mappers/property.mapper";
 export * as MediaMapper from "./mappers/media.mapper";
@@ -35,7 +38,8 @@ export * from "./use-cases/documents/VerifyRpp";
 export * from "./use-cases/documents/ListPropertyDocuments";
 export * from "./use-cases/documents/DeleteDocument";
 export * from "./use-cases/auth/GetAuthProfile";
-
+export * from "./use-cases/public/ListPublishedPropertiesPublic";
+export * from "./use-cases/public/GetPublicProperty";
 export * from "./fakes/InMemoryPropertyRepo";
 export * from "./fakes/InMemoryDocumentRepo";
 export * from "./fakes/InMemoryMediaStorage";

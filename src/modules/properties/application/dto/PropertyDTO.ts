@@ -24,6 +24,8 @@ export type AddressDTO = {
 export type LocationDTO = { lat: number; lng: number } | null;
 
 export interface PropertyDTO {
+  media: any;
+  documents: any;
   id: string;
   orgId: string;
   listerUserId: string | null;

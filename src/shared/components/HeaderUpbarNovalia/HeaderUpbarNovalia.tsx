@@ -1,6 +1,7 @@
-// Header global de Novalia. Reutilizable. No modificar logica de negocio aqui.
+﻿// Header global de Novalia. Reutilizable. No modificar logica de negocio aqui.
 import {
   type KeyboardEvent,
+  type MouseEvent,
   type ReactNode,
   useCallback,
   useEffect,
@@ -11,6 +12,9 @@ import {
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import logoSvg from "../../assets/icons/logo.svg";
 import { supabase } from "../../../core/supabase/client";
+import Modal from "../../UI/Modal";
+import AccountTypeModal from "../../../modules/auth/UI/components/AccountTypeModal";
+import type { AccountType } from "../../types/auth";
 
 type HeaderRole = "visitor" | "buyer" | "agent_org";
 type HeaderSize = "desktop" | "mobile";
@@ -35,8 +39,12 @@ interface NavItem {
   label: string;
   to: string;
   icon: ReactNode;
-  match?: (input: { pathname: string; searchParams: URLSearchParams }) => boolean;
+  match?: (input: {
+    pathname: string;
+    searchParams: URLSearchParams;
+  }) => boolean;
   "aria-label"?: string;
+  requiresAuth?: boolean;
 }
 
 interface DropdownItem {
@@ -52,18 +60,27 @@ const MOBILE_BREAKPOINT = 768;
 const navItemsByRole: Record<HeaderRole, NavItem[]> = {
   visitor: [
     {
+      key: "home",
+      label: "Inicio",
+      to: "/",
+      icon: <HomeIcon />,
+      match: ({ pathname }) => pathname === "/",
+    },
+    {
       key: "saved",
-      label: "Guardados 🔒",
+      label: "Guardados",
       to: "/auth/login",
       icon: <BookmarkIcon />,
-      "aria-label": "Abrir guardados (requiere iniciar sesion)",
+      "aria-label": "Abrir guardados (requiere iniciar sesiÃ³n)",
+      requiresAuth: true,
     },
     {
       key: "chats",
-      label: "Chats 🔒",
+      label: "Chats",
       to: "/auth/login",
       icon: <MailIcon />,
-      "aria-label": "Abrir chats (requiere iniciar sesion)",
+      "aria-label": "Abrir chats (requiere iniciar sesiÃ³n)",
+      requiresAuth: true,
     },
   ],
   buyer: [
@@ -71,10 +88,9 @@ const navItemsByRole: Record<HeaderRole, NavItem[]> = {
     {
       key: "home",
       label: "Inicio",
-      to: "/dashboard",
+      to: "/",
       icon: <HomeIcon />,
-      match: ({ pathname, searchParams }) =>
-        pathname === "/dashboard" && !searchParams.has("view"),
+      match: ({ pathname }) => pathname === "/",
     },
     {
       key: "saved",
@@ -98,9 +114,9 @@ const navItemsByRole: Record<HeaderRole, NavItem[]> = {
     {
       key: "home",
       label: "Inicio",
-      to: "/dashboard",
+      to: "/",
       icon: <HomeIcon />,
-      match: ({ pathname, searchParams }) => pathname === "/dashboard" && !searchParams.has("view"),
+      match: ({ pathname }) => pathname === "/",
     },
     {
       key: "properties",
@@ -145,7 +161,7 @@ function computeInitials(name: string | null, fallback: string | null): string {
     const parts = name.trim().split(/\s+/).slice(0, 2);
     if (parts.length > 0) {
       return parts
-        .map(part => part.charAt(0).toUpperCase())
+        .map((part) => part.charAt(0).toUpperCase())
         .join("")
         .slice(0, 2);
     }
@@ -157,7 +173,11 @@ function computeInitials(name: string | null, fallback: string | null): string {
 }
 
 function useHeaderAuth(roleOverride?: HeaderRole) {
-  const [state, setState] = useState<{ role: HeaderRole; user: HeaderUser | null; loading: boolean }>({
+  const [state, setState] = useState<{
+    role: HeaderRole;
+    user: HeaderUser | null;
+    loading: boolean;
+  }>({
     role: roleOverride ?? "visitor",
     user: null,
     loading: !roleOverride,
@@ -177,7 +197,7 @@ function useHeaderAuth(roleOverride?: HeaderRole) {
       };
     }
 
-    setState(prev => ({ ...prev, loading: true }));
+    setState((prev) => ({ ...prev, loading: true }));
 
     const load = async () => {
       try {
@@ -216,8 +236,11 @@ function useHeaderAuth(roleOverride?: HeaderRole) {
           (sessionUser.user_metadata?.full_name as string | undefined) ??
           null;
         const email =
-          (profile?.email as string | null | undefined) ?? sessionUser.email ?? null;
-        const avatarUrl = (sessionUser.user_metadata?.avatar_url as string | undefined) ?? null;
+          (profile?.email as string | null | undefined) ??
+          sessionUser.email ??
+          null;
+        const avatarUrl =
+          (sessionUser.user_metadata?.avatar_url as string | undefined) ?? null;
 
         setState({
           role,
@@ -232,7 +255,7 @@ function useHeaderAuth(roleOverride?: HeaderRole) {
       } catch (err) {
         console.warn("[upbar] fallback a rol buyer por error", err);
         if (!isMounted) return;
-        setState(prev => ({
+        setState((prev) => ({
           role: prev.role === "visitor" ? "buyer" : prev.role,
           user: prev.user,
           loading: false,
@@ -242,8 +265,24 @@ function useHeaderAuth(roleOverride?: HeaderRole) {
 
     void load();
 
+    // Escuchar cambios de autenticación en tiempo real
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!isMounted) return;
+
+      if (!session) {
+        setState({ role: "visitor", user: null, loading: false });
+        return;
+      }
+
+      // Recargar perfil cuando cambia la sesión
+      void load();
+    });
+
     return () => {
       isMounted = false;
+      subscription.unsubscribe();
     };
   }, [roleOverride]);
 
@@ -263,7 +302,10 @@ function useResponsiveSize(sizeOverride?: HeaderSize) {
       return;
     }
 
-    if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+    if (
+      typeof window === "undefined" ||
+      typeof window.matchMedia !== "function"
+    ) {
       return;
     }
 
@@ -302,11 +344,29 @@ export default function HeaderUpbarNovalia({
   const isMobile = size === "mobile";
   const isOnPropertiesList = location.pathname === "/properties";
 
+  const buildAuthPath = useCallback(
+    (basePath: string) => {
+      const current = `${location.pathname}${location.search}${location.hash}`;
+      if (current.startsWith("/auth")) {
+        return basePath;
+      }
+      const target = current || "/";
+      const separator = basePath.includes("?") ? "&" : "?";
+      return `${basePath}${separator}returnTo=${encodeURIComponent(target)}`;
+    },
+    [location.hash, location.pathname, location.search]
+  );
+
   const [sheetOpen, setSheetOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
-  const dropdownItemsRef = useRef<(HTMLAnchorElement | HTMLButtonElement | null)[]>([]);
+  const dropdownItemsRef = useRef<
+    (HTMLAnchorElement | HTMLButtonElement | null)[]
+  >([]);
   const sheetCloseRef = useRef<HTMLButtonElement | null>(null);
+  const [authPromptOpen, setAuthPromptOpen] = useState(false);
+  const closeAuthPrompt = useCallback(() => setAuthPromptOpen(false), []);
+  const [accountTypeModalOpen, setAccountTypeModalOpen] = useState(false);
 
   const navItems = navItemsByRole[role];
 
@@ -371,22 +431,23 @@ export default function HeaderUpbarNovalia({
   }, [isMobile]);
 
   const handleSignIn = useCallback(() => {
+    closeAuthPrompt();
     if (onSignIn) {
-      void onSignIn();
+      onSignIn();
       return;
     }
-    // TODO(LOGICA): conectar onSignIn con el modulo de Auth.
-    navigate("/auth/login");
-  }, [navigate, onSignIn]);
+    navigate(buildAuthPath("/auth/login"));
+  }, [buildAuthPath, closeAuthPrompt, navigate, onSignIn]);
 
   const handleSignUp = useCallback(() => {
+    closeAuthPrompt();
     if (onSignUp) {
-      void onSignUp();
+      onSignUp();
       return;
     }
-    // TODO(LOGICA): conectar onSignUp con el modulo de Auth.
-    navigate("/auth/register");
-  }, [navigate, onSignUp]);
+    // Mostrar modal de selección de tipo de cuenta
+    setAccountTypeModalOpen(true);
+  }, [closeAuthPrompt, onSignUp]);
 
   const handleSignOut = useCallback(async () => {
     setDropdownOpen(false);
@@ -400,9 +461,18 @@ export default function HeaderUpbarNovalia({
     navigate("/auth/login");
   }, [navigate, onSignOut]);
 
-  const toggleSheet = () => setSheetOpen(prev => !prev);
+  const handleAccountTypeSelection = useCallback(
+    (selectedType: AccountType | null) => {
+      if (!selectedType) return;
+      setAccountTypeModalOpen(false);
+      navigate(buildAuthPath(`/auth/register?type=${selectedType}`));
+    },
+    [buildAuthPath, navigate]
+  );
 
-  const toggleDropdown = () => setDropdownOpen(prev => !prev);
+  const toggleSheet = () => setSheetOpen((prev) => !prev);
+
+  const toggleDropdown = () => setDropdownOpen((prev) => !prev);
 
   const closeSheet = useCallback(() => {
     setSheetOpen(false);
@@ -412,14 +482,22 @@ export default function HeaderUpbarNovalia({
     if (role === "agent_org") {
       if (isOnPropertiesList) return null;
       return (
-        <Link to="/properties/new" className="btn btn-primary" onClick={closeSheet}>
+        <Link
+          to="/properties/new"
+          className="btn btn-primary"
+          onClick={closeSheet}
+        >
           Publicar propiedad
         </Link>
       );
     }
     if (role === "buyer") {
       return (
-        <Link to="/auth/register?type=agent" className="btn btn-outline" onClick={closeSheet}>
+        <Link
+          to="/auth/register?type=agent"
+          className="btn btn-outline"
+          onClick={closeSheet}
+        >
           Publica tu propiedad
         </Link>
       );
@@ -438,15 +516,29 @@ export default function HeaderUpbarNovalia({
         { key: "saved", label: "Mis guardados", to: "/dashboard?view=saved" },
         { key: "chats", label: "Mis chats", to: "/dashboard?view=chats" },
         { key: "divider", label: "" },
-        { key: "logout", label: "Cerrar sesion", action: handleSignOut, tone: "danger" },
+        {
+          key: "logout",
+          label: "Cerrar sesion",
+          action: handleSignOut,
+          tone: "danger",
+        },
       ];
     }
     if (role === "agent_org") {
       return [
         { key: "profile", label: "Perfil", to: "/dashboard?view=perfil" },
-        { key: "settings", label: "Configuracion", to: "/dashboard?view=configuracion" },
+        {
+          key: "settings",
+          label: "Configuracion",
+          to: "/dashboard?view=configuracion",
+        },
         { key: "divider", label: "" },
-        { key: "logout", label: "Cerrar sesion", action: handleSignOut, tone: "danger" },
+        {
+          key: "logout",
+          label: "Cerrar sesion",
+          action: handleSignOut,
+          tone: "danger",
+        },
       ];
     }
     return [
@@ -463,7 +555,7 @@ export default function HeaderUpbarNovalia({
     (element: HTMLAnchorElement | HTMLButtonElement | null, index: number) => {
       dropdownItemsRef.current[index] = element;
     },
-    [],
+    []
   );
 
   useEffect(() => {
@@ -472,10 +564,12 @@ export default function HeaderUpbarNovalia({
     }
   }, [dropdownOpen]);
 
-  const handleDropdownTriggerKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
+  const handleDropdownTriggerKeyDown = (
+    event: KeyboardEvent<HTMLButtonElement>
+  ) => {
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
-      setDropdownOpen(prev => !prev);
+      setDropdownOpen((prev) => !prev);
     } else if (event.key === "ArrowDown") {
       event.preventDefault();
       setDropdownOpen(true);
@@ -487,7 +581,7 @@ export default function HeaderUpbarNovalia({
 
   const handleDropdownItemKeyDown = (
     event: KeyboardEvent<HTMLAnchorElement | HTMLButtonElement>,
-    index: number,
+    index: number
   ) => {
     if (event.key === "ArrowDown") {
       event.preventDefault();
@@ -495,7 +589,9 @@ export default function HeaderUpbarNovalia({
       dropdownItemsRef.current[next]?.focus();
     } else if (event.key === "ArrowUp") {
       event.preventDefault();
-      const prev = (index - 1 + dropdownItemsRef.current.length) % dropdownItemsRef.current.length;
+      const prev =
+        (index - 1 + dropdownItemsRef.current.length) %
+        dropdownItemsRef.current.length;
       dropdownItemsRef.current[prev]?.focus();
     } else if (event.key === "Home") {
       event.preventDefault();
@@ -521,15 +617,35 @@ export default function HeaderUpbarNovalia({
     return location.search === `?${search}`;
   };
 
-  const renderNavItem = (item: NavItem) => {
+  const renderNavItem = (
+    item: NavItem,
+    options: { closeSheet?: boolean } = {}
+  ) => {
     const isActive = isNavItemActive(item);
+    const requiresAuth = role === "visitor" && item.requiresAuth;
+
+    const handleNavItemClick = (event: MouseEvent<HTMLAnchorElement>) => {
+      if (requiresAuth) {
+        event.preventDefault();
+        event.stopPropagation();
+        setAuthPromptOpen(true);
+        return;
+      }
+      if (options.closeSheet) {
+        setSheetOpen(false);
+      }
+    };
+    const ariaLabel =
+      item["aria-label"] ??
+      (requiresAuth ? `${item.label} (requiere iniciar sesion)` : undefined);
 
     return (
       <Link
         key={item.key}
         to={item.to}
-        className={`nav-item${isActive ? " nav-item--active" : ""}`}
-        aria-label={item["aria-label"]}
+        className={`nav-item${isActive ? " nav-item--active" : ""}${requiresAuth ? " nav-item--blocked" : ""}`}
+        aria-label={ariaLabel}
+        onClick={handleNavItemClick}
       >
         <span className="nav-icon" aria-hidden="true">
           {item.icon}
@@ -543,10 +659,18 @@ export default function HeaderUpbarNovalia({
     if (role === "visitor") {
       return (
         <>
-          <button type="button" className="btn btn-outline" onClick={handleSignIn}>
+          <button
+            type="button"
+            className="btn btn-outline"
+            onClick={handleSignIn}
+          >
             Iniciar sesion
           </button>
-          <button type="button" className="btn btn-outline" onClick={handleSignUp}>
+          <button
+            type="button"
+            className="btn btn-outline"
+            onClick={handleSignUp}
+          >
             Registrarse
           </button>
         </>
@@ -596,7 +720,9 @@ export default function HeaderUpbarNovalia({
             {avatarButton}
             {dropdownOpen && (
               <div className="menu" role="menu" aria-label="Menu de cuenta">
-                {dropdownItems.map((entry, index) => renderDropdownItem(entry, index))}
+                {dropdownItems.map((entry, index) =>
+                  renderDropdownItem(entry, index)
+                )}
               </div>
             )}
           </div>
@@ -617,7 +743,9 @@ export default function HeaderUpbarNovalia({
           {avatarButton}
           {dropdownOpen && (
             <div className="menu" role="menu" aria-label="Menu de cuenta">
-              {dropdownItems.map((entry, index) => renderDropdownItem(entry, index))}
+              {dropdownItems.map((entry, index) =>
+                renderDropdownItem(entry, index)
+              )}
             </div>
           )}
         </div>
@@ -637,9 +765,9 @@ export default function HeaderUpbarNovalia({
           to={item.to}
           className="menu-item"
           role="menuitem"
-          ref={element => setDropdownItemRef(element, index)}
+          ref={(element) => setDropdownItemRef(element, index)}
           onClick={() => setDropdownOpen(false)}
-          onKeyDown={event => handleDropdownItemKeyDown(event, index)}
+          onKeyDown={(event) => handleDropdownItemKeyDown(event, index)}
         >
           {item.label}
         </Link>
@@ -652,9 +780,9 @@ export default function HeaderUpbarNovalia({
         type="button"
         className={`menu-item${item.tone === "danger" ? " menu-item--danger" : ""}`}
         role="menuitem"
-        ref={element => setDropdownItemRef(element, index)}
+        ref={(element) => setDropdownItemRef(element, index)}
         onClick={item.action}
-        onKeyDown={event => handleDropdownItemKeyDown(event, index)}
+        onKeyDown={(event) => handleDropdownItemKeyDown(event, index)}
       >
         {item.label}
       </button>
@@ -670,22 +798,7 @@ export default function HeaderUpbarNovalia({
   const sheetNav = (
     <nav aria-label="Navegacion principal movil">
       <div className="nav nav--stacked">
-        {navItems.map(item => {
-          const active = isNavItemActive(item);
-          return (
-            <Link
-              key={item.key}
-              to={item.to}
-              className={`nav-item${active ? " nav-item--active" : ""}`}
-              onClick={() => setSheetOpen(false)}
-            >
-              <span className="nav-icon" aria-hidden="true">
-                {item.icon}
-              </span>
-              <span>{item.label}</span>
-            </Link>
-          );
-        })}
+        {navItems.map((item) => renderNavItem(item, { closeSheet: true }))}
       </div>
     </nav>
   );
@@ -694,20 +807,36 @@ export default function HeaderUpbarNovalia({
     <div className="sheet-footer">
       {role === "visitor" && (
         <>
-          <button type="button" className="btn btn-outline" onClick={handleSignIn}>
+          <button
+            type="button"
+            className="btn btn-outline"
+            onClick={handleSignIn}
+          >
             Iniciar sesion
           </button>
-          <button type="button" className="btn btn-primary" onClick={handleSignUp}>
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={handleSignUp}
+          >
             Registrarse
           </button>
         </>
       )}
       {role === "buyer" && (
         <>
-          <Link to="/auth/register?type=agent" className="btn btn-outline" onClick={closeSheet}>
+          <Link
+            to="/auth/register?type=agent"
+            className="btn btn-outline"
+            onClick={closeSheet}
+          >
             Publica tu propiedad
           </Link>
-          <button type="button" className="btn btn-outline" onClick={handleSignOut}>
+          <button
+            type="button"
+            className="btn btn-outline"
+            onClick={handleSignOut}
+          >
             Cerrar sesion
           </button>
         </>
@@ -715,11 +844,19 @@ export default function HeaderUpbarNovalia({
       {role === "agent_org" && (
         <>
           {!isOnPropertiesList && (
-            <Link to="/properties/new" className="btn btn-primary" onClick={closeSheet}>
+            <Link
+              to="/properties/new"
+              className="btn btn-primary"
+              onClick={closeSheet}
+            >
               Publicar propiedad
             </Link>
           )}
-          <button type="button" className="btn btn-outline" onClick={handleSignOut}>
+          <button
+            type="button"
+            className="btn btn-outline"
+            onClick={handleSignOut}
+          >
             Cerrar sesion
           </button>
         </>
@@ -727,12 +864,27 @@ export default function HeaderUpbarNovalia({
     </div>
   );
 
+  const authPromptActions = (
+    <div className="auth-prompt-actions">
+      <button type="button" className="btn btn-outline" onClick={handleSignUp}>
+        Crear cuenta
+      </button>
+      <button type="button" className="btn btn-primary" onClick={handleSignIn}>
+        Iniciar sesion
+      </button>
+    </div>
+  );
+
   return (
     <>
-      <header className={`upbar${isMobile ? " upbar--mobile" : ""}`} role="navigation" aria-label="Barra superior Novalia">
+      <header
+        className={`upbar${isMobile ? " upbar--mobile" : ""}`}
+        role="navigation"
+        aria-label="Barra superior Novalia"
+      >
         <div className="app-container upbar-inner">
           <div className="upbar-left">
-            <Link className="upbar-brand" to={role === "visitor" ? "/" : "/dashboard"} aria-label="Ir al inicio">
+            <Link className="upbar-brand" to="/" aria-label="Ir al inicio">
               <img src={logoSvg} alt="" aria-hidden="true" />
               <span>Novalia</span>
             </Link>
@@ -745,7 +897,9 @@ export default function HeaderUpbarNovalia({
             </div>
           )}
           <div className="upbar-right">
-            {!isMobile && <div className="upbar-actions">{renderDesktopActions()}</div>}
+            {!isMobile && (
+              <div className="upbar-actions">{renderDesktopActions()}</div>
+            )}
             {isMobile && (
               <div className="upbar-mobile-row">
                 {mobileCta}
@@ -764,10 +918,16 @@ export default function HeaderUpbarNovalia({
         </div>
       </header>
       {isMobile && sheetOpen && (
-        <div className="sheet" role="dialog" aria-modal="true" aria-label="Menu principal" onClick={handleSheetOverlayClick}>
+        <div
+          className="sheet"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Menu principal"
+          onClick={handleSheetOverlayClick}
+        >
           <div className="sheet-panel">
             <div className="sheet-header">
-              <Link className="upbar-brand" to={role === "visitor" ? "/" : "/dashboard"} onClick={closeSheet}>
+              <Link className="upbar-brand" to="/" onClick={closeSheet}>
                 <img src={logoSvg} alt="" aria-hidden="true" />
                 <span>Novalia</span>
               </Link>
@@ -802,13 +962,36 @@ export default function HeaderUpbarNovalia({
           </div>
         </div>
       )}
+      <Modal
+        open={authPromptOpen}
+        onClose={closeAuthPrompt}
+        title="Inicia sesion o registrate"
+        actions={authPromptActions}
+      >
+        <p style={{ margin: 0, color: "#334155", fontSize: 15 }}>
+          Para acceder a Guardados y Chats necesitas iniciar sesion o crear una
+          cuenta en Novalia.
+        </p>
+      </Modal>
+
+      <AccountTypeModal
+        open={accountTypeModalOpen}
+        onClose={() => setAccountTypeModalOpen(false)}
+        onContinue={handleAccountTypeSelection}
+      />
     </>
   );
 }
 
 function BookmarkIcon() {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+    >
       <path
         d="M6 21V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16l-6-3-6 3Z"
         stroke="currentColor"
@@ -822,7 +1005,13 @@ function BookmarkIcon() {
 
 function MailIcon() {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+    >
       <path
         d="M4 6h16a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2Zm0 0 8 6 8-6"
         stroke="currentColor"
@@ -836,7 +1025,13 @@ function MailIcon() {
 
 function HomeIcon() {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+    >
       <path
         d="M3 10.5 12 4l9 6.5V20a1 1 0 0 1-1 1h-6v-6h-4v6H4a1 1 0 0 1-1-1v-9.5Z"
         stroke="currentColor"
@@ -850,7 +1045,13 @@ function HomeIcon() {
 
 function BuildingIcon() {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+    >
       <path
         d="M3 21h18M5 21V5a1 1 0 0 1 1-1h6v17M13 21V9h5a1 1 0 0 1 1 1v11M7 8h2m-2 4h2m-2 4h2m4-3h2"
         stroke="currentColor"
@@ -864,7 +1065,13 @@ function BuildingIcon() {
 
 function FileIcon() {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+    >
       <path
         d="M14 3v4a1 1 0 0 0 1 1h4M7 21h10a1 1 0 0 0 1-1V8.828a1 1 0 0 0-.293-.707L13.879 3.293A1 1 0 0 0 13.172 3H7a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1Zm2-7h6m-6-3h1m-1 6h4"
         stroke="currentColor"
@@ -878,7 +1085,13 @@ function FileIcon() {
 
 function BellIcon() {
   return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <svg
+      width="22"
+      height="22"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+    >
       <path
         d="M12 4.25A4.75 4.75 0 0 1 16.75 9v1.18c0 .68.21 1.34.61 1.89l1.09 1.54c.75 1.06.04 2.54-1.29 2.54H6.84c-1.33 0-2.04-1.48-1.29-2.54l1.09-1.54c.4-.55.61-1.21.61-1.89V9A4.75 4.75 0 0 1 12 4.25Z"
         stroke="currentColor"
@@ -893,14 +1106,27 @@ function BellIcon() {
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      <circle cx="17.5" cy="6.5" r="2" fill="#295dff" stroke="#ffffff" strokeWidth="0.8" />
+      <circle
+        cx="17.5"
+        cy="6.5"
+        r="2"
+        fill="#295dff"
+        stroke="#ffffff"
+        strokeWidth="0.8"
+      />
     </svg>
   );
 }
 
 function MenuIcon() {
   return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <svg
+      width="22"
+      height="22"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+    >
       <path
         d="M4 7h16M4 12h16M4 17h16"
         stroke="currentColor"
@@ -914,7 +1140,13 @@ function MenuIcon() {
 
 function CloseIcon() {
   return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <svg
+      width="22"
+      height="22"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+    >
       <path
         d="m7 7 10 10M17 7 7 17"
         stroke="currentColor"

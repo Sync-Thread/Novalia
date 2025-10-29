@@ -14,7 +14,7 @@ import {
   mapPropertyDtoToInsertPayload,
   mapPropertyRowToDTO,
   mapPropertyUpdateToPayload,
-} from "../mappers/property.mappers";
+} from "../../application/mappers/property.mapper";
 import type { PropertyRow } from "../types/supabase-rows";
 import { scopeByContext } from "./scopeByContext";
 

@@ -3,9 +3,17 @@ import { MEDIA_TYPE } from "../../domain/enums";
 import type { DomainClock } from "../../domain/clock";
 import { UniqueEntityID } from "../../domain/value-objects/UniqueEntityID";
 import type { MediaDTO } from "../dto/MediaDTO";
+import type {
+  MediaAssetRow,
+  MediaInsertPayload,
+} from "../../infrastructure/types/supabase-rows";
+
+// ============================================================================
+// Domain <-> DTO Mapping
+// ============================================================================
 
 function resolveDomainType(type: MediaDTO["type"]): (typeof MEDIA_TYPE)[keyof typeof MEDIA_TYPE] {
-  if (type === "floorplan") {
+  if (type === "floorplan" || type === "plan") {
     return MEDIA_TYPE.Document;
   }
   return type as (typeof MEDIA_TYPE)[keyof typeof MEDIA_TYPE];
@@ -59,3 +67,65 @@ export function fromDomain(media: MediaAsset): MediaDTO {
     updatedAt: media.updatedAt.toISOString(),
   };
 }
+
+// ============================================================================
+// Infrastructure DB Row <-> DTO Mapping
+// ============================================================================
+
+const DB_TO_DTO_MEDIA: Record<string, MediaDTO["type"]> = {
+  image: "image",
+  video: "video",
+  document: "document",
+};
+
+const DTO_TO_DB_MEDIA: Record<MediaDTO["type"], string> = {
+  image: "image",
+  video: "video",
+  document: "document",
+  floorplan: "document",
+};
+
+export function mapMediaRowToDTO(row: MediaAssetRow): MediaDTO {
+  const metadata = (row.metadata as Record<string, unknown> | null) ?? null;
+  const variant = (metadata?.variant as MediaDTO["type"] | undefined) ?? "image";
+  const type = (() => {
+    if (row.media_type === "document") {
+      return variant;
+    }
+    return DB_TO_DTO_MEDIA[row.media_type] ?? "image";
+  })();
+
+  return {
+    id: row.id,
+    orgId: row.org_id,
+    propertyId: row.property_id,
+    url: row.url ?? "",
+    s3Key: row.s3_key,
+    type,
+    position: row.position ?? 0,
+    isCover: Boolean(metadata?.isCover),
+    metadata,
+    createdAt: row.created_at ?? undefined,
+    updatedAt: row.created_at ?? undefined,
+  };
+}
+
+export function mapMediaDtoToInsertPayload(dto: MediaDTO): MediaInsertPayload {
+  const metadata = {
+    ...(dto.metadata ?? {}),
+    isCover: dto.isCover,
+    variant: dto.type,
+  };
+
+  return {
+    id: dto.id,
+    org_id: dto.orgId ?? null,
+    property_id: dto.propertyId ?? null,
+    media_type: DTO_TO_DB_MEDIA[dto.type] ?? "image",
+    s3_key: dto.s3Key ?? null,
+    url: dto.url ?? null,
+    position: dto.position,
+    metadata,
+  };
+}
+

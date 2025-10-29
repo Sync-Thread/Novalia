@@ -261,6 +261,10 @@ export function mapPropertyUpdateToPayload(
       currentNormalizedAddress,
     );
   }
+  // Always include completeness_score if present (computed in use case)
+  if (patch.completenessScore !== undefined) {
+    payload.completeness_score = patch.completenessScore ?? 0;
+  }
 
   return payload;
 }

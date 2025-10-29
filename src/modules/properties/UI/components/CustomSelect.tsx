@@ -5,6 +5,7 @@ import styles from "./CustomSelect.module.css";
 export interface SelectOption {
   value: string;
   label: string;
+  [key: string]: any; // Permitir propiedades adicionales
 }
 
 export interface CustomSelectProps {
@@ -14,6 +15,8 @@ export interface CustomSelectProps {
   disabled?: boolean;
   placeholder?: string;
   className?: string;
+  ariaLabel?: string;
+  ariaDescribedBy?: string;
 }
 
 export function CustomSelect({
@@ -23,6 +26,8 @@ export function CustomSelect({
   disabled,
   placeholder = "Seleccionar",
   className = "",
+  ariaLabel,
+  ariaDescribedBy,
 }: CustomSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -34,14 +39,16 @@ export function CustomSelect({
   useEffect(() => {
     if (!isOpen) return;
 
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        containerRef.current &&
-        !containerRef.current.contains(event.target as Node)
-      ) {
-        setIsOpen(false);
-      }
-    };
+    // const handleClickOutside = (event: MouseEvent) => {
+    //   if (
+    //     containerRef.current &&
+    //     !containerRef.current.contains(event.target as Node)
+    //   ) {
+    //     console.log("intenta cambiar / cambia.");
+
+    //     setIsOpen(false);
+    //   }
+    // };
 
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -49,11 +56,11 @@ export function CustomSelect({
       }
     };
 
-    document.addEventListener("mousedown", handleClickOutside);
+    // document.addEventListener("mousedown", handleClickOutside);
     document.addEventListener("keydown", handleEscape);
 
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
+      // document.removeEventListener("mousedown", handleClickOutside);
       document.removeEventListener("keydown", handleEscape);
     };
   }, [isOpen]);
@@ -64,11 +71,7 @@ export function CustomSelect({
     }
   };
 
-  const handleSelect = (optionValue: string) => {
-    onChange(optionValue);
-    setIsOpen(false);
-  };
-
+  const handleSelect = (optionValue: string) => onChange(optionValue);
   const handleKeyDown = (event: React.KeyboardEvent) => {
     if (disabled) return;
 
@@ -112,10 +115,15 @@ export function CustomSelect({
         type="button"
         className={styles.trigger}
         onClick={handleToggle}
+        onBlur={() => {
+          setTimeout(() => setIsOpen(false), 300);
+        }}
         onKeyDown={handleKeyDown}
         disabled={disabled}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
+        aria-label={ariaLabel}
+        aria-describedby={ariaDescribedBy}
       >
         <span className={styles.triggerText}>{displayText}</span>
         <ChevronDown size={14} className={styles.chevron} aria-hidden="true" />

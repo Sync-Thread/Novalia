@@ -1,0 +1,436 @@
+﻿import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { PropertiesProvider } from "../../containers/PropertiesProvider";
+import { usePropertyList } from "../../hooks/usePropertyList";
+import { usePropertiesActions } from "../../hooks/usePropertiesActions";
+import { usePropertyCoverImages } from "../../hooks/usePropertyCoverImages";
+import FiltersBar, {
+  type FiltersBarValues,
+  type ViewMode,
+} from "./components/FiltersBar";
+import KycBanner from "../../components/KycBanner";
+import PropertyCard, {
+  type PropertyCardAction,
+} from "./components/PropertyCard";
+import PropertyQuickView from "./components/PropertyQuickView/PropertyQuickView";
+import MarkSoldModal from "../../modals/MarkSoldModal";
+import DeletePropertyModal from "../../modals/DeletePropertyModal";
+import DesignBanner from "../../utils/DesignBanner";
+import type { PropertyDTO } from "../../../application/dto/PropertyDTO";
+import {
+  formatCurrency,
+  formatDate,
+  formatStatus,
+  formatVerification,
+} from "../../utils/format";
+import styles from "./MyPropertiesPage.module.css";
+
+const PROPERTY_TYPE_LABELS: Record<string, string> = {
+  apartment: "Departamento",
+  house: "Casa",
+  commercial: "Comercial",
+  land: "Terreno",
+  office: "Oficina",
+  industrial: "Industrial",
+  other: "Otro",
+  warehouse: "Bodega",
+  duplex: "Duplex",
+  studio: "Estudio",
+  loft: "Loft",
+  villa: "Villa",
+};
+
+const getPropertyTypeLabel = (type?: string) => {
+  if (!type) return "-";
+  const normalized = type.toLowerCase();
+  const mapped = PROPERTY_TYPE_LABELS[normalized];
+  if (mapped) return mapped;
+  return normalized
+    .split(/[\s_-]+/)
+    .map((segment) =>
+      segment.length > 0
+        ? segment.charAt(0).toUpperCase() + segment.slice(1)
+        : "",
+    )
+    .join(" ");
+};
+
+export default function MyPropertiesPage() {
+  return (
+    <PropertiesProvider>
+      <MyPropertiesPageContent />
+    </PropertiesProvider>
+  );
+}
+
+function MyPropertiesPageContent() {
+  const navigate = useNavigate();
+  const {
+    filters,
+    items,
+    loading,
+    error,
+    setFilters,
+    refresh,
+    setPage,
+    page,
+    pageSize,
+    total,
+    cache,
+  } = usePropertyList();
+  const actions = usePropertiesActions();
+  const { getAuthProfile } = actions;
+  const [viewMode, setViewMode] = useState<ViewMode>("grid");
+  const [authStatus, setAuthStatus] = useState<
+    "verified" | "pending" | "rejected"
+  >("pending");
+  const [quickOpen, setQuickOpen] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [markSoldFor, setMarkSoldFor] = useState<PropertyDTO | null>(null);
+  const [deleteFor, setDeleteFor] = useState<PropertyDTO | null>(null);
+
+  // Hook para cargar imágenes de portada
+  const propertyIds = useMemo(() => items.map((p) => p.id), [items]);
+  const { coverUrls } = usePropertyCoverImages(propertyIds);
+
+  const closeQuickView = useCallback(() => {
+    setQuickOpen(false);
+    setSelectedId(null);
+  }, []);
+
+  useEffect(() => {
+    void getAuthProfile().then((result) => {
+      if (result.isOk()) setAuthStatus(result.value.kycStatus);
+      console.log("resultado: ", result);
+      console.log("resultadOK: ", result.isOk());
+    });
+  }, [getAuthProfile]);
+
+  const filterValues: FiltersBarValues = useMemo(
+    () => ({
+      ...filters,
+      viewMode,
+    }),
+    [filters, viewMode],
+  );
+
+  const stats = useMemo(() => {
+    const acc = { total: cache.size, draft: 0, published: 0, sold: 0 };
+    cache.forEach((property) => {
+      if (property.status === "draft") acc.draft += 1;
+      if (property.status === "published") acc.published += 1;
+      if (property.status === "sold") acc.sold += 1;
+    });
+    return acc;
+  }, [cache]);
+
+  const handleFilterChange = (patch: Partial<FiltersBarValues>) => {
+    if ("viewMode" in patch && patch.viewMode) {
+      setViewMode(patch.viewMode);
+    }
+    const { viewMode: _omit, ...rest } = patch;
+    if (Object.keys(rest).length > 0) {
+      setFilters(rest);
+    }
+  };
+
+  const handleReset = () => {
+    setViewMode("grid");
+    setFilters({
+      q: undefined,
+      status: "all",
+      propertyType: undefined,
+      city: undefined,
+      state: undefined,
+      priceMin: undefined,
+      priceMax: undefined,
+      sortBy: "recent",
+      page: 1,
+      pageSize,
+    });
+  };
+
+  const handleAction = (action: PropertyCardAction, property: PropertyDTO) => {
+    switch (action) {
+      case "quick_view":
+        setSelectedId(property.id);
+        setQuickOpen(true);
+        break;
+      case "edit":
+        navigate(`/properties/${property.id}/edit`);
+        break;
+      case "publish":
+        void actions.publishProperty({ id: property.id }).then((result) => {
+          if (result.isOk()) void refresh();
+        });
+        break;
+      case "pause":
+        void actions.pauseProperty({ id: property.id }).then((result) => {
+          if (result.isOk()) void refresh();
+        });
+        break;
+      case "mark_sold":
+        setMarkSoldFor(property);
+        break;
+      case "view_public":
+        window.open(`/p/${property.id}`, "_blank", "noopener,noreferrer");
+        break;
+      case "delete":
+        setDeleteFor(property);
+        break;
+      default:
+        break;
+    }
+  };
+
+  return (
+    <main className={`${styles.pagina} app-container`}>
+      <DesignBanner
+        note="Esta vista replica la referencia de dashboard de propiedades. Sustituye placeholders y remueve el banner cuando integres assets finales."
+        storageId="properties-dashboard"
+      />
+
+      <header className={styles.cabecera}>
+        <div className={styles.tituloFila}>
+          <h1 className={styles.titulo}>Mis propiedades</h1>
+          <button
+            type="button"
+            onClick={() => navigate("/properties/new")}
+            className={styles.btnPrincipal}
+          >
+            Nueva propiedad
+          </button>
+        </div>
+        <section className={styles.resumen} aria-label="Resumen de propiedades">
+          <ResumenCard label="Borradores" value={stats.draft} />
+          <ResumenCard label="Publicadas" value={stats.published} />
+          <ResumenCard label="Vendidas" value={stats.sold} />
+          <ResumenCard label="Total" value={stats.total} />
+        </section>
+      </header>
+
+      {authStatus !== "verified" && <KycBanner visible actionHref="/kyc" />}
+
+      <FiltersBar
+        values={filterValues}
+        onChange={handleFilterChange}
+        onReset={handleReset}
+        disabled={loading}
+      />
+
+      {error && (
+        <div role="alert" className={styles.alerta}>
+          {error}
+        </div>
+      )}
+
+      {viewMode === "grid" ? (
+        <section className={styles.lista} aria-live="polite">
+          {items.map((property) => (
+            <PropertyCard
+              key={property.id}
+              property={property}
+              coverUrl={coverUrls[property.id] || null}
+              onAction={handleAction}
+            />
+          ))}
+          {!loading && items.length === 0 && (
+            <div className={styles.vacio}>
+              <p>No encontramos propiedades con esos filtros.</p>
+              <button
+                type="button"
+                onClick={handleReset}
+                className={styles.btnPrincipal}
+              >
+                Limpiar filtros
+              </button>
+            </div>
+          )}
+        </section>
+      ) : (
+        <PropertyListTable
+          items={items}
+          loading={loading}
+          onAction={handleAction}
+        />
+      )}
+
+      <Pagination
+        page={page}
+        pageSize={pageSize}
+        total={total}
+        onChange={setPage}
+      />
+
+      <PropertyQuickView
+        propertyId={selectedId}
+        open={quickOpen}
+        onClose={closeQuickView}
+        onRefresh={refresh}
+      />
+
+      <MarkSoldModal
+        open={Boolean(markSoldFor)}
+        onClose={() => setMarkSoldFor(null)}
+        defaultDate={markSoldFor?.soldAt ?? undefined}
+        loading={actions.loading.markSold}
+        onConfirm={({ soldAt }) => {
+          const property = markSoldFor;
+          if (!property) return;
+          void actions
+            .markSold({ id: property.id, soldAt: new Date(soldAt) })
+            .then((result) => {
+              if (result.isOk()) {
+                setMarkSoldFor(null);
+                void refresh();
+              }
+            });
+        }}
+      />
+
+      <DeletePropertyModal
+        open={Boolean(deleteFor)}
+        propertyTitle={deleteFor?.title}
+        onClose={() => setDeleteFor(null)}
+        loading={actions.loading.deleteProperty}
+        onConfirm={() => {
+          const property = deleteFor;
+          if (!property) return;
+          void actions.deleteProperty({ id: property.id }).then((result) => {
+            if (result.isOk()) {
+              setDeleteFor(null);
+              void refresh();
+            }
+          });
+        }}
+      />
+    </main>
+  );
+}
+
+function ResumenCard({ label, value }: { label: string; value: number }) {
+  return (
+    <div className={styles.tarjeta}>
+      <span className={styles.tarjetaLabel}>{label}</span>
+      <span className={styles.tarjetaValor}>{value}</span>
+    </div>
+  );
+}
+
+function PropertyListTable({
+  items,
+  loading,
+  onAction,
+}: {
+  items: PropertyDTO[];
+  loading: boolean;
+  onAction: (action: PropertyCardAction, property: PropertyDTO) => void;
+}) {
+  if (!loading && items.length === 0) {
+    return (
+      <div className={styles.vacio}>No hay propiedades en esta vista.</div>
+    );
+  }
+
+  return (
+    <div className={styles.tabla}>
+      <table className={styles.tablaTable}>
+        <thead>
+          <tr>
+            {[
+              "Propiedad",
+              "Estado",
+              "Tipo",
+              "Precio",
+              "Ubicacion",
+              "Publicada",
+              "Completitud",
+              "RPP",
+            ].map((header) => (
+              <th key={header}>{header}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((property) => (
+            <tr
+              key={property.id}
+              onClick={() => onAction("quick_view", property)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  onAction("quick_view", property);
+                }
+              }}
+              tabIndex={0}
+              className={styles.tablaRow}
+            >
+              <td>
+                <strong>{property.title}</strong>
+                <div className={styles.tablaMeta}>
+                  {[property.address.city, property.address.state]
+                    .filter(Boolean)
+                    .join(", ") || "Sin ubicacion"}
+                </div>
+              </td>
+              <td>{formatStatus(property.status)}</td>
+              <td>{getPropertyTypeLabel(property.propertyType)}</td>
+              <td>
+                {formatCurrency(property.price.amount, property.price.currency)}
+              </td>
+              <td>
+                {property.address.city}, {property.address.state}
+              </td>
+              <td>
+                {property.publishedAt ? formatDate(property.publishedAt) : "-"}
+              </td>
+              <td>{Math.round(property.completenessScore)}%</td>
+              <td>
+                {formatVerification(property.rppVerification ?? "pending")}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function Pagination({
+  page,
+  pageSize,
+  total,
+  onChange,
+}: {
+  page: number;
+  pageSize: number;
+  total: number;
+  onChange: (page: number) => void;
+}) {
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  return (
+    <div className={styles.paginacion}>
+      <span>
+        Pagina {page} de {totalPages}
+      </span>
+      <div className={styles.paginacionControles}>
+        <button
+          type="button"
+          onClick={() => onChange(Math.max(1, page - 1))}
+          disabled={page === 1}
+          className={styles.paginacionBtn}
+        >
+          Anterior
+        </button>
+        <button
+          type="button"
+          onClick={() => onChange(Math.min(totalPages, page + 1))}
+          disabled={page >= totalPages}
+          className={styles.paginacionBtn}
+        >
+          Siguiente
+        </button>
+      </div>
+    </div>
+  );
+}

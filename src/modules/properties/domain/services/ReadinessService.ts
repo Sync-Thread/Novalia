@@ -7,12 +7,14 @@ import { canPublish } from "../policies/PublishPolicy";
 
 export type ReadinessInputs = {
   hasTitle: boolean;
-  descriptionLength: number;
+  hasPropertyType: boolean;
   priceAmount: number;
-  addressFilled: boolean;        // city && state && country
-  featuresFilledCount: number;   // 0..5
+  hasCity: boolean;
+  hasState: boolean;
+  hasDescription: boolean;
+  hasAmenities: boolean;
   mediaCount: number;
-  hasRppDoc?: boolean;
+  documentCount: number;
 
   kycVerified: boolean;
   rppStatus?: VerificationStatus | null;
@@ -39,12 +41,14 @@ export type ReadinessResult = {
 export function buildReadiness(i: ReadinessInputs): ReadinessResult {
   const score = computeScore({
     hasTitle: i.hasTitle,
-    descriptionLength: i.descriptionLength,
+    hasPropertyType: i.hasPropertyType,
     priceAmount: i.priceAmount,
-    addressFilled: i.addressFilled,
-    featuresFilledCount: i.featuresFilledCount,
+    hasCity: i.hasCity,
+    hasState: i.hasState,
+    hasDescription: i.hasDescription,
+    hasAmenities: i.hasAmenities,
     mediaCount: i.mediaCount,
-    hasRppDoc: i.hasRppDoc,
+    documentCount: i.documentCount,
   });
 
   const bucket = classify(score);
@@ -60,7 +64,7 @@ export function buildReadiness(i: ReadinessInputs): ReadinessResult {
 
   const issues: ReadinessIssueCode[] = [];
   if (!i.kycVerified) issues.push("kyc_missing");
-  if (!i.addressFilled) issues.push("address_incomplete");
+  if (!i.hasCity || !i.hasState) issues.push("address_incomplete");
   if (i.mediaCount < 1) issues.push("media_min_missing");
   if (!i.hasTitle || i.priceAmount <= 0) issues.push("required_fields_missing");
   if (score < min) issues.push("score_below_min");

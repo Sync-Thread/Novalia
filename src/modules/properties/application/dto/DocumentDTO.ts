@@ -1,8 +1,7 @@
 export type DocumentTypeDTO =
-  | "rpp_certificate"
   | "deed"
-  | "id_doc"
-  | "floorplan"
+  | "rpp_certificate"
+  | "plan"
   | "other";
 
 export type VerificationStatusDTO = "pending" | "verified" | "rejected";

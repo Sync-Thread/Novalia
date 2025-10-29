@@ -18,13 +18,20 @@ import Button from "../../../../shared/UI/Button";
 import PasswordField from "../../../../shared/UI/fields/PasswordField";
 import TextField from "../../../../shared/UI/fields/TextField";
 import Notice from "../../../../shared/UI/Notice";
-import { registerAdapter } from "../../infrastructure/supabase/adapters/registerAdapter";
+import type { AccountType } from "../../../../shared/types/auth";
 
 type Form = { email: string; password: string };
 
 export default function Login() {
   const [sp] = useSearchParams();
   const prefillEmail = useMemo(() => sp.get("email") ?? "", [sp]);
+  const returnTo = useMemo(() => {
+    const candidate = sp.get("returnTo");
+    if (candidate && candidate.startsWith("/")) {
+      return candidate;
+    }
+    return "/properties";
+  }, [sp]);
 
   const {
     register,
@@ -34,18 +41,15 @@ export default function Login() {
   } = useForm<Form>({ defaultValues: { email: prefillEmail, password: "" } });
 
   const nav = useNavigate();
-  const [openModal, setOpenModal] = useState(false);
-  const [notice, setNotice] = useState<{ type: "success" | "error" | "info" | "warning"; text: React.ReactNode } | null>(null);
+  const [accountTypeModalMode, setAccountTypeModalMode] = useState<
+    "register" | null
+  >(null);
+  const [notice, setNotice] = useState<{
+    type: "success" | "error" | "info" | "warning";
+    text: React.ReactNode;
+  } | null>(null);
   const [resending, setResending] = useState(false);
 
-  // Si ya hay sesión → dashboard
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) nav("/properties");
-    });
-  }, [nav]);
-
-  // Mostrar banner si viene de registro
   useEffect(() => {
     const registered = sp.get("registered") === "1";
     const email = sp.get("email");
@@ -54,8 +58,8 @@ export default function Login() {
         type: "success",
         text: (
           <>
-            Cuenta creada. Te enviamos un correo de verificación a <strong>{email}</strong>. Revisa tu bandeja y spam.
-            {" "}
+            Cuenta creada. Te enviamos un correo de verificación a{" "}
+            <strong>{email}</strong>. Revisa tu bandeja y spam.{" "}
             <button
               type="button"
               onClick={async () => {
@@ -67,12 +71,21 @@ export default function Login() {
                     text: `Hemos reenviado el correo de verificación a ${email}.`,
                   });
                 } catch (e: any) {
-                  setNotice({ type: "error", text: e?.message ?? "No se pudo reenviar el correo." });
+                  setNotice({
+                    type: "error",
+                    text: e?.message ?? "No se pudo reenviar el correo.",
+                  });
                 } finally {
                   setResending(false);
                 }
               }}
-              style={{ color: "var(--brand-700)", fontWeight: 600, background: "none", border: 0, cursor: "pointer" }}
+              style={{
+                color: "var(--brand-700)",
+                fontWeight: 600,
+                background: "none",
+                border: 0,
+                cursor: "pointer",
+              }}
               disabled={resending}
             >
               {resending ? "Reenviando..." : "Reenviar"}
@@ -85,10 +98,14 @@ export default function Login() {
 
   const onSubmit = async ({ email, password }: Form) => {
     setNotice(null);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
     if (error) {
       const msg = (error.message || "").toLowerCase();
-      const isUnconfirmed = msg.includes("not confirmed") || msg.includes("email not confirmed");
+      const isUnconfirmed =
+        msg.includes("not confirmed") || msg.includes("email not confirmed");
       if (isUnconfirmed) {
         setNotice({
           type: "warning",
@@ -101,14 +118,26 @@ export default function Login() {
                   try {
                     setResending(true);
                     await supabase.auth.resend({ type: "signup", email });
-                    setNotice({ type: "success", text: `Te reenviamos el correo a ${email}.` });
+                    setNotice({
+                      type: "success",
+                      text: `Te reenviamos el correo a ${email}.`,
+                    });
                   } catch (e: any) {
-                    setNotice({ type: "error", text: e?.message ?? "No se pudo reenviar el correo." });
+                    setNotice({
+                      type: "error",
+                      text: e?.message ?? "No se pudo reenviar el correo.",
+                    });
                   } finally {
                     setResending(false);
                   }
                 }}
-                style={{ color: "var(--brand-700)", fontWeight: 600, background: "none", border: 0, cursor: "pointer" }}
+                style={{
+                  color: "var(--brand-700)",
+                  fontWeight: 600,
+                  background: "none",
+                  border: 0,
+                  cursor: "pointer",
+                }}
                 disabled={resending}
               >
                 reenviar
@@ -120,36 +149,25 @@ export default function Login() {
         return;
       }
 
-      // Credenciales inválidas u otros errores
-      setNotice({ type: "error", text: error.message || "No pudimos iniciar sesión." });
+      setNotice({
+        type: "error",
+        text: error.message || "No pudimos iniciar sesión.",
+      });
       return;
     }
 
-    try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const userId = sessionData.session?.user?.id ?? null;
-      const accountTypeMeta = sessionData.session?.user?.user_metadata?.account_type;
-      const accountType =
-        accountTypeMeta === "agent" || accountTypeMeta === "owner" || accountTypeMeta === "buyer"
-          ? accountTypeMeta
-          : "buyer";
-      if (userId) {
-        await registerAdapter.validateBootstrap(userId, {
-          accountType,
-          flow: "email",
-          expectMembership: accountType === "owner",
-        });
-      }
-    } catch (err) {
-      console.warn("[login] bootstrap validation skipped", err);
-    }
-
-    nav("/properties");
+    // Login exitoso - el AuthGuard manejará la redirección
+    nav(returnTo, { replace: true });
   };
 
-  const goRegister = (t: "buyer" | "agent" | "owner" | null) => {
+  const goRegister = (t: AccountType | null) => {
     if (!t) return;
-    nav(`/auth/register?type=${t}`);
+    setAccountTypeModalMode(null);
+    const params = new URLSearchParams({ type: t });
+    if (returnTo) {
+      params.set("returnTo", returnTo);
+    }
+    nav(`/auth/register?${params.toString()}`);
   };
 
   // Mantén email del query si se modifica el param
@@ -157,12 +175,24 @@ export default function Login() {
     if (prefillEmail) setValue("email", prefillEmail);
   }, [prefillEmail, setValue]);
 
+  const oauthRedirect = useMemo(() => {
+    const base = env.VITE_OAUTH_REDIRECT_URL;
+    const fallback =
+      typeof window !== "undefined" ? window.location.origin : "/";
+    const redirectBase = base && base.length > 0 ? base : fallback;
+    if (!returnTo) return redirectBase;
+    const separator = redirectBase.includes("?") ? "&" : "?";
+    return `${redirectBase}${separator}returnTo=${encodeURIComponent(returnTo)}`;
+  }, [returnTo]);
+
+  const modalOpen = accountTypeModalMode !== null;
+
   return (
     <>
       <AuthHeader />
       <AuthLayout>
         <AuthCard>
-          <h1 className="auth-title">Iniciar Sesión</h1>
+          <h1 className="auth-title">Iniciar sesion</h1>
           <p className="auth-subtitle">Bienvenido de vuelta a Novalia</p>
 
           {notice && (
@@ -194,19 +224,24 @@ export default function Login() {
                 ¿Olvidaste tu contraseña?
               </Link>
             </div>
-            <Button type="submit" disabled={isSubmitting} style={{ marginTop: 8 }}>
-              {isSubmitting ? "Entrando..." : "Iniciar Sesión"}
+            {/* <div className="auth-actions">*/}
+            <Button
+              type="submit"
+              disabled={isSubmitting}
+              //className="auth-actions__primary"
+            >
+              {isSubmitting ? "Entrando..." : "Iniciar sesion"}
             </Button>
+            <DividerText>o continua con</DividerText>
           </form>
 
-          <DividerText>o continúa con</DividerText>
           <div className="oauth">
             <OAuthButton
               provider="google"
               onClick={() =>
                 supabase.auth.signInWithOAuth({
                   provider: "google",
-                  options: { redirectTo: env.VITE_OAUTH_REDIRECT_URL },
+                  options: { redirectTo: oauthRedirect },
                 })
               }
             />
@@ -220,28 +255,37 @@ export default function Login() {
               }
             /> */}
           </div>
-
-          <p style={{ textAlign: "center", marginTop: 14, color: "var(--text-600)" }}>
-            ¿No tienes cuenta?{" "}
+          <p
+            style={{
+              textAlign: "center",
+              marginTop: 14,
+              color: "var(--text-600)",
+            }}
+          >
+            ¿No tienes una cuenta?{" "}
             <button
               type="button"
-              onClick={() => setOpenModal(true)}
-              style={{ color: "var(--brand-700)", fontWeight: 600, background: "none", border: 0 }}
+              style={{
+                color: "var(--brand-700)",
+                fontWeight: 600,
+                background: "none",
+                border: 0,
+              }}
+              onClick={() => {
+                setAccountTypeModalMode("register");
+              }}
             >
-              Regístrate aquí
+              Registrate aqui
             </button>
           </p>
         </AuthCard>
       </AuthLayout>
-      <SiteFooter/>
+      <SiteFooter />
 
       <AccountTypeModal
-        open={openModal}
-        onClose={() => setOpenModal(false)}
-        onContinue={(t) => {
-          setOpenModal(false);
-          goRegister(t);
-        }}
+        open={modalOpen}
+        onClose={() => setAccountTypeModalMode(null)}
+        onContinue={goRegister}
       />
     </>
   );

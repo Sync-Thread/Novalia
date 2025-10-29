@@ -127,7 +127,7 @@ export type PublishOptions = {
 
 export type CompletenessInputs = {
   mediaCount: number;
-  hasRppDoc?: boolean;
+  documentCount?: number;
 };
 
 export class Property {
@@ -360,18 +360,16 @@ export class Property {
 
   // Score: delega en CompletenessPolicy (sin números mágicos).
   computeCompleteness(inputs: CompletenessInputs): number {
-    const featuresFilledCount = [
-      this._bedrooms, this._bathrooms, this._parkingSpots, this._constructionM2, this._landM2,
-    ].filter(v => v !== null && v !== undefined).length;
-
     const score = computeScore({
-      hasTitle: Boolean(this._title),
-      descriptionLength: this._description?.length ?? 0,
+      hasTitle: Boolean(this._title && this._title.trim().length > 0),
+      hasPropertyType: Boolean(this._propertyType),
       priceAmount: this._price.amount,
-      addressFilled: Boolean(this.address.city && this.address.state && this.address.country),
-      featuresFilledCount,
+      hasCity: Boolean(this.address.city && this.address.city.trim().length > 0),
+      hasState: Boolean(this.address.state && this.address.state.trim().length > 0),
+      hasDescription: Boolean(this._description && this._description.trim().length > 0),
+      hasAmenities: this.amenities.length > 0 || Boolean(this.amenitiesExtra && this.amenitiesExtra.trim().length > 0),
       mediaCount: inputs.mediaCount,
-      hasRppDoc: inputs.hasRppDoc,
+      documentCount: inputs.documentCount ?? 0,
     });
 
     this._completenessScore = score;
