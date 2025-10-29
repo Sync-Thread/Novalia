@@ -26,6 +26,7 @@ function VerifyRPPPageContent() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const propertyId = searchParams.get("propertyId");
+  const returnStep = searchParams.get("returnStep"); // Paso al que debe regresar
 
   // Hook para acceder al use case VerifyRpp
   const { verifyRpp: verifyRppUseCase } = usePropertiesActions();
@@ -451,9 +452,13 @@ function VerifyRPPPageContent() {
                 type="button"
                 className="btn btn-outline"
                 onClick={() => {
-                  // Regresar al borrador en el paso de publicación (paso 5)
+                  // Regresar al borrador en el paso donde estaba el usuario
                   if (propertyId) {
-                    navigate(`/properties/${propertyId}/edit?step=publish`);
+                    // Si hay returnStep, usarlo; si no, usar "publish" por defecto
+                    const stepToReturn = returnStep || "publish";
+                    navigate(
+                      `/properties/${propertyId}/edit?step=${stepToReturn}`
+                    );
                   } else {
                     // Fallback si no hay propertyId
                     navigate("/properties");
@@ -499,7 +504,12 @@ function VerifyRPPPageContent() {
           <button
             type="button"
             className="btn btn-outline"
-            onClick={() => navigate(-1)}
+            onClick={() => {
+              // Si hay returnStep, usarlo; si no, usar "publish" por defecto
+              const stepToReturn = returnStep || "publish";
+              navigate(`/properties/${propertyId}/edit?step=${stepToReturn}`);
+              // navigate(-1)
+            }}
           >
             Cancelar
           </button>
