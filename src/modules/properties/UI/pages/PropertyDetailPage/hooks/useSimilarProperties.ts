@@ -1,8 +1,29 @@
 // useSimilarProperties: hook para obtener propiedades similares
 import { useState, useEffect, useMemo } from "react";
+import { supabase } from "../../../../../../core/supabase/client";
 import { createPropertiesContainer } from "../../../../properties.container";
+import { SupabaseAuthService } from "../../../../infrastructure/adapters/SupabaseAuthService";
+import { SupabaseMediaStorage } from "../../../../infrastructure/adapters/SupabaseMediaStorage";
+import { getPresignedUrlForDisplay } from "../../../../infrastructure/adapters/MediaStorage";
 import type { PropertyDTO } from "../../../../application/dto/PropertyDTO";
 import type { PublicPropertySummaryDTO } from "../../../../application/dto/PublicPropertyDTO";
+
+const authService = new SupabaseAuthService({ client: supabase });
+const mediaStorage = new SupabaseMediaStorage({ supabase, authService });
+
+const PROPERTY_TYPE_LABELS: Record<string, string> = {
+  apartment: "Departamento",
+  house: "Casa",
+  commercial: "Comercial",
+  land: "Terreno",
+  office: "Oficina",
+  industrial: "Industrial",
+  warehouse: "Bodega",
+  duplex: "Dúplex",
+  studio: "Estudio",
+  loft: "Loft",
+  villa: "Villa",
+};
 
 interface SimilarPropertyData {
   id: string;
@@ -19,6 +40,50 @@ interface SimilarPropertyData {
   bathrooms?: number | null;
   areaM2?: number | null;
   coverUrl: string | null;
+}
+
+/**
+ * Traduce el tipo de propiedad de inglés a español
+ */
+function getPropertyTypeLabel(type?: string | null): string {
+  if (!type) return "Propiedad";
+  const normalized = type.toLowerCase();
+  if (PROPERTY_TYPE_LABELS[normalized]) {
+    return PROPERTY_TYPE_LABELS[normalized];
+  }
+  return normalized
+    .split(/[\s_-]+/)
+    .map((segment) =>
+      segment.length > 0
+        ? segment.charAt(0).toUpperCase() + segment.slice(1)
+        : "",
+    )
+    .join(" ");
+}
+
+/**
+ * Carga la imagen de portada de una propiedad desde el storage
+ */
+async function loadCoverImage(propertyId: string): Promise<string | null> {
+  try {
+    const mediaResult = await mediaStorage.listMedia(propertyId);
+    if (mediaResult.isErr()) {
+      return null;
+    }
+
+    const mediaItems = mediaResult.value;
+    const cover = mediaItems.find(
+      (item) => item.isCover && item.type === "image",
+    );
+    const fallback = mediaItems.find((item) => item.type === "image");
+    const selected = cover || fallback;
+
+    if (!selected?.s3Key) return null;
+    return getPresignedUrlForDisplay(selected.s3Key);
+  } catch (error) {
+    console.error(`[similar-properties] Failed to load cover image for ${propertyId}`, error);
+    return null;
+  }
 }
 
 /**
@@ -168,7 +233,23 @@ export function useSimilarProperties(
         // Seleccionar propiedades similares con fallback progresivo
         const topSimilar = selectSimilarPropertiesWithFallback(scored, limit);
 
-        // Mapear a formato de card
+        // Cargar imágenes de portada para las propiedades seleccionadas
+        const coverUrlsPromises = topSimilar.map(async (property) => {
+          const url = await loadCoverImage(property.id);
+          return { propertyId: property.id, url };
+        });
+
+        const coverUrlsResults = await Promise.allSettled(coverUrlsPromises);
+        const coverUrlsMap: Record<string, string | null> = {};
+
+        coverUrlsResults.forEach((result) => {
+          if (result.status === "fulfilled") {
+            const { propertyId, url } = result.value;
+            coverUrlsMap[propertyId] = url ?? null;
+          }
+        });
+
+        // Mapear a formato de card con imágenes cargadas
         const similarData: SimilarPropertyData[] = topSimilar.map((property: PublicPropertySummaryDTO) => {
           const priceFormatted = new Intl.NumberFormat("es-MX", {
             style: "currency",
@@ -187,11 +268,11 @@ export function useSimilarProperties(
               city: property.city,
               state: property.state,
             },
-            propertyTypeLabel: property.propertyType || "Propiedad",
+            propertyTypeLabel: getPropertyTypeLabel(property.propertyType),
             bedrooms: property.bedrooms,
             bathrooms: property.bathrooms,
             areaM2: property.constructionSizeM2,
-            coverUrl: property.coverImageUrl || null,
+            coverUrl: coverUrlsMap[property.id] ?? property.coverImageUrl ?? null,
           };
         });
 
