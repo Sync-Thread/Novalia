@@ -15,6 +15,7 @@ import {
 import { usePropertyDetail } from "./hooks/usePropertyDetail";
 import { GalleryPlaceholder } from "./components/GalleryPlaceholder";
 import { SummaryPanel } from "./components/SummaryPanel";
+import PropertyMap from "./components/PropertyMap";
 import { PublicHomeFooter } from "../PublicHomePage/components/Footer/Footer";
 import { formatNumber } from "../../utils/formatters";
 import { getAmenityLabel } from "../../utils/amenityLabels";
@@ -269,11 +270,22 @@ export default function PropertyDetailPage() {
             </a>
           </section>
 
-          {/* Mapa Placeholder */}
-          <div className={styles.mapPlaceholder} aria-label="Mapa de ubicación">
-            <MapPin aria-hidden="true" />
-            <span>Mapa interactivo próximamente</span>
-          </div>
+          {/* Mapa interactivo */}
+          {property.location?.lat && property.location?.lng ? (
+            <PropertyMap
+              lat={property.location.lat}
+              lng={property.location.lng}
+              label={`${property.address.city || "Propiedad"}, ${property.address.state || ""}`}
+            />
+          ) : (
+            <div
+              className={styles.mapPlaceholder}
+              aria-label="Mapa de ubicación"
+            >
+              <MapPin aria-hidden="true" />
+              <span>Sin coordenadas disponibles</span>
+            </div>
+          )}
         </div>
 
         {/* Block 4: Similares */}
