@@ -143,7 +143,7 @@ export const reorderMediaSchema = z.object({
 
 export const attachDocumentSchema = z.object({
   propertyId: propertyIdSchema,
-  docType: z.enum(["rpp_certificate", "deed", "id_doc", "floorplan", "other"] as const),
+  docType: z.enum(["rpp_certificate", "deed", "id_doc", "plan", "other"] as const),
   url: z.string().url().optional().nullable(),
   s3Key: z.string().optional().nullable(),
   metadata: z.record(z.string(), z.any()).optional(),

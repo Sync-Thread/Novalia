@@ -10,6 +10,7 @@ export interface AuthProfile {
   userId: string;
   orgId: string | null;
   kycStatus: "verified" | "pending" | "rejected";
+  userType: "buyer" | "agent" | "owner" | null;
   fullName: string | null;
   email: string | null;
   phone: string | null;

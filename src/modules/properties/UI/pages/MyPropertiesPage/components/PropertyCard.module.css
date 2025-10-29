@@ -9,9 +9,7 @@
   font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
   transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
   width: 100%;
-  max-width: 360px;
   min-height: 100%;
-  margin: 0 auto;
 }
 
 .tarjeta:hover {

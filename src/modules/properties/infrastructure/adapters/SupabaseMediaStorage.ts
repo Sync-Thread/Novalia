@@ -46,10 +46,10 @@ export class SupabaseMediaStorage implements MediaStorage {
         return Result.fail(mediaError("AUTH", "Not authenticated", authResult.error));
       }
       
-      const profile = authResult.value;
-      if (!profile.orgId) {
-        return Result.fail(mediaError("AUTH", "No org context available"));
-      }
+      // const profile = authResult.value;
+      // if (!profile.orgId) {
+      //   return Result.fail(mediaError("AUTH", "No org context available"));
+      // }
 
       // 1. Determinar posición (última + 1)
       const { data: existingMedia, error: countError } = await this.supabase
@@ -94,7 +94,7 @@ export class SupabaseMediaStorage implements MediaStorage {
       const { data, error } = await this.supabase
         .from("media_assets")
         .insert({
-          org_id: profile.orgId,
+          // org_id: profile.orgId,
           property_id: propertyId,
           media_type: file.type,
           s3_key: s3Key,
@@ -149,17 +149,17 @@ export class SupabaseMediaStorage implements MediaStorage {
         return Result.fail(mediaError("AUTH", "Not authenticated", authResult.error));
       }
       
-      const profile = authResult.value;
-      if (!profile.orgId) {
-        return Result.fail(mediaError("AUTH", "No org context available"));
-      }
+      // const profile = authResult.value;
+      // if (!profile.orgId) {
+      //   return Result.fail(mediaError("AUTH", "No org context available"));
+      // }
 
       const { error } = await this.supabase
         .from("media_assets")
         .delete()
         .eq("id", mediaId)
         .eq("property_id", propertyId)
-        .eq("org_id", profile.orgId);
+        // .eq("org_id", profile.orgId);
 
       if (error) {
         return Result.fail(
@@ -182,15 +182,24 @@ export class SupabaseMediaStorage implements MediaStorage {
    */
   async setCover(propertyId: string, mediaId: string): Promise<Result<void>> {
     try {
+      console.log('llego? id');
+      
       const authResult = await this.authService.getCurrent();
       if (authResult.isErr()) {
+        console.log('error auth');
+        
         return Result.fail(mediaError("AUTH", "Not authenticated", authResult.error));
       }
       
-      const profile = authResult.value;
-      if (!profile.orgId) {
-        return Result.fail(mediaError("AUTH", "No org context available"));
-      }
+      // const profile = authResult.value;
+      // if (!profile.orgId) {
+      //   console.log('fallo la organizacion');
+        
+      //   return Result.fail(mediaError("AUTH", "No org context available"));
+      // }
+      // else{
+      //   console.log('no fallo org');
+      // }
 
       // Estrategia: actualizar metadata para marcar isCover
       const { data: targetMedia, error: fetchError } = await this.supabase
@@ -210,8 +219,8 @@ export class SupabaseMediaStorage implements MediaStorage {
       const { data: allMedia, error: allError } = await this.supabase
         .from("media_assets")
         .select("id, metadata")
-        .eq("property_id", propertyId)
-        .eq("org_id", profile.orgId);
+        .eq("property_id", propertyId);
+        // .eq("org_id", profile.orgId);
 
       if (allError) {
         return Result.fail(
@@ -268,10 +277,10 @@ export class SupabaseMediaStorage implements MediaStorage {
         return Result.fail(mediaError("AUTH", "Not authenticated", authResult.error));
       }
       
-      const profile = authResult.value;
-      if (!profile.orgId) {
-        return Result.fail(mediaError("AUTH", "No org context available"));
-      }
+      // const profile = authResult.value;
+      // if (!profile.orgId) {
+      //   return Result.fail(mediaError("AUTH", "No org context available"));
+      // }
 
       // Actualizar position de cada media según el orden
       const updates = orderedIds.map((id, index) =>
@@ -280,7 +289,7 @@ export class SupabaseMediaStorage implements MediaStorage {
           .update({ position: index })
           .eq("id", id)
           .eq("property_id", propertyId)
-          .eq("org_id", profile.orgId)
+          // .eq("org_id", profile.orgId)
       );
 
       await Promise.all(updates);
@@ -311,7 +320,7 @@ export class SupabaseMediaStorage implements MediaStorage {
         return Result.fail(mediaError("AUTH", "Not authenticated", authResult.error));
       }
       
-      const profile = authResult.value;
+      // const profile = authResult.value;
       // if (!profile.orgId) {
       //   return Result.fail(mediaError("AUTH", "No org context available"));
       // }
@@ -354,7 +363,7 @@ export class SupabaseMediaStorage implements MediaStorage {
       const { data, error } = await this.supabase
         .from("media_assets")
         .insert({
-          org_id: profile.orgId,
+          // org_id: profile.orgId,
           property_id: params.propertyId,
           media_type: params.type,
           s3_key: params.s3Key,
@@ -413,7 +422,7 @@ export class SupabaseMediaStorage implements MediaStorage {
         return Result.fail(mediaError("AUTH", "Not authenticated", authResult.error));
       }
       
-      const profile = authResult.value;
+      // const profile = authResult.value;
       // if (!profile.orgId) {
       //   return Result.fail(mediaError("AUTH", "No org context available"));
       // }
@@ -451,6 +460,40 @@ export class SupabaseMediaStorage implements MediaStorage {
     } catch (error) {
       return Result.fail(
         mediaError("UNKNOWN", "Unexpected error listing media", error)
+      );
+    }
+  }
+
+  /**
+   * Obtiene todos los s3Keys de media assets de una propiedad
+   * Útil para eliminación en lote de archivos de S3
+   */
+  async getAllS3Keys(propertyId: string): Promise<Result<string[]>> {
+    try {
+      const authResult = await this.authService.getCurrent();
+      if (authResult.isErr()) {
+        return Result.fail(mediaError("AUTH", "Not authenticated", authResult.error));
+      }
+
+      const { data, error } = await this.supabase
+        .from("media_assets")
+        .select("s3_key")
+        .eq("property_id", propertyId);
+
+      if (error) {
+        return Result.fail(
+          mediaError("UNKNOWN", "Failed to get media s3 keys", error)
+        );
+      }
+
+      const s3Keys = (data ?? [])
+        .map((row) => row.s3_key)
+        .filter((key): key is string => typeof key === "string" && key.length > 0);
+
+      return Result.ok(s3Keys);
+    } catch (error) {
+      return Result.fail(
+        mediaError("UNKNOWN", "Unexpected error getting s3 keys", error)
       );
     }
   }

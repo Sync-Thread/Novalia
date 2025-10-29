@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { DocumentDTO, DocumentTypeDTO } from "../../application/dto/DocumentDTO";
 import type { AuthService } from "../../application/ports/AuthService";
 import { Result } from "../../application/_shared/result";
+import { mapDbDocTypeToDto } from "../../application/mappers/document.mapper";
 
 type DocumentErrorCode = "AUTH" | "NOT_FOUND" | "VALIDATION" | "UNKNOWN";
 
@@ -50,7 +51,7 @@ export class SupabaseDocumentStorage {
         return Result.fail(documentError("AUTH", "Not authenticated", authResult.error));
       }
       
-      const profile = authResult.value;
+      // const profile = authResult.value;
 
       // Insertar en documents
       const { data, error } = await this.supabase
@@ -134,7 +135,7 @@ export class SupabaseDocumentStorage {
         id: row.id,
         // orgId: row.org_id,
         propertyId: row.related_id,
-        docType: row.doc_type,
+        docType: mapDbDocTypeToDto(row.doc_type),
         url: row.url,
         s3Key: row.s3_key,
         verification: row.verification,
@@ -185,6 +186,44 @@ export class SupabaseDocumentStorage {
     } catch (error) {
       return Result.fail(
         documentError("UNKNOWN", "Unexpected error removing document", error)
+      );
+    }
+  }
+
+  /**
+   * Obtiene todos los s3Keys de documentos de una propiedad
+   * Útil para eliminación en lote de archivos de S3
+   */
+  async getAllS3Keys(propertyId: string): Promise<Result<string[]>> {
+    try {
+      const authResult = await this.authService.getCurrent();
+      if (authResult.isErr()) {
+        return Result.fail(documentError("AUTH", "Not authenticated", authResult.error));
+      }
+
+      // No requerir org_id
+      // const profile = authResult.value;
+
+      const { data, error } = await this.supabase
+        .from("documents")
+        .select("s3_key")
+        .eq("related_type", "property")
+        .eq("related_id", propertyId);
+
+      if (error) {
+        return Result.fail(
+          documentError("UNKNOWN", "Failed to get document s3 keys", error)
+        );
+      }
+
+      const s3Keys = (data ?? [])
+        .map((row) => row.s3_key)
+        .filter((key): key is string => typeof key === "string" && key.length > 0);
+
+      return Result.ok(s3Keys);
+    } catch (error) {
+      return Result.fail(
+        documentError("UNKNOWN", "Unexpected error getting s3 keys", error)
       );
     }
   }

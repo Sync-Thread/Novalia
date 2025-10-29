@@ -1,8 +1,9 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+﻿import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { PropertiesProvider } from "../../containers/PropertiesProvider";
 import { usePropertyList } from "../../hooks/usePropertyList";
 import { usePropertiesActions } from "../../hooks/usePropertiesActions";
+import { usePropertyCoverImages } from "../../hooks/usePropertyCoverImages";
 import FiltersBar, {
   type FiltersBarValues,
   type ViewMode,
@@ -11,7 +12,7 @@ import KycBanner from "../../components/KycBanner";
 import PropertyCard, {
   type PropertyCardAction,
 } from "./components/PropertyCard";
-import PropertyQuickView from "./components/PropertyQuickView";
+import PropertyQuickView from "./components/PropertyQuickView/PropertyQuickView";
 import MarkSoldModal from "../../modals/MarkSoldModal";
 import DeletePropertyModal from "../../modals/DeletePropertyModal";
 import DesignBanner from "../../utils/DesignBanner";
@@ -23,6 +24,36 @@ import {
   formatVerification,
 } from "../../utils/format";
 import styles from "./MyPropertiesPage.module.css";
+
+const PROPERTY_TYPE_LABELS: Record<string, string> = {
+  apartment: "Departamento",
+  house: "Casa",
+  commercial: "Comercial",
+  land: "Terreno",
+  office: "Oficina",
+  industrial: "Industrial",
+  other: "Otro",
+  warehouse: "Bodega",
+  duplex: "Duplex",
+  studio: "Estudio",
+  loft: "Loft",
+  villa: "Villa",
+};
+
+const getPropertyTypeLabel = (type?: string) => {
+  if (!type) return "-";
+  const normalized = type.toLowerCase();
+  const mapped = PROPERTY_TYPE_LABELS[normalized];
+  if (mapped) return mapped;
+  return normalized
+    .split(/[\s_-]+/)
+    .map((segment) =>
+      segment.length > 0
+        ? segment.charAt(0).toUpperCase() + segment.slice(1)
+        : "",
+    )
+    .join(" ");
+};
 
 export default function MyPropertiesPage() {
   return (
@@ -58,6 +89,10 @@ function MyPropertiesPageContent() {
   const [markSoldFor, setMarkSoldFor] = useState<PropertyDTO | null>(null);
   const [deleteFor, setDeleteFor] = useState<PropertyDTO | null>(null);
 
+  // Hook para cargar imágenes de portada
+  const propertyIds = useMemo(() => items.map((p) => p.id), [items]);
+  const { coverUrls } = usePropertyCoverImages(propertyIds);
+
   const closeQuickView = useCallback(() => {
     setQuickOpen(false);
     setSelectedId(null);
@@ -76,7 +111,7 @@ function MyPropertiesPageContent() {
       ...filters,
       viewMode,
     }),
-    [filters, viewMode]
+    [filters, viewMode],
   );
 
   const stats = useMemo(() => {
@@ -195,6 +230,7 @@ function MyPropertiesPageContent() {
             <PropertyCard
               key={property.id}
               property={property}
+              coverUrl={coverUrls[property.id] || null}
               onAction={handleAction}
             />
           ))}
@@ -306,11 +342,10 @@ function PropertyListTable({
               "Estado",
               "Tipo",
               "Precio",
-              "Ubicación",
+              "Ubicacion",
               "Publicada",
               "Completitud",
               "RPP",
-              "Acciones",
             ].map((header) => (
               <th key={header}>{header}</th>
             ))}
@@ -321,18 +356,25 @@ function PropertyListTable({
             <tr
               key={property.id}
               onClick={() => onAction("quick_view", property)}
-              style={{ cursor: "pointer" }}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  onAction("quick_view", property);
+                }
+              }}
+              tabIndex={0}
+              className={styles.tablaRow}
             >
               <td>
                 <strong>{property.title}</strong>
-                <div
-                  style={{ fontSize: 12, color: "var(--text-500, #64748b)" }}
-                >
-                  {property.id}
+                <div className={styles.tablaMeta}>
+                  {[property.address.city, property.address.state]
+                    .filter(Boolean)
+                    .join(", ") || "Sin ubicacion"}
                 </div>
               </td>
               <td>{formatStatus(property.status)}</td>
-              <td>{property.propertyType}</td>
+              <td>{getPropertyTypeLabel(property.propertyType)}</td>
               <td>
                 {formatCurrency(property.price.amount, property.price.currency)}
               </td>
@@ -345,18 +387,6 @@ function PropertyListTable({
               <td>{Math.round(property.completenessScore)}%</td>
               <td>
                 {formatVerification(property.rppVerification ?? "pending")}
-              </td>
-              <td>
-                <button
-                  type="button"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    onAction("quick_view", property);
-                  }}
-                  className={styles.tablaBtn}
-                >
-                  Acciones
-                </button>
               </td>
             </tr>
           ))}
@@ -381,7 +411,7 @@ function Pagination({
   return (
     <div className={styles.paginacion}>
       <span>
-        Página {page} de {totalPages}
+        Pagina {page} de {totalPages}
       </span>
       <div className={styles.paginacionControles}>
         <button

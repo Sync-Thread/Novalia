@@ -1,6 +1,7 @@
 // src/modules/auth/infrastructure/supabase/adapters/registerAdapter.ts
 import { supabase } from "../../../../../core/supabase/client";
 import type { AccountType } from "../../../../../shared/types/auth";
+import { normalizeAccountType } from "../../../utils/accountType";
 
 function asEmailInUseError() {
   const e: any = new Error("EMAIL_IN_USE");
@@ -290,5 +291,49 @@ export const registerAdapter = {
     } catch (err) {
       console.error("[register][validate] Unexpected validation failure", err);
     }
+  },
+
+  async persistUserType(userId: string, type: AccountType) {
+    const { error: profileError } = await supabase
+      .from("profiles")
+      .update({ role_hint: type })
+      .eq("id", userId);
+
+    if (profileError) {
+      throw profileError;
+    }
+
+    const { error: authError } = await supabase.auth.updateUser({
+      data: { account_type: type },
+    });
+
+    if (authError) {
+      throw authError;
+    }
+  },
+
+  async resolveAccountType(userId: string): Promise<AccountType | null> {
+    try {
+      const { data } = await supabase.auth.getUser();
+      const sessionUser = data?.user ?? null;
+      if (sessionUser && sessionUser.id === userId) {
+        const metaType = normalizeAccountType(sessionUser.user_metadata?.account_type);
+        if (metaType) {
+          return metaType;
+        }
+      }
+    } catch (error) {
+      console.warn("[register] resolveAccountType getUser failed", error);
+    }
+
+    const { profile } = await fetchProfileWithRetry(userId, 1);
+    if (profile) {
+      const profileType = normalizeAccountType((profile as any).role_hint ?? null);
+      if (profileType) {
+        return profileType;
+      }
+    }
+
+    return null;
   },
 };

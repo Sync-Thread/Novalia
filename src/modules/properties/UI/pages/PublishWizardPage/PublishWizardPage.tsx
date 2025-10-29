@@ -1,5 +1,11 @@
 // Wizard moderno para publicar propiedades. Mantener la logica de negocio intacta.
-import React, { useMemo, useState, useEffect, useRef } from "react";
+import React, {
+  useMemo,
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+} from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { PropertiesProvider } from "../../containers/PropertiesProvider";
 import { usePropertiesActions } from "../../hooks/usePropertiesActions";
@@ -8,7 +14,10 @@ import AmenityChips, {
 } from "./components/AmenityChips";
 import MediaDropzone from "./components/MediaDropzone";
 import DocumentCard from "./components/DocumentCard";
+import CustomSelect from "../../components/CustomSelect";
+import Modal from "../../components/Modal";
 import DesignBanner from "../../utils/DesignBanner";
+import { PROPERTY_TYPE_OPTIONS, MEXICO_STATES_OPTIONS } from "../../constants";
 import {
   isGeolocationSupported,
   getCurrentPosition,
@@ -22,11 +31,7 @@ import type {
 } from "../../../application/dto/DocumentDTO";
 import type { PropertyDTO } from "../../../application/dto/PropertyDTO";
 import type { Currency, PropertyType } from "../../../domain/enums";
-import {
-  CURRENCY_VALUES,
-  PROPERTY_TYPE,
-  PROPERTY_TYPE_VALUES,
-} from "../../../domain/enums";
+import { PROPERTY_TYPE } from "../../../domain/enums";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import {
@@ -44,21 +49,6 @@ const authService = new SupabaseAuthService({ client: supabase });
 const mediaStorage = new SupabaseMediaStorage({ supabase, authService });
 const documentStorage = new SupabaseDocumentStorage({ supabase, authService });
 
-const PROPERTY_TYPE_LABELS: Record<PropertyType, string> = {
-  house: "Casa",
-  apartment: "Departamento",
-  land: "Terreno",
-  office: "Oficina",
-  commercial: "Comercial",
-  industrial: "Industrial",
-  other: "Otro",
-} as const;
-
-const PROPERTY_TYPE_OPTIONS = PROPERTY_TYPE_VALUES.map((value) => ({
-  value,
-  label: PROPERTY_TYPE_LABELS[value],
-}));
-
 interface DraftForm {
   propertyId: string | null;
   title: string;
@@ -68,6 +58,12 @@ interface DraftForm {
   city: string;
   state: string;
   description: string;
+  levels: number | null;
+  bedrooms: number | null;
+  bathrooms: number | null;
+  parkingSpots: number | null;
+  constructionM2: number | null;
+  landM2: number | null;
   amenities: string[];
   amenitiesExtra: string;
 }
@@ -81,6 +77,12 @@ const INITIAL_FORM: DraftForm = {
   city: "",
   state: "",
   description: "",
+  levels: null,
+  bedrooms: null,
+  bathrooms: null,
+  parkingSpots: null,
+  constructionM2: null,
+  landM2: null,
   amenities: [],
   amenitiesExtra: "",
 };
@@ -110,6 +112,7 @@ function PublishWizard() {
     deleteDocument,
     verifyRpp,
     listDocuments,
+    getAuthProfile,
   } = usePropertiesActions();
 
   const [form, setForm] = useState<DraftForm>(INITIAL_FORM);
@@ -117,6 +120,9 @@ function PublishWizard() {
   const [documents, setDocuments] = useState<DocumentDTO[]>([]);
   const [hasVerifiedRppCertificate, setHasVerifiedRppCertificate] =
     useState(false);
+  const [userKycStatus, setUserKycStatus] = useState<
+    "verified" | "pending" | "rejected" | null
+  >(null);
   const [propertyStatus, setPropertyStatus] = useState<
     PropertyDTO["status"] | null
   >(null);
@@ -126,12 +132,38 @@ function PublishWizard() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [currentStep, setCurrentStep] = useState(0);
+  const [showSaveBeforeRppModal, setShowSaveBeforeRppModal] = useState(false);
+  const [showKycRequiredModal, setShowKycRequiredModal] = useState(false);
+  const [showRppRequiredModal, setShowRppRequiredModal] = useState(false);
   const [coords, setCoords] = useState<Coords | null>(null);
   const mapRef = React.useRef<HTMLDivElement | null>(null);
   const leafletMap = useRef<L.Map | null>(null);
   const markerRef = useRef<L.Marker | null>(null);
 
+  // Estado para municipios cargados dinámicamente
+  const [municipalities, setMunicipalities] = useState<
+    Array<{ value: string; label: string; lat: number; lng: number }>
+  >([]);
+  const [loadingMunicipalities, setLoadingMunicipalities] = useState(false);
+  const [isLoadingProperty, setIsLoadingProperty] = useState(false);
+
   const isEditingDraft = isEditing && propertyStatus === "draft";
+
+  // Función para verificar si el formulario tiene datos reales (no está vacío por carga pendiente)
+  const hasRealFormData = (): boolean => {
+    // Si hay propertyId, asumimos que ya tiene datos guardados
+    if (form.propertyId) return true;
+
+    // Si NO hay propertyId, verificar que al menos tenga datos básicos
+    const hasBasicData =
+      form.title.trim().length > 0 ||
+      form.description.trim().length > 0 ||
+      form.priceAmount > 0 ||
+      form.city.trim().length > 0 ||
+      form.state.trim().length > 0;
+
+    return hasBasicData;
+  };
 
   // const [coords, setCoords] = useState<Coords | null>(null);
 
@@ -255,10 +287,39 @@ function PublishWizard() {
     setSavedCompleteness(null);
     setCoords(null);
   }, [editingId]);
+
+  // Cargar el perfil del usuario al montar el componente
+  useEffect(() => {
+    let active = true;
+
+    const loadUserProfile = async () => {
+      console.log("👤 Cargando perfil del usuario...");
+      const profileResult = await getAuthProfile();
+
+      if (!active) return;
+
+      if (profileResult.isOk()) {
+        const profile = profileResult.value;
+        setUserKycStatus(profile.kycStatus);
+        console.log("✅ Perfil cargado. KYC Status:", profile.kycStatus);
+      } else {
+        console.error("❌ Error al cargar perfil:", profileResult.error);
+        setUserKycStatus("pending"); // Fallback a pending si falla
+      }
+    };
+
+    loadUserProfile();
+
+    return () => {
+      active = false;
+    };
+  }, [getAuthProfile]);
+
   useEffect(() => {
     if (!editingId) return;
     let active = true;
     const load = async () => {
+      setIsLoadingProperty(true); // Marcar que estamos cargando
       const result = await getProperty(editingId);
       if (!active) return;
       if (result.isOk()) {
@@ -273,6 +334,12 @@ function PublishWizard() {
           priceCurrency: data.price.currency,
           city: data.address.city ?? "",
           state: data.address.state ?? "",
+          levels: data.levels ?? null,
+          bedrooms: data.bedrooms ?? null,
+          bathrooms: data.bathrooms ?? null,
+          parkingSpots: data.parkingSpots ?? null,
+          constructionM2: data.constructionM2 ?? null,
+          landM2: data.landM2 ?? null,
           amenities: data.amenities ?? [],
           amenitiesExtra: data.amenitiesExtra ?? "",
         }));
@@ -294,6 +361,7 @@ function PublishWizard() {
       } else {
         setMessage("No pudimos cargar los datos de la propiedad.");
       }
+      setIsLoadingProperty(false); // Marcar que terminamos de cargar
     };
     void load();
     return () => {
@@ -301,86 +369,128 @@ function PublishWizard() {
     };
   }, [editingId, getProperty, listDocuments]);
 
-  // Cargar imágenes desde BD cuando llegue al paso "media"
+  // Función para recargar medias desde BD
+  const reloadMediaFromDatabase = useCallback(async () => {
+    if (!form.propertyId) return;
+
+    console.log(
+      "🔄 Recargando imágenes desde BD para propiedad:",
+      form.propertyId
+    );
+
+    // 1. Obtener registros de media_assets
+    const mediaResult = await mediaStorage.listMedia(form.propertyId);
+
+    if (mediaResult.isErr()) {
+      console.error("Error al cargar media desde BD:", mediaResult.error);
+      setMessage("⚠️ No se pudieron cargar las imágenes");
+      return;
+    }
+
+    const mediaRecords = mediaResult.value;
+    console.log(
+      `✅ Se encontraron ${mediaRecords.length} registros de media en BD`
+    );
+
+    if (mediaRecords.length === 0) {
+      setMediaItems([]);
+      return;
+    }
+
+    // 2. Descargar cada imagen usando presigned URLs
+    const mediaWithBlobUrls = await Promise.all(
+      mediaRecords.map(async (mediaRecord) => {
+        try {
+          if (!mediaRecord.s3Key) {
+            console.warn("Media sin s3Key:", mediaRecord.id);
+            return mediaRecord;
+          }
+
+          console.log("⬇️ Descargando imagen:", mediaRecord.s3Key);
+
+          // Obtener presigned URL y descargar como blob
+          const blobUrl = await getPresignedUrlForDisplay(mediaRecord.s3Key);
+
+          console.log("✅ Imagen descargada como blob:", blobUrl);
+
+          // Retornar MediaDTO con blob URL local
+          return {
+            ...mediaRecord,
+            url: blobUrl, // Usar blob URL en lugar de S3 URL
+          };
+        } catch (error) {
+          console.error("Error descargando imagen:", mediaRecord.s3Key, error);
+          // Retornar el registro sin modificar si falla
+          return mediaRecord;
+        }
+      })
+    );
+
+    // 3. Actualizar estado con las imágenes descargadas
+    setMediaItems(mediaWithBlobUrls);
+    console.log("✅ Todas las imágenes cargadas y listas para mostrar");
+  }, [form.propertyId]);
+
+  // Auto-guardar borrador y cargar imágenes cuando llegue al paso "media"
   useEffect(() => {
-    // Solo cargar si estamos en el paso "media" (índice 3) y tenemos propertyId
-    if (currentStep !== 3 || !form.propertyId) return;
+    // Solo procesar si estamos en el paso "media" (índice 3)
+    if (currentStep !== 3) return;
+
+    // Si estamos cargando una propiedad existente, NO hacer nada
+    if (isLoadingProperty) {
+      console.log("⏸️ Esperando carga de propiedad desde BD...");
+      return;
+    }
 
     let active = true;
 
-    const loadMediaFromDatabase = async () => {
-      console.log(
-        "📸 Cargando imágenes desde BD para propiedad:",
-        form.propertyId
-      );
+    const prepareMediaStep = async () => {
+      // Si no hay propertyId, guardar borrador automáticamente primero
+      if (!form.propertyId) {
+        // VALIDACIÓN CRÍTICA: Verificar que el formulario tenga datos reales
+        if (!hasRealFormData()) {
+          console.log(
+            "⏸️ Formulario sin datos reales detectado, esperando entrada del usuario..."
+          );
+          return; // No hacer nada, esperar a que se cargue el formulario o el usuario ingrese datos
+        }
 
-      // 1. Obtener registros de media_assets
-      const mediaResult = await mediaStorage.listMedia(form.propertyId!);
+        console.log(
+          "📝 Paso media detectado sin propertyId, guardando borrador..."
+        );
+        setMessage("Guardando borrador antes de cargar archivos...");
 
-      if (!active) return;
+        const savedPropertyId = await handleSave();
 
-      if (mediaResult.isErr()) {
-        console.error("Error al cargar media desde BD:", mediaResult.error);
-        setMessage("⚠️ No se pudieron cargar las imágenes");
-        return;
+        if (!active) return;
+
+        if (!savedPropertyId) {
+          setMessage(
+            "❌ No pudimos guardar el borrador. Por favor, completa los campos requeridos."
+          );
+          return;
+        }
+
+        console.log(
+          "✅ Borrador guardado automáticamente con ID:",
+          savedPropertyId
+        );
+        setMessage("✅ Borrador guardado. Ya puedes subir archivos.");
       }
 
-      const mediaRecords = mediaResult.value;
-      console.log(
-        `✅ Se encontraron ${mediaRecords.length} registros de media en BD`
-      );
-
-      if (mediaRecords.length === 0) {
-        // No hay imágenes guardadas
-        return;
+      // Si ya hay propertyId, cargar imágenes desde BD (solo si no hay imágenes ya)
+      if (form.propertyId && mediaItems.length === 0) {
+        console.log("📸 Cargando imágenes desde BD...");
+        await reloadMediaFromDatabase();
       }
-
-      // 2. Descargar cada imagen usando presigned URLs
-      const mediaWithBlobUrls = await Promise.all(
-        mediaRecords.map(async (mediaRecord) => {
-          try {
-            if (!mediaRecord.s3Key) {
-              console.warn("Media sin s3Key:", mediaRecord.id);
-              return mediaRecord;
-            }
-
-            console.log("⬇️ Descargando imagen:", mediaRecord.s3Key);
-
-            // Obtener presigned URL y descargar como blob
-            const blobUrl = await getPresignedUrlForDisplay(mediaRecord.s3Key);
-
-            console.log("✅ Imagen descargada como blob:", blobUrl);
-
-            // Retornar MediaDTO con blob URL local
-            return {
-              ...mediaRecord,
-              url: blobUrl, // Usar blob URL en lugar de S3 URL
-            };
-          } catch (error) {
-            console.error(
-              "Error descargando imagen:",
-              mediaRecord.s3Key,
-              error
-            );
-            // Retornar el registro sin modificar si falla
-            return mediaRecord;
-          }
-        })
-      );
-
-      if (!active) return;
-
-      // 3. Actualizar estado con las imágenes descargadas
-      setMediaItems(mediaWithBlobUrls);
-      console.log("✅ Todas las imágenes cargadas y listas para mostrar");
     };
 
-    loadMediaFromDatabase();
+    prepareMediaStep();
 
     return () => {
       active = false;
     };
-  }, [currentStep, form.propertyId]);
+  }, [currentStep, form.propertyId, isLoadingProperty]);
 
   // Cargar documentos desde BD cuando llegue al paso "publish"
   useEffect(() => {
@@ -405,7 +515,7 @@ function PublishWizard() {
       }
 
       const docs = docsResult.value;
-      console.log(`✅ Se encontraron ${docs.length} documentos en BD`);
+      // console.log(`✅ Se encontraron ${docs.length} documentos en BD`);
 
       setDocuments(docs);
     };
@@ -446,6 +556,12 @@ function PublishWizard() {
       currency: form.priceCurrency,
     },
     operationType: "sale" as const,
+    levels: form.levels,
+    bedrooms: form.bedrooms,
+    bathrooms: form.bathrooms,
+    parkingSpots: form.parkingSpots,
+    constructionM2: form.constructionM2,
+    landM2: form.landM2,
     address: {
       city: form.city.trim() || "Por definir",
       state: form.state.trim() || "Por definir",
@@ -457,28 +573,26 @@ function PublishWizard() {
     location: coords ? { lat: coords.lat, lng: coords.lng } : null,
   });
 
-  const handleSave = async () => {
-    setSaving(true);
-    setMessage(null);
-    const payload = buildDraftPayload();
+  const handleSave = async (): Promise<string | null> => {
+    // VALIDACIÓN: Evitar guardados duplicados
+    if (saving) {
+      console.log("⏸️ Ya hay un guardado en progreso, bloqueando duplicado...");
+      return null;
+    }
 
-    if (!form.propertyId) {
-      console.log('antes de "crear"');
+    // VALIDACIÓN: Si estamos cargando, esperar
+    if (isLoadingProperty) {
+      console.log("⏸️ Cargando propiedad, bloqueando guardado...");
+      setMessage("⏳ Cargando datos, espera un momento...");
+      return null;
+    }
 
-      const result = await createProperty(payload);
-      console.log("despues de crear, mas result");
-      console.log(result);
+    // VALIDACIÓN: Si ya existe propertyId, solo actualizar
+    if (form.propertyId) {
+      setSaving(true);
+      setMessage(null);
+      const payload = buildDraftPayload();
 
-      if (result.isOk()) {
-        const id = result.value.id;
-        setForm((prev) => ({ ...prev, propertyId: id }));
-        await refreshDocs(id);
-        setMessage("Borrador guardado.");
-        setSavedCompleteness(completion);
-      } else {
-        setMessage("No pudimos guardar el borrador.");
-      }
-    } else {
       const result = await updateProperty({
         id: form.propertyId,
         patch: payload,
@@ -493,10 +607,38 @@ function PublishWizard() {
       if (success && isEditing) {
         setSaving(false);
         navigate("/properties");
-        return;
+        return form.propertyId;
       }
+      setSaving(false);
+      return success ? form.propertyId : null;
     }
-    setSaving(false);
+
+    // VALIDACIÓN: Si NO hay propertyId, verificar que tenga datos reales
+    if (!hasRealFormData()) {
+      setMessage("⚠️ Por favor, completa al menos algunos campos básicos.");
+      return null;
+    }
+
+    // Crear nueva propiedad
+    setSaving(true);
+    setMessage(null);
+    const payload = buildDraftPayload();
+
+    const result = await createProperty(payload as any);
+
+    if (result.isOk()) {
+      const id = result.value.id;
+      setForm((prev) => ({ ...prev, propertyId: id }));
+      await refreshDocs(id);
+      setMessage("Borrador guardado.");
+      setSavedCompleteness(completion);
+      setSaving(false);
+      return id; // Retornar el nuevo propertyId
+    } else {
+      setMessage("No pudimos guardar el borrador.");
+      setSaving(false);
+      return null;
+    }
   };
 
   const refreshDocs = async (propertyId: string) => {
@@ -509,6 +651,32 @@ function PublishWizard() {
   const handlePublish = async () => {
     if (!form.propertyId) return;
     setMessage(null);
+
+    // ========================================
+    // VALIDACIONES ANTES DE PUBLICAR
+    // ========================================
+
+    // 1. Verificar que el usuario tenga INE verificado
+    if (userKycStatus !== "verified") {
+      console.log("⚠️ Usuario no tiene INE verificado. Status:", userKycStatus);
+      setShowKycRequiredModal(true);
+      return;
+    }
+
+    // 2. Verificar que la propiedad tenga RPP verificado
+    if (!hasVerifiedRppCertificate) {
+      console.log("⚠️ Propiedad no tiene RPP verificado");
+      setShowRppRequiredModal(true);
+      return;
+    }
+
+    console.log(
+      "✅ Todas las verificaciones pasadas. Procediendo a publicar..."
+    );
+
+    // ========================================
+    // LÓGICA DE PUBLICACIÓN
+    // ========================================
 
     if (isEditing && !isEditingDraft) {
       const updateResult = await updateProperty({
@@ -543,12 +711,21 @@ function PublishWizard() {
   };
 
   const handleUploadMedia = async (files: File[]) => {
+    // En este punto, el propertyId SIEMPRE debe existir (el useEffect lo garantiza)
     if (!form.propertyId) {
-      setMessage("Guarda el borrador antes de subir media.");
+      setMessage(
+        "❌ Error: No hay propertyId. Por favor, guarda el borrador primero."
+      );
       return;
     }
 
-    // Procesar cada archivo
+    const currentPropertyId = form.propertyId;
+    console.log(
+      "📤 Iniciando upload de archivos para propertyId:",
+      currentPropertyId
+    );
+
+    // Procesar cada archivo usando currentPropertyId
     for (const file of files) {
       const tempId = crypto.randomUUID();
 
@@ -560,7 +737,7 @@ function PublishWizard() {
         const tempMedia: MediaDTO = {
           id: tempId,
           orgId: null,
-          propertyId: form.propertyId,
+          propertyId: currentPropertyId,
           url: localUrl, // URL local temporal (blob:http://...)
           s3Key: null,
           type: file.type.startsWith("video/") ? "video" : "image",
@@ -582,14 +759,18 @@ function PublishWizard() {
         setMediaItems((prev) => [...prev, tempMedia]);
 
         // 4. Subir a S3 en segundo plano
-        const uploadResult = await uploadFile(file, "uploads", form.propertyId);
+        const uploadResult = await uploadFile(
+          file,
+          "uploads",
+          currentPropertyId
+        );
 
         if (uploadResult?.objectUrl) {
-          console.log("Archivo subido a S3:", uploadResult);
+          // console.log("Archivo subido a S3:", uploadResult);
 
           // 5. Guardar en la base de datos
           const dbResult = await mediaStorage.insertMediaFromS3({
-            propertyId: form.propertyId,
+            propertyId: currentPropertyId,
             s3Key: uploadResult.key,
             url: uploadResult.objectUrl,
             type: file.type.startsWith("video/") ? "video" : "image",
@@ -670,11 +851,20 @@ function PublishWizard() {
 
   const handleSetCover = async (mediaId: string) => {
     if (!form.propertyId) return;
+    console.log("🖼️ Estableciendo nueva portada...");
+
     const result = await setCoverMedia({
       propertyId: form.propertyId,
       mediaId,
     });
-    if (result.isOk()) setMediaItems(result.value);
+
+    if (result.isOk()) {
+      console.log("✅ Portada actualizada en BD, recargando imágenes...");
+      // Recargar las imágenes desde BD para reflejar el cambio de isCover
+      await reloadMediaFromDatabase();
+    } else {
+      console.error("❌ Error al actualizar portada:", result.error);
+    }
   };
 
   const handleReorder = async (order: string[]) => {
@@ -687,16 +877,25 @@ function PublishWizard() {
   };
 
   const handleAttachDocument = async (type: DocumentTypeDTO, file: File) => {
+    // En este punto, el propertyId SIEMPRE debe existir (similar al paso media)
     if (!form.propertyId) {
-      setMessage("Guarda el borrador antes de adjuntar documentos.");
+      setMessage(
+        "❌ Error: No hay propertyId. Por favor, guarda el borrador primero."
+      );
       return;
     }
+
+    const currentPropertyId = form.propertyId;
 
     try {
       console.log("📄 Subiendo documento:", file.name);
 
       // 1. Subir a S3
-      const uploadResult = await uploadFile(file, "documents", form.propertyId);
+      const uploadResult = await uploadFile(
+        file,
+        "documents",
+        currentPropertyId
+      );
 
       if (!uploadResult?.objectUrl) {
         setMessage(`❌ Error al subir ${file.name} a S3`);
@@ -707,7 +906,7 @@ function PublishWizard() {
 
       // 2. Guardar en la base de datos
       const dbResult = await documentStorage.insertDocumentFromS3({
-        propertyId: form.propertyId,
+        propertyId: currentPropertyId,
         docType: type,
         s3Key: uploadResult.key,
         url: uploadResult.objectUrl,
@@ -721,7 +920,7 @@ function PublishWizard() {
         setMessage(`✅ ${file.name} subido correctamente`);
 
         // Recargar lista de documentos
-        await refreshDocs(form.propertyId);
+        await refreshDocs(currentPropertyId);
       } else {
         console.error("Error guardando documento en BD:", dbResult.error);
         setMessage(`⚠️ ${file.name} subido a S3 pero error guardando en BD`);
@@ -792,6 +991,13 @@ function PublishWizard() {
   }, [searchParams]);
 
   const requirements = useMemo(() => {
+    // console.log("recargo?... :C");
+    // if (mediaItems) {
+    //   console.log("el mediaitems no esta vacio: ", mediaItems.length);
+    // } else {
+    //   console.log("no hay titulo");
+    // }
+
     return [
       { label: "Titulo (Paso 1)", valid: form.title.trim().length > 0 },
       { label: "Tipo (Paso 1)", valid: form.propertyType.trim().length > 0 },
@@ -807,7 +1013,7 @@ function PublishWizard() {
         valid:
           form.amenities.length > 0 || form.amenitiesExtra.trim().length > 0,
       },
-      { label: "Fotos min. 1 (Paso 4)", valid: mediaItems.length > 0 },
+      { label: "Fotos min. 1 (Paso 4)", valid: mediaItems?.length > 0 },
       {
         label: "Documentos (Paso 5)",
         valid: documents.length >= 1, // Al menos un documento (escritura, planos u otros)
@@ -832,6 +1038,68 @@ function PublishWizard() {
   const goPrev = () => setCurrentStep((prev) => Math.max(prev - 1, 0));
   const handleCancel = () => navigate("/properties");
 
+  // Manejar click en botón de verificar RPP
+  const handleVerifyRppClick = async () => {
+    // VALIDACIÓN: Si estamos cargando la propiedad, no hacer nada
+    if (isLoadingProperty) {
+      console.log("⏸️ Esperando carga de propiedad, acción bloqueada...");
+      return;
+    }
+
+    // Si no hay propertyId, verificar que tenga datos reales antes de mostrar modal
+    if (!form.propertyId) {
+      if (!hasRealFormData()) {
+        setMessage(
+          "⚠️ Por favor, completa al menos algunos campos básicos antes de verificar el RPP."
+        );
+        return;
+      }
+      setShowSaveBeforeRppModal(true);
+      return;
+    }
+
+    // Guardar el paso actual para regresar después
+    const currentStepId = steps[currentStep].id;
+
+    // Si ya hay propertyId, navegar directamente pasando el step actual
+    navigate(
+      `/verify-rpp?propertyId=${form.propertyId}&returnStep=${currentStepId}`
+    );
+  };
+
+  // Guardar y luego ir a verificación RPP
+  const handleSaveAndVerifyRpp = async () => {
+    // VALIDACIÓN: Evitar guardados duplicados
+    if (saving || isLoadingProperty) {
+      console.log("⏸️ Operación en progreso, bloqueando acción duplicada...");
+      return;
+    }
+
+    setShowSaveBeforeRppModal(false);
+    setMessage("Guardando borrador antes de verificar RPP...");
+
+    const savedPropertyId = await handleSave();
+
+    if (!savedPropertyId) {
+      setMessage(
+        "❌ No pudimos guardar el borrador. Por favor, completa los campos requeridos."
+      );
+      return;
+    }
+
+    setMessage("✅ Borrador guardado. Redirigiendo a verificación RPP...");
+
+    // Guardar el paso actual para regresar después
+    const currentStepId = steps[currentStep].id;
+
+    // Pequeña pausa para que el usuario vea el mensaje
+    setTimeout(() => {
+      navigate(
+        `/verify-rpp?propertyId=${savedPropertyId}&returnStep=${currentStepId}`
+      );
+    }, 500);
+  };
+
   // Distribución a 2 columnas: igual a diseño de referencia. No tocar lógica.
   const renderStepContent = () => {
     switch (steps[currentStep].id) {
@@ -845,7 +1113,8 @@ function PublishWizard() {
               </p>
             </header>
             <div className="form-grid">
-              <label className="wizard-field">
+              {/* Información principal */}
+              <label className="wizard-field form-col-2">
                 <span className="wizard-field__label">Titulo *</span>
                 <input
                   className="wizard-field__control"
@@ -856,6 +1125,7 @@ function PublishWizard() {
                   placeholder="Ej: Departamento moderno en Roma Norte"
                 />
               </label>
+
               <label className="wizard-field">
                 <span className="wizard-field__label">Tipo de propiedad *</span>
                 <div className="select-control">
@@ -877,6 +1147,7 @@ function PublishWizard() {
                   </select>
                 </div>
               </label>
+
               <label className="wizard-field">
                 <span className="wizard-field__label">Precio *</span>
                 <input
@@ -896,27 +1167,129 @@ function PublishWizard() {
                   placeholder="Ej: 2450000"
                 />
               </label>
-              <label className="wizard-field">
-                <span className="wizard-field__label">Moneda</span>
-                <div className="select-control">
-                  <select
-                    className="select-control__native"
-                    value={form.priceCurrency}
-                    onChange={(event) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        priceCurrency: event.target.value as Currency,
-                      }))
-                    }
-                  >
-                    {CURRENCY_VALUES.map((value) => (
-                      <option key={value} value={value}>
-                        {value}
-                      </option>
-                    ))}
-                  </select>
+
+              {/* Características de la propiedad */}
+              <div className="wizard-field-group">
+                <h4 className="wizard-field-group__title">Características</h4>
+                <div className="wizard-features-grid">
+                  <label className="wizard-field wizard-field--compact">
+                    <span className="wizard-field__label">Pisos</span>
+                    <input
+                      className="wizard-field__control"
+                      type="number"
+                      min={0}
+                      step="1"
+                      inputMode="numeric"
+                      value={form.levels ?? ""}
+                      onChange={(event) => {
+                        const raw = event.target.value;
+                        setForm((prev) => ({
+                          ...prev,
+                          levels: raw === "" ? null : Number(raw),
+                        }));
+                      }}
+                      placeholder="0"
+                    />
+                  </label>
+                  <label className="wizard-field wizard-field--compact">
+                    <span className="wizard-field__label">Recámaras</span>
+                    <input
+                      className="wizard-field__control"
+                      type="number"
+                      min={0}
+                      step="1"
+                      inputMode="numeric"
+                      value={form.bedrooms ?? ""}
+                      onChange={(event) => {
+                        const raw = event.target.value;
+                        setForm((prev) => ({
+                          ...prev,
+                          bedrooms: raw === "" ? null : Number(raw),
+                        }));
+                      }}
+                      placeholder="0"
+                    />
+                  </label>
+                  <label className="wizard-field wizard-field--compact">
+                    <span className="wizard-field__label">Baños</span>
+                    <input
+                      className="wizard-field__control"
+                      type="number"
+                      min={0}
+                      step="0.5"
+                      inputMode="decimal"
+                      value={form.bathrooms ?? ""}
+                      onChange={(event) => {
+                        const raw = event.target.value;
+                        setForm((prev) => ({
+                          ...prev,
+                          bathrooms: raw === "" ? null : Number(raw),
+                        }));
+                      }}
+                      placeholder="0"
+                    />
+                  </label>
+                  <label className="wizard-field wizard-field--compact">
+                    <span className="wizard-field__label">
+                      Estacionamientos
+                    </span>
+                    <input
+                      className="wizard-field__control"
+                      type="number"
+                      min={0}
+                      step="1"
+                      inputMode="numeric"
+                      value={form.parkingSpots ?? ""}
+                      onChange={(event) => {
+                        const raw = event.target.value;
+                        setForm((prev) => ({
+                          ...prev,
+                          parkingSpots: raw === "" ? null : Number(raw),
+                        }));
+                      }}
+                      placeholder="0"
+                    />
+                  </label>
+                  <label className="wizard-field wizard-field--compact">
+                    <span className="wizard-field__label">m² construcción</span>
+                    <input
+                      className="wizard-field__control"
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      inputMode="decimal"
+                      value={form.constructionM2 ?? ""}
+                      onChange={(event) => {
+                        const raw = event.target.value;
+                        setForm((prev) => ({
+                          ...prev,
+                          constructionM2: raw === "" ? null : Number(raw),
+                        }));
+                      }}
+                      placeholder="0"
+                    />
+                  </label>
+                  <label className="wizard-field wizard-field--compact">
+                    <span className="wizard-field__label">m² terreno</span>
+                    <input
+                      className="wizard-field__control"
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      inputMode="decimal"
+                      value={form.landM2 ?? ""}
+                      onChange={(event) => {
+                        const raw = event.target.value;
+                        setForm((prev) => ({
+                          ...prev,
+                          landM2: raw === "" ? null : Number(raw),
+                        }));
+                      }}
+                      placeholder="0"
+                    />
+                  </label>
                 </div>
-              </label>
+              </div>
               <label className="wizard-field form-col-2">
                 <span className="wizard-field__label">Descripcion *</span>
                 <textarea
@@ -930,20 +1303,6 @@ function PublishWizard() {
                     }))
                   }
                   placeholder="Describe caracteristicas, acabados y beneficios principales."
-                />
-              </label>
-              <label className="wizard-field form-col-2">
-                <span className="wizard-field__label">Notas adicionales</span>
-                <input
-                  className="wizard-field__control"
-                  value={form.amenitiesExtra}
-                  onChange={(event) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      amenitiesExtra: event.target.value,
-                    }))
-                  }
-                  placeholder="Ej: Incluye mantenimiento, pet friendly..."
                 />
               </label>
             </div>
@@ -960,25 +1319,141 @@ function PublishWizard() {
             </header>
             <div className="form-grid">
               <label className="wizard-field">
-                <span className="wizard-field__label">Ciudad *</span>
-                <input
+                <span className="wizard-field__label">Estado *</span>
+                <CustomSelect
+                  value={form.state}
+                  options={MEXICO_STATES_OPTIONS}
+                  onChange={async (value) => {
+                    // Actualizar el estado seleccionado
+                    setForm((prev) => ({ ...prev, state: value, city: "" }));
+
+                    // Limpiar lista de municipios y ciudad seleccionada
+                    setMunicipalities([]);
+                    setLoadingMunicipalities(true);
+
+                    // Buscar el inegiId del estado seleccionado
+                    const selectedState = MEXICO_STATES_OPTIONS.find(
+                      (state) => state.value === value
+                    );
+
+                    if (selectedState?.inegiId) {
+                      console.log("🏙️ Cargando municipios del estado:", value);
+
+                      try {
+                        // Fetch de municipios desde GitHub
+                        const response = await fetch(
+                          `https://raw.githubusercontent.com/angelsantosa/inegi-lista-estados/refs/heads/master/cities/${selectedState.inegiId}.json`
+                        );
+
+                        if (!response.ok) {
+                          throw new Error(
+                            `HTTP error! status: ${response.status}`
+                          );
+                        }
+
+                        const data = await response.json();
+
+                        // Remover el primer elemento (índice 0) que contiene "Todo el estado"
+                        const municipalitiesData = data.slice(1);
+
+                        // Transformar a formato para CustomSelect, incluyendo coordenadas
+                        const municipalitiesOptions = municipalitiesData
+                          .map((mun: any) => ({
+                            value: mun.nombre_municipio,
+                            label: mun.nombre_municipio,
+                            lat: parseFloat(mun.lat),
+                            lng: parseFloat(mun.lng),
+                          }))
+                          .sort(
+                            (
+                              a: {
+                                value: string;
+                                label: string;
+                                lat: number;
+                                lng: number;
+                              },
+                              b: {
+                                value: string;
+                                label: string;
+                                lat: number;
+                                lng: number;
+                              }
+                            ) => a.label.localeCompare(b.label, "es")
+                          ); // Ordenar alfabéticamente
+
+                        setMunicipalities(municipalitiesOptions);
+                        console.log(
+                          `✅ Se cargaron ${municipalitiesOptions.length} municipios`
+                        );
+                      } catch (error) {
+                        console.error("❌ Error al cargar municipios:", error);
+                        setMunicipalities([]);
+                      } finally {
+                        setLoadingMunicipalities(false);
+                      }
+                    } else {
+                      setLoadingMunicipalities(false);
+                    }
+                  }}
+                  placeholder="Selecciona un estado"
                   className="wizard-field__control"
-                  value={form.city}
-                  onChange={(event) =>
-                    setForm((prev) => ({ ...prev, city: event.target.value }))
-                  }
-                  placeholder="Ej: Ciudad de Mexico"
                 />
               </label>
               <label className="wizard-field">
-                <span className="wizard-field__label">Estado *</span>
-                <input
-                  className="wizard-field__control"
-                  value={form.state}
-                  onChange={(event) =>
-                    setForm((prev) => ({ ...prev, state: event.target.value }))
+                <span className="wizard-field__label">Ciudad/Municipio *</span>
+                <CustomSelect
+                  value={form.city}
+                  options={
+                    municipalities.length > 0
+                      ? municipalities
+                      : [{ value: "", label: "Sin ciudad" }]
                   }
-                  placeholder="Ej: CDMX"
+                  onChange={(value) => {
+                    setForm((prev) => ({ ...prev, city: value }));
+
+                    // Buscar las coordenadas del municipio seleccionado
+                    const selectedMunicipality = municipalities.find(
+                      (mun) => mun.value === value
+                    );
+
+                    if (
+                      selectedMunicipality &&
+                      selectedMunicipality.lat &&
+                      selectedMunicipality.lng
+                    ) {
+                      const { lat, lng } = selectedMunicipality;
+
+                      console.log("📍 Centrando mapa en municipio:", value, {
+                        lat,
+                        lng,
+                      });
+
+                      // Actualizar coordenadas en el estado
+                      setCoords({ lat, lng });
+
+                      // Mover el marker a la nueva ubicación
+                      if (markerRef.current) {
+                        markerRef.current.setLatLng([lat, lng]);
+                        markerRef.current.openPopup();
+                      }
+
+                      // Centrar el mapa en la nueva ubicación
+                      if (leafletMap.current) {
+                        leafletMap.current.setView([lat, lng], 13); // Zoom 13 para ver el municipio
+                      }
+                    }
+                  }}
+                  placeholder={
+                    loadingMunicipalities
+                      ? "Cargando municipios..."
+                      : municipalities.length === 0
+                        ? "Primero selecciona un estado"
+                        : "Selecciona un municipio"
+                  }
+                  disabled={
+                    municipalities.length === 0 || loadingMunicipalities
+                  }
+                  className="wizard-field__control"
                 />
               </label>
               <div className="wizard-map form-col-2">
@@ -1067,6 +1542,7 @@ function PublishWizard() {
                   onRemove={handleRemoveMedia}
                   onSetCover={handleSetCover}
                   onReorder={handleReorder}
+                  disabled={!form.propertyId || saving}
                 />
               </div>
             </div>
@@ -1092,7 +1568,7 @@ function PublishWizard() {
 
                     return (
                       <DocumentCard
-                        key={type}
+                        key={`${type}-${singleDoc?.id || docsForType.map((d) => d.id).join("-") || "empty"}`}
                         docType={type}
                         documents={isMultiple ? docsForType : undefined}
                         document={!isMultiple ? singleDoc : undefined}
@@ -1176,7 +1652,7 @@ function PublishWizard() {
         <section className="wizard__main">{renderStepContent()}</section>
 
         <aside className="wizard__aside">
-          {!hasVerifiedRppCertificate && form.propertyId && (
+          {!hasVerifiedRppCertificate && (
             <div className="wizard-summary wizard-summary--alert">
               <strong>Verificación de documento RPP requerida</strong>
               <p>
@@ -1186,11 +1662,12 @@ function PublishWizard() {
               <button
                 type="button"
                 className="btn btn-primary btn-sm"
-                onClick={() =>
-                  navigate(`/verify-rpp?propertyId=${form.propertyId}`)
-                }
+                onClick={handleVerifyRppClick}
+                disabled={isLoadingProperty || saving}
               >
-                Verificar documento ahora
+                {isLoadingProperty
+                  ? "Cargando..."
+                  : "Verificar documento ahora"}
               </button>
             </div>
           )}
@@ -1248,31 +1725,159 @@ function PublishWizard() {
           type="button"
           className="btn btn-outline"
           onClick={handleSave}
-          disabled={saving}
+          disabled={saving || isLoadingProperty}
         >
-          {saving ? "Guardando..." : "Guardar borrador"}
+          {saving
+            ? "Guardando..."
+            : isLoadingProperty
+              ? "Cargando..."
+              : "Guardar borrador"}
         </button>
         {currentStep < steps.length - 1 ? (
           <button type="button" className="btn btn-primary" onClick={goNext}>
-            Continuar &gt;
+            Continuar
           </button>
         ) : (
           <button
             type="button"
             className="btn btn-primary"
             onClick={handlePublish}
-            disabled={!form.propertyId}
+            disabled={!form.propertyId || saving || isLoadingProperty}
           >
-            {isEditingDraft
-              ? "Publicar propiedad"
-              : isEditing
-                ? "Actualizar propiedad"
-                : "Publicar propiedad"}
+            {saving || isLoadingProperty
+              ? "Procesando..."
+              : isEditingDraft
+                ? "Publicar propiedad"
+                : isEditing
+                  ? "Actualizar propiedad"
+                  : "Publicar propiedad"}
           </button>
         )}
       </footer>
 
       {message && <p className="wizard__message">{message}</p>}
+
+      {/* Modal para guardar antes de verificar RPP */}
+      <Modal
+        open={showSaveBeforeRppModal}
+        onClose={() => setShowSaveBeforeRppModal(false)}
+        title="Guardar propiedad"
+        actions={
+          <>
+            <button
+              type="button"
+              className="btn btn-outline"
+              onClick={() => setShowSaveBeforeRppModal(false)}
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={handleSaveAndVerifyRpp}
+              disabled={saving || isLoadingProperty}
+            >
+              {saving || isLoadingProperty
+                ? "Guardando..."
+                : "Guardar y continuar"}
+            </button>
+          </>
+        }
+      >
+        <p style={{ fontSize: "14px", lineHeight: "1.5" }}>
+          Aún no has guardado esta propiedad. Para verificar el documento RPP,
+          primero necesitas guardar el borrador de la propiedad.
+        </p>
+        <p style={{ fontSize: "14px", lineHeight: "1.5", marginTop: "12px" }}>
+          ¿Deseas guardar el borrador ahora y continuar con la verificación?
+        </p>
+      </Modal>
+
+      {/* Modal cuando falta verificación de INE (KYC) */}
+      <Modal
+        open={showKycRequiredModal}
+        onClose={() => setShowKycRequiredModal(false)}
+        title="Verificación de identidad requerida"
+        actions={
+          <>
+            <button
+              type="button"
+              className="btn btn-outline"
+              onClick={() => setShowKycRequiredModal(false)}
+            >
+              Ahora no
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => navigate("/verify-ine")}
+            >
+              Verificar mi INE
+            </button>
+          </>
+        }
+      >
+        <p style={{ fontSize: "14px", lineHeight: "1.5" }}>
+          Para publicar propiedades necesitas verificar tu identidad mediante tu
+          INE (Identificación Oficial).
+        </p>
+        <p style={{ fontSize: "14px", lineHeight: "1.5", marginTop: "12px" }}>
+          Este proceso es rápido y solo lo harás una vez. Una vez verificado,
+          podrás publicar todas tus propiedades.
+        </p>
+        <div
+          style={{
+            marginTop: "16px",
+            padding: "12px",
+            background: "#f0f9ff",
+            borderRadius: "8px",
+            fontSize: "13px",
+          }}
+        >
+          <strong>📋 Necesitarás:</strong>
+          <ul style={{ marginTop: "8px", paddingLeft: "20px" }}>
+            <li>Foto de tu INE (frente y reverso)</li>
+            <li>Una selfie sosteniendo tu INE</li>
+          </ul>
+        </div>
+      </Modal>
+
+      {/* Modal cuando falta verificación de RPP */}
+      <Modal
+        open={showRppRequiredModal}
+        onClose={() => setShowRppRequiredModal(false)}
+        title="Documento RPP no verificado"
+        actions={
+          <>
+            <button
+              type="button"
+              className="btn btn-outline"
+              onClick={() => setShowRppRequiredModal(false)}
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => {
+                setShowRppRequiredModal(false);
+                handleVerifyRppClick();
+              }}
+            >
+              Verificar RPP
+            </button>
+          </>
+        }
+      >
+        <p style={{ fontSize: "14px", lineHeight: "1.5" }}>
+          Para publicar esta propiedad necesitas verificar el documento del
+          Registro Público de la Propiedad (RPP).
+        </p>
+        <p style={{ fontSize: "14px", lineHeight: "1.5", marginTop: "12px" }}>
+          Este documento certifica la legalidad de la propiedad y es requerido
+          para proteger tanto a compradores como vendedores.
+        </p>
+      </Modal>
     </main>
   );
 }

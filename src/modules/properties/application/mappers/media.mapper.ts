@@ -13,7 +13,7 @@ import type {
 // ============================================================================
 
 function resolveDomainType(type: MediaDTO["type"]): (typeof MEDIA_TYPE)[keyof typeof MEDIA_TYPE] {
-  if (type === "floorplan") {
+  if (type === "floorplan" || type === "plan") {
     return MEDIA_TYPE.Document;
   }
   return type as (typeof MEDIA_TYPE)[keyof typeof MEDIA_TYPE];
