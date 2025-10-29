@@ -76,6 +76,14 @@ const navItemsByRole: Record<HeaderRole, NavItem[]> = {
       match: ({ pathname, searchParams }) =>
         pathname === "/dashboard" && !searchParams.has("view"),
     },
+    //añadi esto para contratos
+    {
+      key: "contracts",
+      label: "Contratos",
+      to: "/contracts",
+      icon: <FileIcon />,
+      match: ({ pathname }) => pathname === "/contracts",
+    },
     {
       key: "saved",
       label: "Guardados",
@@ -116,6 +124,13 @@ const navItemsByRole: Record<HeaderRole, NavItem[]> = {
       icon: <FileIcon />,
       match: ({ pathname, searchParams }) =>
         pathname === "/properties" && searchParams.get("view") === "documentos",
+    },
+    { //añadi esto para contratos
+      key: "contracts",
+      label: "Contratos",
+      to: "/contracts",
+      icon: <FileIcon />,
+      match: ({ pathname }) => pathname === "/contracts",
     },
     {
       key: "chats",

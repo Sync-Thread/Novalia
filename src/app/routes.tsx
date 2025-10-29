@@ -1,3 +1,4 @@
+import ContractsPage from "../modules/contracts/UI/pages/ContractsPage"; //esta madre luego la quito
 // src/app/routes.tsx
 import { createBrowserRouter, Navigate } from "react-router-dom";
 import Dashboard from "../pages/Dashboard";
@@ -30,6 +31,7 @@ export const router = createBrowserRouter([
       { path: "/verify-rpp", element: <VerifyRPPPage /> },
     ],
   },
+  { path: "/contracts", element: <ContractsPage /> },//esta madre luego la quito
   { path: "/auth/login", element: <Login /> },
   { path: "/auth/register", element: <Register /> },
   { path: "/auth/forgot-password", element: <ForgotPassword /> },
