@@ -107,6 +107,7 @@ export function PropertyQuickView({
   const [error, setError] = useState<string | null>(null);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [markSoldOpen, setMarkSoldOpen] = useState(false);
+  const [showRppRequiredModal, setShowRppRequiredModal] = useState(false);
 
   const rppStatus = useMemo<VerificationState>(() => {
     if (!property) {
@@ -340,6 +341,19 @@ export function PropertyQuickView({
 
   const handlePublish = useCallback(async () => {
     if (!property) return;
+
+    // Validar que el RPP esté verificado antes de publicar
+    if (property.rppVerification !== "verified") {
+      console.log(
+        "⚠️ RPP no verificado. Estado actual:",
+        property.rppVerification
+      );
+      setShowRppRequiredModal(true);
+      return;
+    } else {
+      console.log("valiendo");
+    }
+
     const result = await publishProperty({ id: property.id });
     if (result.isOk()) {
       refreshAndClose();
@@ -872,6 +886,53 @@ export function PropertyQuickView({
           void handleMarkSold(new Date(soldAt));
         }}
       />
+
+      {/* Modal cuando falta verificación de RPP */}
+      <Modal
+        open={showRppRequiredModal}
+        onClose={() => setShowRppRequiredModal(false)}
+        title="Verificación de RPP requerida"
+        zIndex={1100}
+        actions={
+          <>
+            <button
+              type="button"
+              className="btn btn-outline"
+              onClick={() => setShowRppRequiredModal(false)}
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => {
+                setShowRppRequiredModal(false);
+                if (property?.id) {
+                  navigate(
+                    `/verify-rpp?propertyId=${property.id}&returnStep=publish`
+                  );
+                }
+                closeSheet();
+              }}
+            >
+              Verificar RPP ahora
+            </button>
+          </>
+        }
+      >
+        <p style={{ fontSize: "14px", lineHeight: "1.5" }}>
+          Para publicar esta propiedad necesitas verificar el documento del
+          Registro Público de la Propiedad (RPP).
+        </p>
+        <p style={{ fontSize: "14px", lineHeight: "1.5", marginTop: "12px" }}>
+          Estado actual del RPP:{" "}
+          <strong>{formatVerification(rppStatus)}</strong>
+        </p>
+        <p style={{ fontSize: "14px", lineHeight: "1.5", marginTop: "12px" }}>
+          Este documento certifica la legalidad de la propiedad y es requerido
+          para proteger tanto a compradores como vendedores.
+        </p>
+      </Modal>
     </>
   );
 }
