@@ -107,7 +107,7 @@
 .thumbnails {
   display: flex;
   gap: 12px;
-  padding: 16px;
+  padding: 16px 20px;
   background: #f8fafc;
   overflow-x: auto;
   scroll-behavior: smooth;

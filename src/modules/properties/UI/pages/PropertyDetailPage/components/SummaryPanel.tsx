@@ -8,6 +8,7 @@ import {
   Heart,
   Share2,
   MessageCircle,
+  Building2,
 } from "lucide-react";
 import {
   formatMoney,
@@ -65,51 +66,72 @@ export function SummaryPanel({ property }: SummaryPanelProps) {
 
   return (
     <aside className={styles.panel} aria-label="Resumen de la propiedad">
-      <p className={styles.price}>{priceLabel}</p>
-
-      <div className={styles.badges}>
-        <span className={styles.badge} aria-label={`Tipo: ${typeLabel}`}>
-          {typeLabel}
-        </span>
-        <span className={styles.badge} aria-label={`Área: ${areaLabel}`}>
-          {areaLabel}
-        </span>
+      {/* Header con precio y tipo */}
+      <div className={styles.header}>
+        <p className={styles.price}>{priceLabel}</p>
+        <div className={styles.typeWrapper}>
+          <Building2 className={styles.typeIcon} aria-hidden="true" />
+          <span className={styles.typeLabel}>{typeLabel}</span>
+        </div>
       </div>
 
-      <div className={styles.stats}>
+      {/* Características principales en grid 2x2 */}
+      <div className={styles.mainFeatures}>
         {bedrooms !== null && bedrooms !== undefined && (
-          <div className={styles.statItem}>
-            <BedDouble className={styles.statIcon} aria-hidden="true" />
-            <span>{formatNumber(bedrooms)} Recámaras</span>
+          <div className={styles.featureCard}>
+            <BedDouble className={styles.featureIcon} aria-hidden="true" />
+            <div className={styles.featureContent}>
+              <p className={styles.featureValue}>{formatNumber(bedrooms)}</p>
+              <p className={styles.featureLabel}>Recámaras</p>
+            </div>
           </div>
         )}
 
         {bathrooms !== null && bathrooms !== undefined && (
-          <div className={styles.statItem}>
-            <Bath className={styles.statIcon} aria-hidden="true" />
-            <span>{formatNumber(bathrooms)} Baños</span>
+          <div className={styles.featureCard}>
+            <Bath className={styles.featureIcon} aria-hidden="true" />
+            <div className={styles.featureContent}>
+              <p className={styles.featureValue}>{formatNumber(bathrooms)}</p>
+              <p className={styles.featureLabel}>Baños</p>
+            </div>
           </div>
         )}
 
         {parkingSpots !== null && parkingSpots !== undefined && (
-          <div className={styles.statItem}>
-            <Car className={styles.statIcon} aria-hidden="true" />
-            <span>{formatNumber(parkingSpots)} Estacionamientos</span>
+          <div className={styles.featureCard}>
+            <Car className={styles.featureIcon} aria-hidden="true" />
+            <div className={styles.featureContent}>
+              <p className={styles.featureValue}>
+                {formatNumber(parkingSpots)}
+              </p>
+              <p className={styles.featureLabel}>Estacionamientos</p>
+            </div>
           </div>
         )}
 
         {levels !== null && levels !== undefined && levels > 0 && (
-          <div className={styles.statItem}>
-            <Layers className={styles.statIcon} aria-hidden="true" />
-            <span>{formatNumber(levels)} Pisos</span>
+          <div className={styles.featureCard}>
+            <Layers className={styles.featureIcon} aria-hidden="true" />
+            <div className={styles.featureContent}>
+              <p className={styles.featureValue}>{formatNumber(levels)}</p>
+              <p className={styles.featureLabel}>Pisos</p>
+            </div>
           </div>
         )}
       </div>
 
-      <div className={styles.address}>
-        <div className={styles.statItem}>
-          <MapPin className={styles.addressIcon} aria-hidden="true" />
-          <p className={styles.addressText}>{addressLabel}</p>
+      {/* Área de construcción destacada */}
+      <div className={styles.areaHighlight}>
+        <span className={styles.areaLabel}>Área de construcción</span>
+        <span className={styles.areaValue}>{areaLabel}</span>
+      </div>
+
+      {/* Ubicación */}
+      <div className={styles.location}>
+        <MapPin className={styles.locationIcon} aria-hidden="true" />
+        <div className={styles.locationContent}>
+          <p className={styles.locationLabel}>Ubicación</p>
+          <p className={styles.locationText}>{addressLabel}</p>
         </div>
       </div>
 

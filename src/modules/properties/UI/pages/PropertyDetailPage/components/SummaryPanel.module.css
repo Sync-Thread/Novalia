@@ -4,10 +4,10 @@
   background: #ffffff;
   border-radius: 16px;
   border: 1px solid #e2e8f0;
-  padding: 32px;
+  padding: 28px;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 20px;
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
 }
 
@@ -18,64 +18,154 @@
   }
 }
 
+/* Header con precio y tipo */
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
 .price {
-  font-size: 36px;
+  font-size: 40px;
   font-weight: 700;
   color: #295DFF;
   margin: 0;
+  line-height: 1.1;
 }
 
-.badges {
+.typeWrapper {
   display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
 }
 
-.badge {
-  padding: 8px 14px;
-  font-size: 14px;
+.typeIcon {
+  width: 20px;
+  height: 20px;
+  color: #64748b;
+  flex-shrink: 0;
+}
+
+.typeLabel {
+  font-size: 16px;
   font-weight: 600;
-  border-radius: 8px;
-  background: rgba(41, 93, 255, 0.1);
-  color: #1e40af;
-  border: 1px solid rgba(41, 93, 255, 0.12);
+  color: #475569;
 }
 
-.stats {
+/* Características principales en grid */
+.mainFeatures {
   display: grid;
-  gap: 16px;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
 }
 
-.statItem {
+.featureCard {
   display: flex;
   align-items: center;
   gap: 12px;
-  font-size: 15px;
-  color: #334155;
+  padding: 12px;
+  background: #f8fafc;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  transition: all 0.2s ease;
 }
 
-.statIcon {
+.featureCard:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+.featureIcon {
+  width: 28px;
+  height: 28px;
+  color: #295DFF;
+  flex-shrink: 0;
+}
+
+.featureContent {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.featureValue {
+  font-size: 20px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+  line-height: 1;
+}
+
+.featureLabel {
+  font-size: 12px;
+  font-weight: 500;
+  color: #64748b;
+  margin: 0;
+  line-height: 1;
+}
+
+/* Área destacada */
+.areaHighlight {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  background: linear-gradient(135deg, rgba(41, 93, 255, 0.08), rgba(41, 93, 255, 0.04));
+  border-radius: 12px;
+  border: 1px solid rgba(41, 93, 255, 0.15);
+}
+
+.areaLabel {
+  font-size: 14px;
+  font-weight: 600;
+  color: #475569;
+}
+
+.areaValue {
+  font-size: 18px;
+  font-weight: 700;
+  color: #295DFF;
+}
+
+/* Ubicación */
+.location {
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+  background: #f8fafc;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+}
+
+.locationIcon {
   width: 20px;
   height: 20px;
   color: #295DFF;
   flex-shrink: 0;
+  margin-top: 2px;
 }
 
-.address {
-  padding-top: 16px;
-  border-top: 1px solid #e2e8f0;
+.locationContent {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
-.addressIcon {
-  width: 18px;
-  height: 18px;
-  color: #295DFF;
-  flex-shrink: 0;
+.locationLabel {
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
-.addressText {
+.locationText {
   font-size: 14px;
-  color: #475569;
+  font-weight: 500;
+  color: #334155;
   line-height: 1.5;
   margin: 0;
 }
