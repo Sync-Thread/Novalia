@@ -389,6 +389,12 @@ export function PropertyQuickView({
     [markSold, property, refreshAndClose]
   );
 
+  const handleViewPublic = useCallback(() => {
+    if (!property) return;
+    // Abrir la página pública de la propiedad en una nueva pestaña
+    navigate(`/properties/${property.id}`);
+  }, [property]);
+
   const handleEdit = useCallback(() => {
     if (!property) return;
     if (onEdit) {
@@ -801,14 +807,12 @@ export function PropertyQuickView({
               <button
                 type="button"
                 className={publishButtonClass}
-                onClick={isDraft ? handlePublish : undefined}
-                disabled={
-                  !property || (isDraft ? loading.publishProperty : true)
-                }
+                onClick={isDraft ? handlePublish : handleViewPublic}
+                disabled={!property || (isDraft && loading.publishProperty)}
                 title={
                   isDraft
                     ? "Publica la propiedad para que aparezca en tu inventario."
-                    : "Disponibilidad de vista pública en desarrollo."
+                    : "Ver cómo se ve tu propiedad en la página pública"
                 }
               >
                 {isDraft ? (
