@@ -37,7 +37,7 @@ export default function PropertyDetailPage() {
     useSimilarProperties(data?.property || null, 3);
 
   const handleBack = () => {
-    navigate("/");
+    navigate(-1);
   };
 
   const handleContact = () => {
@@ -68,7 +68,7 @@ export default function PropertyDetailPage() {
             aria-label="Regresar a la búsqueda"
           >
             <ArrowLeft size={18} aria-hidden="true" />
-            Regresar a la búsqueda
+            Regresar
           </button>
 
           <div className={styles.errorBox} role="alert">
@@ -92,7 +92,7 @@ export default function PropertyDetailPage() {
           aria-label="Regresar a la búsqueda"
         >
           <ArrowLeft size={18} aria-hidden="true" />
-          Regresar a la búsqueda
+          Regresar
         </button>
 
         {/* Título */}
