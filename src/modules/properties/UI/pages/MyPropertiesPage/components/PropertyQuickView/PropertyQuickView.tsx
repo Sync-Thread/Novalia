@@ -25,6 +25,7 @@ import type { DocumentDTO } from "../../../../../application/dto/DocumentDTO";
 import type { MediaDTO } from "../../../../../application/dto/MediaDTO";
 import type { AuthProfile } from "../../../../../application/ports/AuthService";
 import { usePropertiesActions } from "../../../../hooks/usePropertiesActions";
+import { useTelemetry } from "../../../../../../telemetry/UI/hooks/useTelemetry";
 import ProgressCircle from "../../../../components/ProgressCircle";
 import Modal from "../../../../components/Modal";
 import MarkSoldModal from "../../../../modals/MarkSoldModal";
@@ -93,6 +94,7 @@ export function PropertyQuickView({
     getAuthProfile,
     loading,
   } = usePropertiesActions();
+  const { trackPropertyView } = useTelemetry();
   const navigate = useNavigate();
   const panelRef = useRef<HTMLElement | null>(null);
   const headingRef = useRef<HTMLHeadingElement | null>(null);
@@ -143,6 +145,12 @@ export function PropertyQuickView({
       if (!active) return;
       if (propertyResult.isOk()) {
         setProperty(propertyResult.value as ExtendedProperty);
+        
+        // Registrar vista de la propiedad en QuickView
+        trackPropertyView(propertyId, {
+          source: "quickview",
+          status: propertyResult.value.status,
+        });
       } else {
         setError("No pudimos cargar la propiedad seleccionada.");
       }
@@ -161,7 +169,7 @@ export function PropertyQuickView({
     return () => {
       active = false;
     };
-  }, [getProperty, listDocuments, open, propertyId]);
+  }, [getProperty, listDocuments, open, propertyId, trackPropertyView]);
 
   // Cargar media cuando se abre el QuickView
   useEffect(() => {
