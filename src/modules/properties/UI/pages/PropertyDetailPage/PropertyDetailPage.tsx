@@ -79,7 +79,7 @@ export default function PropertyDetailPage() {
     );
   }
 
-  const { property, coverUrl } = data;
+  const { property, coverUrl, galleryUrls } = data;
 
   return (
     <div className={styles.page}>
@@ -103,7 +103,11 @@ export default function PropertyDetailPage() {
           className={styles.headerBlock}
           aria-labelledby="header-section"
         >
-          <GalleryPlaceholder coverUrl={coverUrl} title={property.title} />
+          <GalleryPlaceholder
+            coverUrl={coverUrl}
+            galleryUrls={galleryUrls}
+            title={property.title}
+          />
           <SummaryPanel property={property} />
         </section>
 
