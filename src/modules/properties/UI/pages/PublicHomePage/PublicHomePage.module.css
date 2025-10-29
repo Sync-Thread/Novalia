@@ -6,7 +6,7 @@
 }
 
 .listingSection {
-  padding: clamp(56px, 10vw, 112px) 0 clamp(56px, 9vw, 96px);
+  padding: clamp(12px, 2vw, 24px) 0 clamp(12px, 2vw, 24px);
   background: linear-gradient(
     180deg,
     rgba(241, 245, 249, 0.85) 0%,

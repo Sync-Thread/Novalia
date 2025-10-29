@@ -6,13 +6,13 @@
   z-index: var(--z-hero-bg);
   display: flex;
   justify-content: center;
-  padding: clamp(56px, 12vw, 120px) var(--pad-x) clamp(80px, 10vw, 140px);
+  padding: clamp(48px, 10vw, 96px) var(--pad-x) clamp(64px, 8vw, 112px);
   background-position: center;
   background-repeat: no-repeat;
   background-size: cover;
   color: #f8fafc;
   isolation: isolate;
-  max-height: 620px;
+  max-height: 520px;
   overflow: visible;
   transition:
     padding var(--hero-dur) var(--hero-ease),
@@ -83,9 +83,9 @@
 .title {
   margin: 0;
   font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: clamp(30px, 5vw, 58px);
+  font-size: clamp(28px, 4.5vw, 52px);
   font-weight: 700;
-  line-height: 1.08;
+  line-height: 1.15;
   letter-spacing: -0.02em;
   color: #ffffff;
 }
@@ -96,6 +96,7 @@
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
+  white-space: nowrap;
 }
 
 .subtitle {
