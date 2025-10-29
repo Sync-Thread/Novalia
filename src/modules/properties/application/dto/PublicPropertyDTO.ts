@@ -12,6 +12,9 @@ export interface PublicPropertySummaryDTO {
   bedrooms?: number | null;
   bathrooms?: number | null;
   constructionSizeM2?: number | null;
+  landSizeM2?: number | null;
+  parkingSpots?: number | null;
+  levels?: number | null;
   publishedAt: string | null;
   coverImageUrl: string | null;
 }
@@ -22,6 +25,15 @@ export interface PublicPropertyListFiltersDTO {
   q?: string;
   city?: string;
   state?: string;
+  propertyType?: string;
+  priceMin?: number;
+  priceMax?: number;
+  bedroomsMin?: number;
+  bathroomsMin?: number;
+  parkingSpotsMin?: number;
+  levelsMin?: number;
+  areaMin?: number;
+  areaMax?: number;
   sortBy?: "recent" | "price_asc" | "price_desc";
   page: number;
   pageSize: number;

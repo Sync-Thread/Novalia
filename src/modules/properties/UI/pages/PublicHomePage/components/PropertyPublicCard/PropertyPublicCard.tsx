@@ -4,7 +4,6 @@ import { formatAddress } from "../../../../utils/formatAddress";
 import styles from "./PropertyPublicCard.module.css";
 
 export interface PropertyPublicCardProps {
-  id: string;
   title: string;
   priceLabel: string;
   href: string;
@@ -26,7 +25,7 @@ function formatAmenityValue(value?: number | null, fallback = "N/D") {
   return value;
 }
 
-// PropertyPublicCard muestra una propiedad publicada al público; se enlazará a detalle y analytics después.
+// Card de propiedad pública para listado con amenidades básicas.
 export const PropertyPublicCard = memo(function PropertyPublicCard({
   title,
   priceLabel,
@@ -42,7 +41,11 @@ export const PropertyPublicCard = memo(function PropertyPublicCard({
   const displayLocation = locationLabel || "Ubicación reservada";
 
   return (
-    <a className={styles.card} href={href} aria-label={`Ver detalle de ${title}`}>
+    <a
+      className={styles.card}
+      href={href}
+      aria-label={`Ver detalle de ${title}`}
+    >
       <div className={styles.media}>
         {coverUrl ? (
           <img
@@ -74,7 +77,10 @@ export const PropertyPublicCard = memo(function PropertyPublicCard({
       <div className={styles.body}>
         <div className={styles.headerRow}>
           <p className={styles.price}>{priceLabel}</p>
-          <span className={styles.badge} aria-label={`Tipo de propiedad: ${propertyTypeLabel}`}>
+          <span
+            className={styles.badge}
+            aria-label={`Tipo de propiedad: ${propertyTypeLabel}`}
+          >
             {propertyTypeLabel}
           </span>
         </div>
@@ -82,15 +88,24 @@ export const PropertyPublicCard = memo(function PropertyPublicCard({
         <p className={styles.address}>{displayLocation}</p>
 
         <div className={styles.amenities}>
-          <span className={styles.amenity} aria-label={`${formatAmenityValue(bedrooms)} recámaras`}>
+          <span
+            className={styles.amenity}
+            aria-label={`${formatAmenityValue(bedrooms)} recámaras`}
+          >
             <BedDouble aria-hidden="true" className={styles.amenityIcon} />
             {formatAmenityValue(bedrooms)}
           </span>
-          <span className={styles.amenity} aria-label={`${formatAmenityValue(bathrooms)} baños`}>
+          <span
+            className={styles.amenity}
+            aria-label={`${formatAmenityValue(bathrooms)} baños`}
+          >
             <Bath aria-hidden="true" className={styles.amenityIcon} />
             {formatAmenityValue(bathrooms)}
           </span>
-          <span className={styles.amenity} aria-label={`${formatAmenityValue(areaM2)} metros cuadrados`}>
+          <span
+            className={styles.amenity}
+            aria-label={`${formatAmenityValue(areaM2)} metros cuadrados`}
+          >
             <Ruler aria-hidden="true" className={styles.amenityIcon} />
             {formatAmenityValue(areaM2)} m²
           </span>
@@ -99,4 +114,3 @@ export const PropertyPublicCard = memo(function PropertyPublicCard({
     </a>
   );
 });
-

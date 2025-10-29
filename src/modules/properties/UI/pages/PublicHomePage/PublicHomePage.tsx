@@ -1,11 +1,32 @@
-﻿import styles from "./PublicHomePage.module.css";
+import { useCallback, useMemo, useState } from "react";
+import styles from "./PublicHomePage.module.css";
 import { HeroSection } from "./components/HeroSection/HeroSection";
+import { PublicSearchBar } from "./components/PublicSearchBar/PublicSearchBar";
 import { PublicHomeFooter } from "./components/Footer/Footer";
 import { usePublicPropertiesList } from "./hooks/usePublicPropertiesList";
 import { PropertyPublicCard } from "./components/PropertyPublicCard/PropertyPublicCard";
+import {
+  DEFAULT_PUBLIC_SEARCH_FILTERS,
+  type PublicAppliedFilters,
+  type PublicSearchFilters,
+} from "./types";
+import { toAppliedFilters } from "./utils/filterUtils";
 
-// PublicHomePage reúne hero, listado público y footer; integrará filtros avanzados más adelante.
+// PublicHomePage integra Hero, barra de búsqueda y listado de propiedades públicas.
 export default function PublicHomePage() {
+  const [filters, setFilters] = useState<PublicSearchFilters>(() => ({
+    ...DEFAULT_PUBLIC_SEARCH_FILTERS,
+  }));
+  const [appliedFilters, setAppliedFilters] = useState<PublicAppliedFilters>(
+    {}
+  );
+
+  const isHeroCollapsed = useMemo(() => {
+    return Object.values(appliedFilters).some(
+      (v) => v !== undefined && v !== null && v !== ""
+    );
+  }, [appliedFilters]);
+
   const {
     items,
     page,
@@ -18,7 +39,7 @@ export default function PublicHomePage() {
     previousPage,
     hasNext,
     hasPrevious,
-  } = usePublicPropertiesList();
+  } = usePublicPropertiesList(appliedFilters);
 
   const showingFrom = total === 0 ? 0 : (page - 1) * pageSize + 1;
   const showingTo = Math.min(page * pageSize, total);
@@ -29,24 +50,49 @@ export default function PublicHomePage() {
         ? `${showingFrom}`
         : `${showingFrom}-${showingTo}`;
 
+  const handleSearchChange = useCallback(
+    (patch: Partial<PublicSearchFilters>, options?: { apply?: boolean }) => {
+      setFilters((prev) => {
+        const next = { ...prev, ...patch };
+        if (options?.apply) {
+          setAppliedFilters(toAppliedFilters(next));
+        }
+        return next;
+      });
+    },
+    []
+  );
+
+  const handleSearchSubmit = useCallback(() => {
+    setAppliedFilters(toAppliedFilters(filters));
+  }, [filters]);
+
+  const handleSearchReset = useCallback(() => {
+    setFilters({ ...DEFAULT_PUBLIC_SEARCH_FILTERS });
+    setAppliedFilters({});
+  }, []);
+
+  const heroMode = isHeroCollapsed ? "compact" : "expanded";
+
+  const searchBar = (
+    <PublicSearchBar
+      value={filters}
+      onChange={handleSearchChange}
+      onSubmit={handleSearchSubmit}
+      onReset={handleSearchReset}
+      isCollapsedHero={isHeroCollapsed}
+    />
+  );
+
   return (
     <div className={styles.page} id="top">
-      <HeroSection />
+      <HeroSection mode={heroMode} searchBar={searchBar} />
 
       <section
         className={styles.listingSection}
         aria-labelledby="public-properties-heading"
       >
         <div className={styles.listingContainer}>
-          {/* <header className={styles.listingHeader}>
-            <h2 id="public-properties-heading" className={styles.listingTitle}>
-              Propiedades publicadas
-            </h2>
-            <p className={styles.listingSubtitle}>
-              Explora el inventario disponible en Novalia. Muy pronto podrás
-              filtrar por ubicación, precio y amenidades.
-            </p>
-          </header> */}
           {error && (
             <div className={styles.error} role="alert">
               {error}
@@ -58,19 +104,23 @@ export default function PublicHomePage() {
               <span>
                 Mostrando {rangeLabel} de {total} propiedades
               </span>
+              {isHeroCollapsed && (
+                <span className={styles.activeFiltersNote}>
+                  Búsqueda refinada con filtros aplicados.
+                </span>
+              )}
             </div>
           )}
 
           {loading ? (
             <div className={styles.loader} role="status" aria-live="polite">
-              Cargando propiedades…
+              Cargando propiedades.
             </div>
           ) : items.length > 0 ? (
             <div className={styles.grid}>
               {items.map((property) => (
                 <PropertyPublicCard
                   key={property.id}
-                  id={property.id}
                   title={property.title}
                   priceLabel={property.priceLabel}
                   href={property.link}
@@ -85,8 +135,7 @@ export default function PublicHomePage() {
             </div>
           ) : (
             <div className={styles.empty} role="status" aria-live="polite">
-              Aún no hay propiedades públicas disponibles. Vuelve a intentarlo
-              pronto.
+              No hay propiedades disponibles con los filtros seleccionados.
             </div>
           )}
 
@@ -100,6 +149,7 @@ export default function PublicHomePage() {
                 className={styles.paginationButton}
                 onClick={previousPage}
                 disabled={!hasPrevious}
+                aria-label="Página anterior"
               >
                 Anterior
               </button>
@@ -111,6 +161,7 @@ export default function PublicHomePage() {
                 className={styles.paginationButton}
                 onClick={nextPage}
                 disabled={!hasNext}
+                aria-label="Página siguiente"
               >
                 Siguiente
               </button>

@@ -1,7 +1,7 @@
 import { useId } from "react";
 import styles from "./Footer.module.css";
 
-// PublicHomeFooter muestra navegación secundaria; se enlazará a contenidos y telemetry posteriormente.
+// Footer con navegación secundaria y enlaces sociales.
 export function PublicHomeFooter() {
   const footerTitleId = useId();
 
@@ -24,7 +24,11 @@ export function PublicHomeFooter() {
   const socialLinks = [
     { name: "Facebook", href: "https://www.facebook.com", icon: FacebookIcon },
     { name: "Twitter", href: "https://www.twitter.com", icon: TwitterIcon },
-    { name: "Instagram", href: "https://www.instagram.com", icon: InstagramIcon },
+    {
+      name: "Instagram",
+      href: "https://www.instagram.com",
+      icon: InstagramIcon,
+    },
     { name: "LinkedIn", href: "https://www.linkedin.com", icon: LinkedinIcon },
   ];
 

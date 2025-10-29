@@ -30,6 +30,9 @@ type PublicPropertyRow = {
   bedrooms: number | null;
   bathrooms: string | number | null;
   construction_m2: string | number | null;
+  land_m2: string | number | null;
+  parking_spots: number | null;
+  levels: number | null;
   published_at: string | null;
 };
 
@@ -46,6 +49,9 @@ const PUBLIC_COLUMNS = [
   "bedrooms",
   "bathrooms",
   "construction_m2",
+  "land_m2",
+  "parking_spots",
+  "levels",
   "published_at",
 ].join(",");
 
@@ -103,6 +109,9 @@ function mapRowToSummary(row: PublicPropertyRow): PublicPropertySummaryDTO {
     bedrooms: row.bedrooms ?? null,
     bathrooms: parseOptionalNumber(row.bathrooms),
     constructionSizeM2: parseOptionalNumber(row.construction_m2),
+    landSizeM2: parseOptionalNumber(row.land_m2),
+    parkingSpots: parseOptionalNumber(row.parking_spots),
+    levels: parseOptionalNumber(row.levels),
     publishedAt: row.published_at ?? null,
     coverImageUrl: null,
   };
@@ -116,7 +125,23 @@ export class SupabasePublicPropertyRepo implements PublicPropertyRepo {
   }
 
   async listPublished(filters: PublicPropertyListFiltersDTO): Promise<Result<PublicPropertyPage>> {
-    const { page, pageSize, sortBy = "recent", city, state, q } = filters;
+    const {
+      page,
+      pageSize,
+      sortBy = "recent",
+      city,
+      state,
+      q,
+      propertyType,
+      priceMin,
+      priceMax,
+      bedroomsMin,
+      bathroomsMin,
+      parkingSpotsMin,
+      levelsMin,
+      areaMin,
+      areaMax,
+    } = filters;
     const offset = (page - 1) * pageSize;
     const limit = offset + pageSize - 1;
 
@@ -132,6 +157,42 @@ export class SupabasePublicPropertyRepo implements PublicPropertyRepo {
 
     if (state) {
       query = query.ilike("state", `%${escapeIlike(state)}%`);
+    }
+
+    if (propertyType) {
+      query = query.eq("property_type", propertyType);
+    }
+
+    if (typeof priceMin === "number") {
+      query = query.gte("price", priceMin);
+    }
+
+    if (typeof priceMax === "number") {
+      query = query.lte("price", priceMax);
+    }
+
+    if (typeof bedroomsMin === "number") {
+      query = query.gte("bedrooms", bedroomsMin);
+    }
+
+    if (typeof bathroomsMin === "number") {
+      query = query.gte("bathrooms", bathroomsMin);
+    }
+
+    if (typeof parkingSpotsMin === "number") {
+      query = query.gte("parking_spots", parkingSpotsMin);
+    }
+
+    if (typeof levelsMin === "number") {
+      query = query.gte("levels", levelsMin);
+    }
+
+    if (typeof areaMin === "number") {
+      query = query.gte("construction_m2", areaMin);
+    }
+
+    if (typeof areaMax === "number") {
+      query = query.lte("construction_m2", areaMax);
     }
 
     if (q) {

@@ -4,7 +4,11 @@ import { createPropertiesContainer } from "../../../../properties.container";
 import { SupabaseAuthService } from "../../../../infrastructure/adapters/SupabaseAuthService";
 import { SupabaseMediaStorage } from "../../../../infrastructure/adapters/SupabaseMediaStorage";
 import { getPresignedUrlForDisplay } from "../../../../infrastructure/adapters/MediaStorage";
-import type { PublicPropertySummaryDTO } from "../../../../application/dto/PublicPropertyDTO";
+import type {
+  PublicPropertyListFiltersDTO,
+  PublicPropertySummaryDTO,
+} from "../../../../application/dto/PublicPropertyDTO";
+import type { PublicAppliedFilters } from "../types";
 
 const PAGE_SIZE = 12;
 
@@ -40,6 +44,9 @@ interface PublicPropertyCardViewModel {
   bedrooms?: number | null;
   bathrooms?: number | null;
   areaM2?: number | null;
+  landAreaM2?: number | null;
+  parkingSpots?: number | null;
+  levels?: number | null;
   coverUrl: string | null;
 }
 
@@ -69,6 +76,40 @@ function getPropertyTypeLabel(type?: string | null) {
     .join(" ");
 }
 
+function buildFiltersPayload(
+  page: number,
+  filters: PublicAppliedFilters,
+): Partial<PublicPropertyListFiltersDTO> {
+  const payload: Partial<PublicPropertyListFiltersDTO> = {
+    page,
+    pageSize: PAGE_SIZE,
+  };
+
+  const mappings: Array<[keyof PublicAppliedFilters, keyof PublicPropertyListFiltersDTO]> = [
+    ["propertyType", "propertyType"],
+    ["q", "q"],
+    ["state", "state"],
+    ["city", "city"],
+    ["priceMin", "priceMin"],
+    ["priceMax", "priceMax"],
+    ["bedroomsMin", "bedroomsMin"],
+    ["bathroomsMin", "bathroomsMin"],
+    ["parkingSpotsMin", "parkingSpotsMin"],
+    ["levelsMin", "levelsMin"],
+    ["areaMin", "areaMin"],
+    ["areaMax", "areaMax"],
+  ];
+
+  for (const [filterKey, payloadKey] of mappings) {
+    const value = filters[filterKey];
+    if (value !== undefined && value !== null && value !== "") {
+      payload[payloadKey] = value as any;
+    }
+  }
+
+  return payload;
+}
+
 async function loadCoverImage(propertyId: string): Promise<string | null> {
   try {
     const mediaResult = await mediaStorage.listMedia(propertyId);
@@ -91,8 +132,8 @@ async function loadCoverImage(propertyId: string): Promise<string | null> {
   }
 }
 
-// usePublicPropertiesList trae el listado público y resuelve portadas; se conectará a filtros/telemetría luego.
-export function usePublicPropertiesList() {
+// Hook para listado de propiedades públicas con paginación y carga de imágenes.
+export function usePublicPropertiesList(appliedFilters: PublicAppliedFilters) {
   const container = useMemo(() => createPropertiesContainer(), []);
   const listPublished = container.useCases.listPublishedPublic;
 
@@ -139,10 +180,8 @@ export function usePublicPropertiesList() {
       setError(null);
 
       try {
-        const result = await listPublished.execute({
-          page: targetPage,
-          pageSize: PAGE_SIZE,
-        });
+        const payload = buildFiltersPayload(targetPage, appliedFilters);
+        const result = await listPublished.execute(payload);
 
         if (result.isErr()) {
           console.warn("[public-home] failed to fetch properties", result.error);
@@ -154,10 +193,10 @@ export function usePublicPropertiesList() {
           return;
         }
 
-        const { items: rawItems, total: newTotal } = result.value;
-        setItems(rawItems);
+        const { items: propertyItems, total: newTotal } = result.value;
+        setItems(propertyItems);
         setTotal(newTotal);
-        void fetchCoverImages(rawItems.map((item) => item.id));
+        void fetchCoverImages(propertyItems.map((item) => item.id));
       } catch (err) {
         console.error("[public-home] unexpected error fetching properties", err);
         setError("Tuvimos un problema para cargar las propiedades.");
@@ -167,12 +206,16 @@ export function usePublicPropertiesList() {
         setLoading(false);
       }
     },
-    [fetchCoverImages, listPublished],
+    [appliedFilters, fetchCoverImages, listPublished],
   );
 
   useEffect(() => {
     void fetchPage(page);
   }, [fetchPage, page]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [appliedFilters]);
 
   const totalPages = useMemo(
     () => (total === 0 ? 1 : Math.max(1, Math.ceil(total / PAGE_SIZE))),
@@ -186,10 +229,6 @@ export function usePublicPropertiesList() {
   const previousPage = useCallback(() => {
     setPage((prev) => Math.max(prev - 1, 1));
   }, []);
-
-  const refresh = useCallback(() => {
-    void fetchPage(page);
-  }, [fetchPage, page]);
 
   const viewModels: PublicPropertyCardViewModel[] = useMemo(
     () =>
@@ -209,6 +248,9 @@ export function usePublicPropertiesList() {
           bedrooms: item.bedrooms ?? null,
           bathrooms: item.bathrooms ?? null,
           areaM2: item.constructionSizeM2 ?? null,
+          landAreaM2: item.landSizeM2 ?? null,
+          parkingSpots: item.parkingSpots ?? null,
+          levels: item.levels ?? null,
           coverUrl: coverUrls[item.id] ?? item.coverImageUrl ?? null,
         };
       }),
@@ -223,7 +265,6 @@ export function usePublicPropertiesList() {
     totalPages,
     loading,
     error,
-    refresh,
     nextPage,
     previousPage,
     setPage,

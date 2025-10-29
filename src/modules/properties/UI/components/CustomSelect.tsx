@@ -15,6 +15,8 @@ export interface CustomSelectProps {
   disabled?: boolean;
   placeholder?: string;
   className?: string;
+  ariaLabel?: string;
+  ariaDescribedBy?: string;
 }
 
 export function CustomSelect({
@@ -24,6 +26,8 @@ export function CustomSelect({
   disabled,
   placeholder = "Seleccionar",
   className = "",
+  ariaLabel,
+  ariaDescribedBy,
 }: CustomSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -112,13 +116,14 @@ export function CustomSelect({
         className={styles.trigger}
         onClick={handleToggle}
         onBlur={() => {
-          console.log("loga");
           setTimeout(() => setIsOpen(false), 300);
         }}
         onKeyDown={handleKeyDown}
         disabled={disabled}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
+        aria-label={ariaLabel}
+        aria-describedby={ariaDescribedBy}
       >
         <span className={styles.triggerText}>{displayText}</span>
         <ChevronDown size={14} className={styles.chevron} aria-hidden="true" />
