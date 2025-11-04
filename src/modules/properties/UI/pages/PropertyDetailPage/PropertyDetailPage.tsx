@@ -1,4 +1,5 @@
 // PropertyDetailPage: página de detalle público de una propiedad
+import { useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
@@ -8,30 +9,56 @@ import {
   Layers,
   Calendar,
   MapPin,
-  Home,
   MessageCircle,
+  ExternalLink,
 } from "lucide-react";
 import { usePropertyDetail } from "./hooks/usePropertyDetail";
+import { useSimilarProperties } from "./hooks/useSimilarProperties";
+import { useTelemetry } from "../../../../telemetry/UI/hooks/useTelemetry";
 import { GalleryPlaceholder } from "./components/GalleryPlaceholder";
 import { SummaryPanel } from "./components/SummaryPanel";
+import PropertyMap from "./components/PropertyMap";
 import { PublicHomeFooter } from "../PublicHomePage/components/Footer/Footer";
+import { PropertyPublicCard } from "../PublicHomePage/components/PropertyPublicCard/PropertyPublicCard";
 import { formatNumber } from "../../utils/formatters";
 import { getAmenityLabel } from "../../utils/amenityLabels";
+import { buildMapsUrl } from "../../utils/mapsUrl";
 import styles from "./PropertyDetailPage.module.css";
 
 /**
  * Página de detalle público de propiedad.
- * Muestra: título, galería (placeholder), resumen sticky, descripción, características,
- * amenidades, ubicación, mapa (placeholder) y similares (placeholder).
+ * Muestra: título, galería (placeholder), resumen sticky, descripción+amenidades+características,
+ * ubicación con botón Google Maps, y similares (placeholder).
  * TODO: implementar galería completa, mapa interactivo y similares reales.
  */
 export default function PropertyDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { trackPropertyView } = useTelemetry();
   const { data, loading, error } = usePropertyDetail(id);
+  const { items: similarProperties, loading: loadingSimilar } =
+    useSimilarProperties(data?.property || null, 3);
+
+  // Registrar vista de la propiedad cuando se carga
+  useEffect(() => {
+    if (!id || !data?.property) return;
+
+    // Registrar el page_view para incrementar el view_count
+    // Nota: Usamos includeUserId=false para que las vistas públicas NO filtren
+    // por owner_id (así se cuentan TODAS las vistas, incluso del propietario)
+    trackPropertyView(
+      id,
+      {
+        source: "public_detail",
+        status: data.property.status,
+        title: data.property.title,
+      },
+      false // No incluir userId para vistas públicas anónimas
+    );
+  }, [id, data?.property, trackPropertyView]);
 
   const handleBack = () => {
-    navigate("/");
+    navigate(-1);
   };
 
   const handleContact = () => {
@@ -62,7 +89,7 @@ export default function PropertyDetailPage() {
             aria-label="Regresar a la búsqueda"
           >
             <ArrowLeft size={18} aria-hidden="true" />
-            Regresar a la búsqueda
+            Regresar
           </button>
 
           <div className={styles.errorBox} role="alert">
@@ -73,7 +100,7 @@ export default function PropertyDetailPage() {
     );
   }
 
-  const { property, coverUrl } = data;
+  const { property, coverUrl, galleryUrls } = data;
 
   return (
     <div className={styles.page}>
@@ -86,7 +113,7 @@ export default function PropertyDetailPage() {
           aria-label="Regresar a la búsqueda"
         >
           <ArrowLeft size={18} aria-hidden="true" />
-          Regresar a la búsqueda
+          Regresar
         </button>
 
         {/* Título */}
@@ -97,143 +124,196 @@ export default function PropertyDetailPage() {
           className={styles.headerBlock}
           aria-labelledby="header-section"
         >
-          <GalleryPlaceholder coverUrl={coverUrl} title={property.title} />
+          <GalleryPlaceholder
+            coverUrl={coverUrl}
+            galleryUrls={galleryUrls}
+            title={property.title}
+          />
           <SummaryPanel property={property} />
         </section>
 
-        {/* Block 2: Descripción y Características */}
+        {/* Block 2: Descripción + Amenidades + Características (2 columnas) */}
         <section
-          className={styles.contentBlock}
-          aria-labelledby="description-section"
+          className={styles.combinedBlock}
+          aria-labelledby="content-section"
         >
-          <h2 id="description-section" className={styles.sectionTitle}>
-            Descripción
-          </h2>
-          <p className={styles.description}>{property.description || "N/D"}</p>
-
-          <h2 className={styles.sectionTitle}>Características</h2>
-          <div className={styles.characteristicsGrid}>
-            {property.bedrooms !== null && property.bedrooms !== undefined && (
-              <div className={styles.characteristicItem}>
-                <BedDouble
-                  className={styles.characteristicIcon}
-                  aria-hidden="true"
-                />
-                <span>{formatNumber(property.bedrooms)} Recámaras</span>
+          <div className={styles.combinedGrid}>
+            {/* Columna izquierda: Descripción + Amenidades */}
+            <div className={styles.leftColumn}>
+              <div>
+                <h2 id="content-section" className={styles.sectionTitle}>
+                  Descripción
+                </h2>
+                <p className={styles.description}>
+                  {property.description || "N/D"}
+                </p>
               </div>
-            )}
 
-            {property.bathrooms !== null &&
-              property.bathrooms !== undefined && (
-                <div className={styles.characteristicItem}>
-                  <Bath
-                    className={styles.characteristicIcon}
-                    aria-hidden="true"
-                  />
-                  <span>{formatNumber(property.bathrooms)} Baños</span>
-                </div>
-              )}
-
-            {property.constructionM2 && (
-              <div className={styles.characteristicItem}>
-                <Ruler
-                  className={styles.characteristicIcon}
-                  aria-hidden="true"
-                />
-                <span>
-                  {formatNumber(property.constructionM2)} m² de construcción
-                </span>
+              <div>
+                <h2 className={styles.sectionTitle}>Amenidades</h2>
+                {property.amenities && property.amenities.length > 0 ? (
+                  <div className={styles.amenitiesChips}>
+                    {property.amenities.map((amenityId) => (
+                      <span key={amenityId} className={styles.amenityChip}>
+                        {getAmenityLabel(amenityId)}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className={styles.description}>
+                    Sin amenidades registradas
+                  </p>
+                )}
               </div>
-            )}
+            </div>
 
-            {property.landM2 && (
-              <div className={styles.characteristicItem}>
-                <Ruler
-                  className={styles.characteristicIcon}
-                  aria-hidden="true"
-                />
-                <span>{formatNumber(property.landM2)} m² de terreno</span>
+            {/* Columna derecha: Características */}
+            <div>
+              <h2 className={styles.sectionTitle}>Características</h2>
+              <div className={styles.characteristicsGrid}>
+                {property.bedrooms !== null &&
+                  property.bedrooms !== undefined && (
+                    <div className={styles.characteristicItem}>
+                      <BedDouble
+                        className={styles.characteristicIcon}
+                        aria-hidden="true"
+                      />
+                      <span>{formatNumber(property.bedrooms)} Recámaras</span>
+                    </div>
+                  )}
+
+                {property.bathrooms !== null &&
+                  property.bathrooms !== undefined && (
+                    <div className={styles.characteristicItem}>
+                      <Bath
+                        className={styles.characteristicIcon}
+                        aria-hidden="true"
+                      />
+                      <span>{formatNumber(property.bathrooms)} Baños</span>
+                    </div>
+                  )}
+
+                {property.constructionM2 && (
+                  <div className={styles.characteristicItem}>
+                    <Ruler
+                      className={styles.characteristicIcon}
+                      aria-hidden="true"
+                    />
+                    <span>
+                      {formatNumber(property.constructionM2)} m² de construcción
+                    </span>
+                  </div>
+                )}
+
+                {property.landM2 && (
+                  <div className={styles.characteristicItem}>
+                    <Ruler
+                      className={styles.characteristicIcon}
+                      aria-hidden="true"
+                    />
+                    <span>{formatNumber(property.landM2)} m² de terreno</span>
+                  </div>
+                )}
+
+                {property.levels !== null &&
+                  property.levels !== undefined &&
+                  property.levels > 0 && (
+                    <div className={styles.characteristicItem}>
+                      <Layers
+                        className={styles.characteristicIcon}
+                        aria-hidden="true"
+                      />
+                      <span>{formatNumber(property.levels)} Pisos</span>
+                    </div>
+                  )}
+
+                {property.yearBuilt && (
+                  <div className={styles.characteristicItem}>
+                    <Calendar
+                      className={styles.characteristicIcon}
+                      aria-hidden="true"
+                    />
+                    <span>Año de construcción: {property.yearBuilt}</span>
+                  </div>
+                )}
               </div>
-            )}
-
-            {property.levels !== null &&
-              property.levels !== undefined &&
-              property.levels > 0 && (
-                <div className={styles.characteristicItem}>
-                  <Layers
-                    className={styles.characteristicIcon}
-                    aria-hidden="true"
-                  />
-                  <span>{formatNumber(property.levels)} Pisos</span>
-                </div>
-              )}
-
-            {property.yearBuilt && (
-              <div className={styles.characteristicItem}>
-                <Calendar
-                  className={styles.characteristicIcon}
-                  aria-hidden="true"
-                />
-                <span>Año de construcción: {property.yearBuilt}</span>
-              </div>
-            )}
+            </div>
           </div>
         </section>
 
-        {/* Block 3: Amenidades + Ubicación | Mapa */}
-        <div className={styles.amenitiesMapBlock}>
+        {/* Block 3: Ubicación + Mapa */}
+        <div className={styles.locationMapBlock}>
           <section
-            className={styles.amenitiesSection}
-            aria-labelledby="amenities-section"
+            className={styles.locationSection}
+            aria-labelledby="location-section"
           >
-            <h2 id="amenities-section" className={styles.sectionTitle}>
-              Amenidades
+            <h2 id="location-section" className={styles.sectionTitle}>
+              Ubicación
             </h2>
-
-            {property.amenities && property.amenities.length > 0 ? (
-              <div className={styles.amenitiesChips}>
-                {property.amenities.map((amenityId) => (
-                  <span key={amenityId} className={styles.amenityChip}>
-                    {getAmenityLabel(amenityId)}
-                  </span>
-                ))}
-              </div>
-            ) : (
-              <p className={styles.description}>Sin amenidades registradas</p>
-            )}
-
-            <h2 className={styles.sectionTitle}>Ubicación</h2>
             <div className={styles.locationDetail}>
-              <span className={styles.locationLabel}>Colonia</span>
-              <span className={styles.locationValue}>
-                {property.address.neighborhood || "N/D"}
-              </span>
+              <div className={styles.locationItem}>
+                <span className={styles.locationLabel}>Colonia</span>
+                <span className={styles.locationValue}>
+                  {property.address.neighborhood || "N/D"}
+                </span>
+              </div>
 
-              <span className={styles.locationLabel}>Código Postal</span>
-              <span className={styles.locationValue}>
-                {property.address.postalCode || "N/D"}
-              </span>
+              <div className={styles.locationItem}>
+                <span className={styles.locationLabel}>Código Postal</span>
+                <span className={styles.locationValue}>
+                  {property.address.postalCode || "N/D"}
+                </span>
+              </div>
 
-              <span className={styles.locationLabel}>Ciudad</span>
-              <span className={styles.locationValue}>
-                {property.address.city || "N/D"}
-              </span>
+              <div className={styles.locationItem}>
+                <span className={styles.locationLabel}>Ciudad</span>
+                <span className={styles.locationValue}>
+                  {property.address.city || "N/D"}
+                </span>
+              </div>
 
-              <span className={styles.locationLabel}>Estado</span>
-              <span className={styles.locationValue}>
-                {property.address.state || "N/D"}
-              </span>
+              <div className={styles.locationItem}>
+                <span className={styles.locationLabel}>Estado</span>
+                <span className={styles.locationValue}>
+                  {property.address.state || "N/D"}
+                </span>
+              </div>
             </div>
+
+            <a
+              href={buildMapsUrl({
+                lat: property.location?.lat,
+                lng: property.location?.lng,
+                colonia: property.address.neighborhood,
+                ciudad: property.address.city,
+                estado: property.address.state,
+              })}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={styles.mapsButton}
+              aria-label={`Abrir en Google Maps: ${property.address.city || "ubicación"}, ${property.address.state || ""}`}
+            >
+              <ExternalLink aria-hidden="true" />
+              Abrir en Google Maps
+            </a>
           </section>
 
-          {/* Mapa Placeholder */}
-          <div
-            className={styles.mapPlaceholder}
-            aria-label="Mapa de ubicación (próximamente)"
-          >
-            <MapPin aria-hidden="true" />
-            <span>Mapa interactivo próximamente</span>
-          </div>
+          {/* Mapa interactivo */}
+          {property.location?.lat && property.location?.lng ? (
+            <PropertyMap
+              lat={property.location.lat}
+              lng={property.location.lng}
+              label={`${property.address.city || "Propiedad"}, ${property.address.state || ""}`}
+            />
+          ) : (
+            <div
+              className={styles.mapPlaceholder}
+              aria-label="Mapa de ubicación"
+            >
+              <MapPin aria-hidden="true" />
+              <span>Sin coordenadas disponibles</span>
+            </div>
+          )}
         </div>
 
         {/* Block 4: Similares */}
@@ -242,26 +322,35 @@ export default function PropertyDetailPage() {
           aria-labelledby="similars-section"
         >
           <h2 id="similars-section" className={styles.sectionTitle}>
-            Similares
+            Propiedades Similares
           </h2>
 
-          <div className={styles.similarsGrid}>
-            {[1, 2, 3].map((idx) => (
-              <div key={idx} className={styles.similarCard} aria-hidden="true">
-                <Home size={32} />
-                <span>Próximamente</span>
-              </div>
-            ))}
-          </div>
-
-          <button
-            type="button"
-            className={styles.viewMoreButton}
-            disabled
-            aria-label="Ver más similares (próximamente)"
-          >
-            Ver más similares
-          </button>
+          {loadingSimilar ? (
+            <div className={styles.loader} role="status" aria-live="polite">
+              Cargando propiedades similares...
+            </div>
+          ) : similarProperties.length > 0 ? (
+            <div className={styles.similarsGrid}>
+              {similarProperties.map((property) => (
+                <PropertyPublicCard
+                  key={property.id}
+                  title={property.title}
+                  priceLabel={property.priceLabel}
+                  href={property.link}
+                  address={property.address}
+                  propertyTypeLabel={property.propertyTypeLabel}
+                  bedrooms={property.bedrooms}
+                  bathrooms={property.bathrooms}
+                  areaM2={property.areaM2}
+                  coverUrl={property.coverUrl}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className={styles.empty} role="status">
+              No se encontraron propiedades similares.
+            </div>
+          )}
         </section>
       </div>
 

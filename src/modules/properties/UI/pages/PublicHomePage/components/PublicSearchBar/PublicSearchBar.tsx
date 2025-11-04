@@ -267,30 +267,15 @@ export const PublicSearchBar = forwardRef<
       if (priceDialogRef.current.contains(event.target as Node)) return;
       setPriceOpen(false);
     };
-    const handleKeys = (event: Event) => {
-      if (!(event instanceof KeyboardEvent)) return;
-      if (event.key === "Escape") {
-        setPriceDraft({
-          min: toInputValue(value.priceMin ?? null),
-          max: toInputValue(value.priceMax ?? null),
-        });
-        setPriceOpen(false);
-      }
-      if (event.key === "Enter") {
-        event.preventDefault();
-        applyPriceDraft();
-      }
-    };
     document.addEventListener("mousedown", handleOutside);
-    document.addEventListener("keydown", handleKeys);
+    // Solo hacer focus cuando se abre el popover
     window.setTimeout(() => {
       priceMinInputRef.current?.focus();
     }, 10);
     return () => {
       document.removeEventListener("mousedown", handleOutside);
-      document.removeEventListener("keydown", handleKeys);
     };
-  }, [applyPriceDraft, priceOpen, value.priceMin, value.priceMax]);
+  }, [priceOpen]);
 
   const priceSummary = formatPriceSummary(
     value.priceMin ?? null,
@@ -375,16 +360,16 @@ export const PublicSearchBar = forwardRef<
             ariaDescribedBy={statusMessage ? cityStatusId : undefined}
           />
         </div>
-        {statusMessage && (
+        {/* {statusMessage && (
           <span
             className={styles.srOnly}
             id={cityStatusId}
             role="status"
             aria-live="polite"
           >
-            {statusMessage}
+            {statusMessage}dsd
           </span>
-        )}
+        )} */}
       </div>
 
       <div className={`${styles.control} ${styles.stateControl}`}>
@@ -419,6 +404,19 @@ export const PublicSearchBar = forwardRef<
             className={styles.pricePopover}
             role="dialog"
             aria-label="Rango de precios"
+            onKeyDown={(event) => {
+              if (event.key === "Escape") {
+                setPriceDraft({
+                  min: toInputValue(value.priceMin ?? null),
+                  max: toInputValue(value.priceMax ?? null),
+                });
+                setPriceOpen(false);
+              }
+              if (event.key === "Enter") {
+                event.preventDefault();
+                applyPriceDraft();
+              }
+            }}
           >
             <div className={styles.priceInputs}>
               <label className={styles.popoverLabel}>
@@ -488,7 +486,7 @@ export const PublicSearchBar = forwardRef<
         )}
       </div>
 
-      <div className={`${styles.control} ${styles.moreControl}`}>
+      <div className={`${styles.control} `}>
         <button
           type="button"
           className={styles.iconButton}

@@ -121,6 +121,7 @@ export default function PublicHomePage() {
               {items.map((property) => (
                 <PropertyPublicCard
                   key={property.id}
+                  id={property.id}
                   title={property.title}
                   priceLabel={property.priceLabel}
                   href={property.link}

@@ -123,7 +123,10 @@ const navItemsByRole: Record<HeaderRole, NavItem[]> = {
       label: "Mis propiedades",
       to: "/properties",
       icon: <BuildingIcon />,
-      match: ({ pathname }) => pathname.startsWith("/properties"),
+      match: ({ pathname }) =>
+        pathname === "/properties" ||
+        pathname === "/properties/new" ||
+        (pathname.startsWith("/properties/") && pathname.includes("/edit")),
     },
     {
       key: "documents",

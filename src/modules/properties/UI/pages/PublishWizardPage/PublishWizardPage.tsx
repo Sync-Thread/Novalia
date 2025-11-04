@@ -55,8 +55,12 @@ interface DraftForm {
   propertyType: PropertyType;
   priceAmount: number;
   priceCurrency: Currency;
+  // Campos de dirección completos
+  addressLine: string;
+  neighborhood: string;
   city: string;
   state: string;
+  postalCode: string;
   description: string;
   levels: number | null;
   bedrooms: number | null;
@@ -74,8 +78,12 @@ const INITIAL_FORM: DraftForm = {
   propertyType: PROPERTY_TYPE.House,
   priceAmount: 0,
   priceCurrency: "MXN",
+  // Campos de dirección completos
+  addressLine: "",
+  neighborhood: "",
   city: "",
   state: "",
+  postalCode: "",
   description: "",
   levels: null,
   bedrooms: null,
@@ -160,7 +168,8 @@ function PublishWizard() {
       form.description.trim().length > 0 ||
       form.priceAmount > 0 ||
       form.city.trim().length > 0 ||
-      form.state.trim().length > 0;
+      form.state.trim().length > 0 ||
+      form.addressLine.trim().length > 0;
 
     return hasBasicData;
   };
@@ -332,8 +341,12 @@ function PublishWizard() {
           propertyType: data.propertyType,
           priceAmount: data.price.amount,
           priceCurrency: data.price.currency,
+          // Campos de dirección completos
+          addressLine: data.address.addressLine ?? "",
+          neighborhood: data.address.neighborhood ?? "",
           city: data.address.city ?? "",
           state: data.address.state ?? "",
+          postalCode: data.address.postalCode ?? "",
           levels: data.levels ?? null,
           bedrooms: data.bedrooms ?? null,
           bathrooms: data.bathrooms ?? null,
@@ -563,8 +576,11 @@ function PublishWizard() {
     constructionM2: form.constructionM2,
     landM2: form.landM2,
     address: {
+      addressLine: form.addressLine.trim() || null,
+      neighborhood: form.neighborhood.trim() || null,
       city: form.city.trim() || "Por definir",
       state: form.state.trim() || "Por definir",
+      postalCode: form.postalCode.trim() || null,
       country: "MX",
       displayAddress: true,
     },
@@ -1116,36 +1132,36 @@ function PublishWizard() {
               {/* Información principal */}
               <label className="wizard-field form-col-2">
                 <span className="wizard-field__label">Titulo *</span>
-                <input
+                <textarea
                   className="wizard-field__control"
+                  rows={2}
                   value={form.title}
                   onChange={(event) =>
                     setForm((prev) => ({ ...prev, title: event.target.value }))
                   }
                   placeholder="Ej: Departamento moderno en Roma Norte"
+                  style={{
+                    resize: "vertical",
+                    minHeight: "60px",
+                    maxHeight: "120px",
+                  }}
                 />
               </label>
 
               <label className="wizard-field">
                 <span className="wizard-field__label">Tipo de propiedad *</span>
-                <div className="select-control">
-                  <select
-                    className="select-control__native"
-                    value={form.propertyType}
-                    onChange={(event) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        propertyType: event.target.value as PropertyType,
-                      }))
-                    }
-                  >
-                    {PROPERTY_TYPE_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                <CustomSelect
+                  value={form.propertyType}
+                  options={PROPERTY_TYPE_OPTIONS}
+                  onChange={(value) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      propertyType: value as PropertyType,
+                    }))
+                  }
+                  placeholder="Selecciona tipo de propiedad"
+                  className="wizard-field__control"
+                />
               </label>
 
               <label className="wizard-field">
@@ -1318,6 +1334,59 @@ function PublishWizard() {
               </p>
             </header>
             <div className="form-grid">
+              {/* Línea de dirección completa */}
+              <label className="wizard-field form-col-2">
+                <span className="wizard-field__label">
+                  Dirección (Calle y número)
+                </span>
+                <input
+                  className="wizard-field__control"
+                  value={form.addressLine}
+                  onChange={(event) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      addressLine: event.target.value,
+                    }))
+                  }
+                  placeholder="Ej: Av. Reforma 123, Int. 4B"
+                />
+              </label>
+
+              {/* Colonia/Barrio */}
+              <label className="wizard-field">
+                <span className="wizard-field__label">Colonia/Barrio</span>
+                <input
+                  className="wizard-field__control"
+                  value={form.neighborhood}
+                  onChange={(event) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      neighborhood: event.target.value,
+                    }))
+                  }
+                  placeholder="Ej: Polanco"
+                />
+              </label>
+
+              {/* Código Postal */}
+              <label className="wizard-field">
+                <span className="wizard-field__label">Código Postal</span>
+                <input
+                  className="wizard-field__control"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]{5}"
+                  maxLength={5}
+                  value={form.postalCode}
+                  onChange={(event) => {
+                    const value = event.target.value.replace(/\D/g, ""); // Solo dígitos
+                    setForm((prev) => ({ ...prev, postalCode: value }));
+                  }}
+                  placeholder="Ej: 11560"
+                />
+              </label>
+
+              {/* Estado */}
               <label className="wizard-field">
                 <span className="wizard-field__label">Estado *</span>
                 <CustomSelect
@@ -1399,6 +1468,8 @@ function PublishWizard() {
                   className="wizard-field__control"
                 />
               </label>
+
+              {/* Ciudad/Municipio */}
               <label className="wizard-field">
                 <span className="wizard-field__label">Ciudad/Municipio *</span>
                 <CustomSelect
@@ -1456,10 +1527,12 @@ function PublishWizard() {
                   className="wizard-field__control"
                 />
               </label>
+
+              {/* Mapa interactivo */}
               <div className="wizard-map form-col-2">
                 <p style={{ marginBottom: "12px", fontSize: "0.875rem" }}>
                   Selecciona una ubicacion aproximada para mostrar en el mapa.
-                  Arrastra el marcador para ajustar.
+                  Arrastra el marcador para ajustar la ubicación exacta.
                 </p>
                 <div
                   ref={mapRef}
