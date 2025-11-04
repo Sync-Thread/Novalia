@@ -1,16 +1,15 @@
-import React, { useState } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import styles from "./ContractsPage.module.css";
 
 import ContractList from "../components/ContractList";
 import ContractDetailSideSheet from "../components/ContractDetailSideSheet";
+import NewDocumentQuickView from "../components/NewDocumentQuickView";
 
 import type { IContract } from "../../domain/entities/contractType";
 
 import { mockContracts } from "../../domain/entities/contractType";
 
-import { useWindowSize } from "../hooks/useWindowSize";
-
-import { SearchIcon } from "lucide-react";
+import { SearchIcon, X, PlusIcon } from "lucide-react";
 
 const ContractsPage: React.FC = () => {
   const [contracts, setContracts] = useState<IContract[]>(mockContracts);
@@ -18,9 +17,19 @@ const ContractsPage: React.FC = () => {
     null
   );
   const [activeFilter, setActiveFilter] = useState("Todos");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+  const [showNewDocQuickView, setShowNewDocQuickView] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
-  const windowSize = useWindowSize();
-  console.log("tamaño de ventana:", windowSize.width);
+  // Debounce para búsqueda (300ms)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedQuery(searchQuery);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   const filters = [
     { label: "Todos", value: "Todos" },
@@ -29,27 +38,60 @@ const ContractsPage: React.FC = () => {
     { label: "Cerrados/Archivados", value: "Cerrados/Archivados" },
   ];
 
+  // Filtrado por estado y búsqueda
   const filteredContracts = contracts.filter((contract) => {
-    if (activeFilter === "Todos") return true;
-    if (
-      activeFilter === "PendienteDeFirma" &&
-      contract.estadoFirma === "PendienteDeFirma"
-    )
-      return true;
-    if (activeFilter === "Vigente" && contract.estadoFirma === "Vigente")
-      return true;
-    if (
-      activeFilter === "Cerrados/Archivados" &&
-      (contract.estadoFirma === "Archivado" ||
-        contract.estadoFirma === "Rechazado")
-    )
-      return true;
-    return false;
+    // Filtro por estado
+    let matchesFilter = true;
+    if (activeFilter !== "Todos") {
+      if (
+        activeFilter === "PendienteDeFirma" &&
+        contract.estadoFirma !== "PendienteDeFirma"
+      ) {
+        matchesFilter = false;
+      } else if (
+        activeFilter === "Vigente" &&
+        contract.estadoFirma !== "Vigente"
+      ) {
+        matchesFilter = false;
+      } else if (
+        activeFilter === "Cerrados/Archivados" &&
+        contract.estadoFirma !== "Archivado" &&
+        contract.estadoFirma !== "Rechazado"
+      ) {
+        matchesFilter = false;
+      }
+    }
+
+    // Filtro por búsqueda (ID, propiedad, contraparte)
+    let matchesSearch = true;
+    if (debouncedQuery.trim()) {
+      const query = debouncedQuery.toLowerCase();
+      matchesSearch =
+        contract.id.toLowerCase().includes(query) ||
+        contract.propiedadNombre.toLowerCase().includes(query) ||
+        contract.contraparte.toLowerCase().includes(query);
+    }
+
+    return matchesFilter && matchesSearch;
   });
 
   const handleRowClick = (contract: IContract) => {
     setSelectedContract(contract);
   };
+
+  const handleClearSearch = useCallback(() => {
+    setSearchQuery("");
+    searchInputRef.current?.focus();
+  }, []);
+
+  const handleSearchKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === "Enter") {
+        setDebouncedQuery(searchQuery);
+      }
+    },
+    [searchQuery]
+  );
 
   const handleMenuAction = (action: string, contractId: string) => {
     // Normalize action names coming from KebabMenu (Spanish labels)
@@ -77,25 +119,54 @@ const ContractsPage: React.FC = () => {
   return (
     <>
       <div className={styles.pageContainer}>
+        {/* Header con título/subtítulo y CTA */}
         <header className={styles.header}>
-          <div>
-            <h1>Gestión de Contratos</h1>
-            <p className={styles.subtitle}>
-              Administra y firma contratos y expedientes de tus propiedades
-            </p>
+          <div className={styles.headerContent}>
+            <div className={styles.headerLeft}>
+              <h1 className={styles.title}>Gestión de Contratos</h1>
+              <p className={styles.subtitle}>
+                Administra y firma contratos y expedientes de tus propiedades
+              </p>
+            </div>
+            <div className={styles.headerRight}>
+              <button
+                className="btn btn-primary"
+                onClick={() => setShowNewDocQuickView(true)}
+                aria-label="Crear nuevo documento"
+              >
+                <PlusIcon size={18} />
+                Nuevo documento
+              </button>
+            </div>
           </div>
         </header>
+
+        {/* Barra de búsqueda con debounce y filtros */}
         <div className={styles.filterSection}>
           <div className={styles.searchBar}>
-            {/* Se corrige la indentación de la estructura del buscador */}
             <div className={styles.searchIcon}>
-              <SearchIcon size={20} />
+              <SearchIcon size={18} />
             </div>
             <input
+              ref={searchInputRef}
               type="text"
-              placeholder="Buscar por ID, propiedad o parte..."
+              placeholder="Buscar por ID, propiedad o contraparte…"
               className={styles.searchInput}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={handleSearchKeyDown}
+              aria-label="Buscar contratos"
             />
+            {searchQuery && (
+              <button
+                className={styles.searchClear}
+                onClick={handleClearSearch}
+                aria-label="Limpiar búsqueda"
+                type="button"
+              >
+                <X size={16} />
+              </button>
+            )}
           </div>
           <div className={styles.filterButtons}>
             {filters.map((filter) => {
@@ -139,6 +210,8 @@ const ContractsPage: React.FC = () => {
               contracts={filteredContracts}
               onRowClick={handleRowClick}
               onMenuAction={handleMenuAction}
+              loading={false}
+              onNewDocument={() => setShowNewDocQuickView(true)}
             />
           </div>
         </div>
@@ -147,6 +220,15 @@ const ContractsPage: React.FC = () => {
       <ContractDetailSideSheet
         contract={selectedContract}
         onClose={() => setSelectedContract(null)}
+      />
+
+      <NewDocumentQuickView
+        open={showNewDocQuickView}
+        onClose={() => setShowNewDocQuickView(false)}
+        onSuccess={(documentId) => {
+          console.log("Documento creado:", documentId);
+          // TODO: Mostrar toast de éxito y actualizar lista
+        }}
       />
     </>
   );

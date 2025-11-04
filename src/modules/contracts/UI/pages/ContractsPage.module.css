@@ -1,155 +1,222 @@
-/* src/UI/pages/ContractsPage/ContractsPage.module.css */
+/* ContractsPage — Layout y estilos principales */
 
 .pageContainer {
   padding: 24px 32px;
-  max-width: auto;
+  max-width: 1600px;
   margin: 0 auto;
 }
 
+/* Header con grid: título/subtítulo + CTA */
 .header {
-  margin-bottom: 30px;
+  margin-bottom: 24px;
 }
 
-.breadcrumb {
-  font-size: 14px;
-  color: #999;
-  margin-bottom: 5px;
+.headerContent {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: flex-start;
+  gap: 24px;
 }
 
-h1 {
-  font-size: 32px;
-  font-weight: 700;
-  color: #333;
+.headerLeft {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.headerRight {
+  display: flex;
+  align-items: center;
+}
+
+.title {
+  font-size: 28px;
+  font-weight: 600;
+  color: #111827;
+  margin: 0;
+  line-height: 1.2;
 }
 
 .subtitle {
-  font-size: 16px;
-  color: #555;
-  margin-top: 5px;
+  font-size: 15px;
+  color: #6b7280;
+  margin: 0;
+  line-height: 1.5;
 }
 
+/* Sección de búsqueda y filtros */
 .filterSection {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  margin-bottom: 20px;
+  gap: 16px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
 }
 
-.headerStats {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-}
-
-.statItem {
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  padding: 8px 12px;
-  border-radius: 12px;
-  text-align: center;
-}
-
-.statNumber {
-  font-weight: 700;
-  font-size: 18px;
-  color: #111827;
-}
-
-.statLabel {
-  font-size: 12px;
-  color: #6b7280;
-}
-
+/* Barra de búsqueda mejorada */
 .searchBar {
   position: relative;
-  width: 75%  ;
-  max-width: 800px;
+  min-width: 320px;
+  max-width: 560px;
+  flex: 1;
 }
 
 .searchInput {
   width: 100%;
-  padding: 12px 15px 12px 40px;
-  border: 1px solid #e2e3e4;
-  border-radius: 6px;
+  height: 44px;
+  padding: 0 40px 0 44px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
   font-size: 15px;
-  transition: border-color 0.2s;
-  background-color: #f7f2f2;
+  font-family: inherit;
+  color: #111827;
+  background: #ffffff;
+  transition: all 0.2s ease;
+}
+
+.searchInput::placeholder {
+  color: #9ca3af;
+}
+
+.searchInput:hover {
+  border-color: #d1d5db;
 }
 
 .searchInput:focus {
-  border-color: #2563eb;
+  border-color: #295dff;
   outline: none;
+  box-shadow: 0 0 0 3px rgba(41, 93, 255, 0.1);
 }
 
 .searchIcon {
   position: absolute;
-  left: 15px;
+  left: 16px;
   top: 50%;
   transform: translateY(-50%);
-  color: #999;
-  display: flex; /* Ayuda a centrar el SVG */
+  color: #6b7280;
+  display: flex;
   align-items: center;
+  pointer-events: none;
 }
 
+.searchClear {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  padding: 6px;
+  cursor: pointer;
+  color: #9ca3af;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.searchClear:hover {
+  color: #6b7280;
+  background: #f3f4f6;
+}
+
+.searchClear:active {
+  transform: translateY(-50%) scale(0.95);
+}
+
+/* Filtros de estado (chips) */
 .filterButtons {
   display: flex;
-  gap: 5px;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
-.mainGrid {
-  display: grid;
-  grid-template-columns: 1fr 360px;
-  gap: 20px;
-  align-items: start;
+.filterButton {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  padding: 10px 16px;
+  border-radius: 9999px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  color: #6b7280;
+  transition: all 0.2s ease;
+  white-space: nowrap;
 }
 
-/* When no side panel is open, let the main column take full width */
+.filterButton:hover {
+  border-color: #d1d5db;
+  background: #f9fafb;
+}
+
+.filterButton.active {
+  color: white;
+  border-color: transparent;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.activeBlue {
+  background: linear-gradient(135deg, #295dff 0%, #2146cc 100%);
+}
+
+.activeOrange {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+}
+
+.activeGray {
+  background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+}
+
+/* Layout principal */
 .mainGridFull {
-  grid-template-columns: 1fr;
-}
-
-.mainGridFull .sideColumn {
-  display: none;
+  width: 100%;
 }
 
 .mainColumn {
   min-width: 0;
 }
 
-.sideColumn {
-  position: relative;
+/* Responsive */
+@media (max-width: 1279px) {
+  .headerContent {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .headerRight {
+    justify-content: flex-start;
+  }
+
+  .filterSection {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .searchBar {
+    max-width: 100%;
+  }
 }
 
-.filterButton {
-  background-color: white;
-  border: 1px solid #e5e7eb;
-  padding: 12px 16px;
-  border-radius: 12px;
-  cursor: pointer;
-  font-size: 14px;
-  transition: all 0.2s;
-  font-weight: 500;
-  color: #4b5563;
-}
+@media (max-width: 767px) {
+  .pageContainer {
+    padding: 16px 20px;
+  }
 
-.filterButton.active {
-  color: white;
-  border-color: transparent;
-}
+  .title {
+    font-size: 24px;
+  }
 
-.activeBlue {
-  background-color: #2563eb;
-  color: white;
-  border-color: transparent;
-}
-.activeOrange {
-  background-color: #ff9800;
-  color: white;
-  border-color: transparent;
-}
-.activeGray {
-  background-color: #4b5563;
-  color: white;
-  border-color: transparent;
+  .subtitle {
+    font-size: 14px;
+  }
+
+  .filterButtons {
+    gap: 6px;
+  }
+
+  .filterButton {
+    padding: 8px 14px;
+    font-size: 13px;
+  }
 }

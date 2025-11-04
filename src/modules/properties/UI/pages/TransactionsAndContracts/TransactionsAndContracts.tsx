@@ -6,14 +6,10 @@ import type { FiltersBarValues, PropertyCardAction, ViewMode } from "./component
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { PropertyDTO } from "../../../application/dto/PropertyDTO";
 import { SearchIcon } from "lucide-react";
-import ContractDetailSideSheet from "./contract/ContractDetailSideSheet";
-import ContractList from "./contract/ContractList";
-import { type IContract, mockContracts } from "./contract/contractType";
 import DesignBanner from "../../utils/DesignBanner";
 import styles from "./TransactionsAndContracts.module.css";
 import { FiltersBar, PropertyCard, PropertyQuickView } from "../..";
 import { formatCurrency, formatDate, formatStatus, formatVerification } from "../../utils/format";
-import type { ca } from "zod/locales";
 
 
 
@@ -225,143 +221,7 @@ function PropertyDashboard() {
     );
 }
 
-function ContractDashboard() {
-  const [contracts, setContracts] = useState<IContract[]>(mockContracts);
-  const [selectedContract, setSelectedContract] = useState<IContract | null>(null);
-  const [activeFilter, setActiveFilter] = useState('Todos');
-
-
-  const filters = [
-    { label: 'Todos', value: 'Todos' },
-    { label: 'Pendiente de Firma', value: 'PendienteDeFirma' },
-    { label: 'Vigente', value: 'Vigente' },
-    { label: 'Cerrados/Archivados', value: 'Cerrados/Archivados' },
-  ];
-
-  const filteredContracts = contracts.filter((contract) => {
-    if (activeFilter === 'Todos') return true;
-    if (
-      activeFilter === 'PendienteDeFirma' &&
-      contract.estadoFirma === 'PendienteDeFirma'
-    )
-      return true;
-    if (activeFilter === 'Vigente' && contract.estadoFirma === 'Vigente')
-      return true;
-    if (
-      activeFilter === 'Cerrados/Archivados' &&
-      (contract.estadoFirma === 'Archivado' ||
-        contract.estadoFirma === 'Rechazado')
-    )
-      return true;
-    return false;
-  });
-
-  const handleRowClick = (contract: IContract) => {
-    setSelectedContract(contract);
-  };
-
-  const handleMenuAction = (action: string, contractId: string) => {
-    // Normalize action names coming from KebabMenu (Spanish labels)
-    console.log(`Acción: ${action} en contrato: ${contractId}`);
-    if (action === 'ver-detalle' || action === 'viewDetail') {
-      const contract = contracts.find((c) => c.id === contractId);
-      setSelectedContract(contract || null);
-      return;
-    }
-
-    if (action === 'descargar' || action === 'download') {
-      // Placeholder: implement download logic
-      console.log('Descargando contrato', contractId);
-      return;
-    }
-
-    if (action === 'eliminar' || action === 'delete') {
-      // Simulate deletion from local mock data
-      setContracts((prev) => prev.filter((c) => c.id !== contractId));
-      if (selectedContract?.id === contractId) setSelectedContract(null);
-      return;
-    }
-  };
-
-  return (
-    <>
-    </>
-  );
-}
-
-function propiedades() {
-  const mockProperties = [
-    {
-      id: "PROP-001",
-      title: "Casa moderna en Cancún",
-      price: "$3,200,000 MXN",
-      status: "Publicado",
-      type: "Casa",
-      location: "Cancún, QRoo",
-      img: "https://images.unsplash.com/photo-1599423300746-b62533397364?w=600&q=60",
-    },
-    {
-      id: "PROP-002",
-      title: "Departamento en CDMX",
-      price: "$2,450,000 MXN",
-      status: "Borrador",
-      type: "Departamento",
-      location: "Coyoacán, CDMX",
-      img: "https://images.unsplash.com/photo-1600585154526-990dced4df8c?w=600&q=60",
-    },
-    {
-      id: "PROP-003",
-      title: "Casa en venta - Mérida Norte",
-      price: "$4,100,000 MXN",
-      status: "Vendida",
-      type: "Casa",
-      location: "Mérida, Yucatán",
-      img: "https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=600&q=60",
-    },
-  ];
-
-  return (
-    <>
-      <section className={styles.lista}>
-        {mockProperties.map((p) => (
-          <div key={p.id} className={styles.tarjeta}>
-            <img
-              src={p.img}
-              alt={p.title}
-              style={{
-                width: "100%",
-                borderRadius: "12px",
-                height: "180px",
-                objectFit: "cover",
-              }}
-            />
-            <h3 style={{ fontSize: "16px", margin: "12px 0 4px 0" }}>
-              {p.title}
-            </h3>
-            <p style={{ fontSize: "14px", color: "#475569" }}>{p.location}</p>
-            <p
-              style={{
-                fontSize: "15px",
-                fontWeight: "bold",
-                color: "#1d4ed8",
-                marginTop: "6px",
-              }}
-            >
-              {p.price}
-            </p>
-            <p style={{ fontSize: "13px", color: "#64748b" }}>{p.status}</p>
-
-            <button className={styles.tablaBtn} style={{ marginTop: "10px" }}>
-              Ver detalles
-            </button>
-          </div>
-        ))}
-      </section>
-    </>
-  );
-}
-
-function ResumenCard({ label, value }: { label: string; value: number }) {
+function propiedades() {abel, value }: { label: string; value: number }) {
   return (
     <div className={styles.tarjeta}>
       <span className={styles.tarjetaLabel}>{label}</span>

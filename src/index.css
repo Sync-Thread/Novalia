@@ -274,6 +274,15 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
   background: rgba(41, 93, 255, 0.12);
   box-shadow: 0 8px 18px rgba(41, 93, 255, 0.18);
 }
+.btn-secondary {
+  border-color: #e5e7eb;
+  background: #ffffff;
+  color: #374151;
+}
+.btn-secondary:hover:not(:disabled) {
+  background: #f9fafb;
+  border-color: #d1d5db;
+}
 .btn-danger {
   border-color: rgba(220, 38, 38, 0.7);
   background: #dc2626;
@@ -2181,6 +2190,12 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 }
 @keyframes shimmer-sweep {
   100% { transform: translateX(100%); }
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.animate-spin {
+  animation: spin 1s linear infinite;
 }
 @media (max-width: 768px) {
   .public-home__hero {

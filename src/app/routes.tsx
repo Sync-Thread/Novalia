@@ -4,7 +4,7 @@ import { createBrowserRouter, Navigate } from "react-router-dom";
 import Dashboard from "../pages/Dashboard";
 import MyPropertiesPage from "../modules/properties/UI/pages/MyPropertiesPage";
 import PublishWizardPage from "../modules/properties/UI/pages/PublishWizardPage";
-import TransactionsAndContracts from "../modules/properties/UI/pages/TransactionsAndContracts";
+import PropertiesDashboard from "../modules/properties/UI/pages/PropertiesDashboard";
 import PublicHomePage from "../modules/properties/UI/pages/PublicHomePage/PublicHomePage";
 import PropertyDetailPage from "../modules/properties/UI/pages/PropertyDetailPage";
 import AuthGuard from "./guards/AuthGuard";
@@ -32,7 +32,7 @@ export const router = createBrowserRouter([
       </AuthGuard>
     ),
     children: [
-      { path: "/transactions", element: <TransactionsAndContracts /> },
+      { path: "/transactions", element: <PropertiesDashboard /> },
       { path: "/dashboard", element: <Dashboard /> },
       { path: "/properties", element: <MyPropertiesPage /> },
       { path: "/properties/new", element: <PublishWizardPage /> },
