@@ -45,6 +45,14 @@ interface NavItem {
   }) => boolean;
   "aria-label"?: string;
   requiresAuth?: boolean;
+  submenu?: SubMenuItem[];
+}
+
+interface SubMenuItem {
+  key: string;
+  label: string;
+  to: string;
+  icon?: ReactNode;
 }
 
 interface DropdownItem {
@@ -134,22 +142,20 @@ const navItemsByRole: Record<HeaderRole, NavItem[]> = {
       match: ({ pathname }) =>
         pathname === "/properties" ||
         pathname === "/properties/new" ||
+        pathname === "/contracts" ||
         (pathname.startsWith("/properties/") && pathname.includes("/edit")),
-    },
-    {
-      key: "documents",
-      label: "Documentos",
-      to: "/properties?view=documentos",
-      icon: <FileIcon />,
-      match: ({ pathname, searchParams }) =>
-        pathname === "/properties" && searchParams.get("view") === "documentos",
-    },
-    { //añadi esto para contratos
-      key: "contracts",
-      label: "Contratos",
-      to: "/contracts",
-      icon: <FileIcon />,
-      match: ({ pathname }) => pathname === "/contracts",
+      submenu: [
+        {
+          key: "all-properties",
+          label: "Panel de propiedades",
+          to: "/properties",
+        },
+        {
+          key: "contracts",
+          label: "Contratos",
+          to: "/contracts",
+        },
+      ],
     },
     {
       key: "chats",
@@ -385,6 +391,7 @@ export default function HeaderUpbarNovalia({
   const [authPromptOpen, setAuthPromptOpen] = useState(false);
   const closeAuthPrompt = useCallback(() => setAuthPromptOpen(false), []);
   const [accountTypeModalOpen, setAccountTypeModalOpen] = useState(false);
+  const [hoveredSubmenu, setHoveredSubmenu] = useState<string | null>(null);
 
   const navItems = navItemsByRole[role];
 
@@ -641,6 +648,7 @@ export default function HeaderUpbarNovalia({
   ) => {
     const isActive = isNavItemActive(item);
     const requiresAuth = role === "visitor" && item.requiresAuth;
+    const hasSubmenu = item.submenu && item.submenu.length > 0;
 
     const handleNavItemClick = (event: MouseEvent<HTMLAnchorElement>) => {
       if (requiresAuth) {
@@ -656,6 +664,94 @@ export default function HeaderUpbarNovalia({
     const ariaLabel =
       item["aria-label"] ??
       (requiresAuth ? `${item.label} (requiere iniciar sesion)` : undefined);
+
+    // For mobile, render submenu items as regular nav items
+    if (hasSubmenu && isMobile) {
+      return (
+        <>
+          <Link
+            key={item.key}
+            to={item.to}
+            className={`nav-item${isActive ? " nav-item--active" : ""}${requiresAuth ? " nav-item--blocked" : ""}`}
+            aria-label={ariaLabel}
+            onClick={(event) => {
+              if (options.closeSheet) {
+                setSheetOpen(false);
+              }
+            }}
+          >
+            <span className="nav-icon" aria-hidden="true">
+              {item.icon}
+            </span>
+            <span>{item.label}</span>
+          </Link>
+          {item.submenu?.map((subItem) => (
+            <Link
+              key={subItem.key}
+              to={subItem.to}
+              className="nav-item"
+              style={{ paddingLeft: "42px" }}
+              onClick={(event) => {
+                if (options.closeSheet) {
+                  setSheetOpen(false);
+                }
+              }}
+            >
+              {subItem.label}
+            </Link>
+          ))}
+        </>
+      );
+    }
+
+    if (hasSubmenu) {
+      const showSubmenu = isActive || hoveredSubmenu === item.key;
+      const { pathname } = location;
+
+      return (
+        <div
+          key={item.key}
+          className="nav-item-wrapper"
+          onMouseEnter={() => setHoveredSubmenu(item.key)}
+          onMouseLeave={() => setHoveredSubmenu(null)}
+        >
+          <Link
+            to={item.to}
+            className={`nav-item${isActive ? " nav-item--active" : ""}${requiresAuth ? " nav-item--blocked" : ""}${hasSubmenu ? " nav-item--has-submenu" : ""}`}
+            aria-label={ariaLabel}
+            onClick={handleNavItemClick}
+          >
+            <span className="nav-icon" aria-hidden="true">
+              {item.icon}
+            </span>
+            <span>{item.label}</span>
+          </Link>
+          {!isMobile && (
+            <div
+              className={`nav-submenu${showSubmenu ? " nav-submenu--open" : ""}`}
+            >
+              {item.submenu?.map((subItem) => {
+                const isSubItemActive = pathname === subItem.to;
+                return (
+                  <Link
+                    key={subItem.key}
+                    to={subItem.to}
+                    className={`nav-submenu-item${isSubItemActive ? " nav-submenu-item--active" : ""}`}
+                  >
+                    {subItem.icon && (
+                      <span className="nav-icon" aria-hidden="true">
+                        {subItem.icon}
+                      </span>
+                    )}
+                    {subItem.label}
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      );
+    }
 
     return (
       <Link

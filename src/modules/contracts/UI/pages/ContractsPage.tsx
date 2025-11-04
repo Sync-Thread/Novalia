@@ -1,47 +1,47 @@
-import React, { useState } from 'react';
-import styles from './ContractsPage.module.css';
+import React, { useState } from "react";
+import styles from "./ContractsPage.module.css";
 
-import ContractList from '../components/ContractList';
-import ContractDetailSideSheet from '../components/ContractDetailSideSheet';
+import ContractList from "../components/ContractList";
+import ContractDetailSideSheet from "../components/ContractDetailSideSheet";
 
-import type { IContract } from '../../domain/entities/contractType';
+import type { IContract } from "../../domain/entities/contractType";
 
-import { mockContracts } from '../../domain/entities/contractType';
+import { mockContracts } from "../../domain/entities/contractType";
 
-import { useWindowSize } from '../hooks/useWindowSize';
+import { useWindowSize } from "../hooks/useWindowSize";
 
-import HeaderUpbarNovalia from '../../../../shared/components/HeaderUpbarNovalia/HeaderUpbarNovalia';
-
-import { SearchIcon } from 'lucide-react';
+import { SearchIcon } from "lucide-react";
 
 const ContractsPage: React.FC = () => {
   const [contracts, setContracts] = useState<IContract[]>(mockContracts);
-  const [selectedContract, setSelectedContract] = useState<IContract | null>(null);
-  const [activeFilter, setActiveFilter] = useState('Todos');
+  const [selectedContract, setSelectedContract] = useState<IContract | null>(
+    null
+  );
+  const [activeFilter, setActiveFilter] = useState("Todos");
 
   const windowSize = useWindowSize();
-  console.log('tamaño de ventana:', windowSize.width);
+  console.log("tamaño de ventana:", windowSize.width);
 
   const filters = [
-    { label: 'Todos', value: 'Todos' },
-    { label: 'Pendiente de Firma', value: 'PendienteDeFirma' },
-    { label: 'Vigente', value: 'Vigente' },
-    { label: 'Cerrados/Archivados', value: 'Cerrados/Archivados' },
+    { label: "Todos", value: "Todos" },
+    { label: "Pendiente de Firma", value: "PendienteDeFirma" },
+    { label: "Vigente", value: "Vigente" },
+    { label: "Cerrados/Archivados", value: "Cerrados/Archivados" },
   ];
 
   const filteredContracts = contracts.filter((contract) => {
-    if (activeFilter === 'Todos') return true;
+    if (activeFilter === "Todos") return true;
     if (
-      activeFilter === 'PendienteDeFirma' &&
-      contract.estadoFirma === 'PendienteDeFirma'
+      activeFilter === "PendienteDeFirma" &&
+      contract.estadoFirma === "PendienteDeFirma"
     )
       return true;
-    if (activeFilter === 'Vigente' && contract.estadoFirma === 'Vigente')
+    if (activeFilter === "Vigente" && contract.estadoFirma === "Vigente")
       return true;
     if (
-      activeFilter === 'Cerrados/Archivados' &&
-      (contract.estadoFirma === 'Archivado' ||
-        contract.estadoFirma === 'Rechazado')
+      activeFilter === "Cerrados/Archivados" &&
+      (contract.estadoFirma === "Archivado" ||
+        contract.estadoFirma === "Rechazado")
     )
       return true;
     return false;
@@ -54,19 +54,19 @@ const ContractsPage: React.FC = () => {
   const handleMenuAction = (action: string, contractId: string) => {
     // Normalize action names coming from KebabMenu (Spanish labels)
     console.log(`Acción: ${action} en contrato: ${contractId}`);
-    if (action === 'ver-detalle' || action === 'viewDetail') {
+    if (action === "ver-detalle" || action === "viewDetail") {
       const contract = contracts.find((c) => c.id === contractId);
       setSelectedContract(contract || null);
       return;
     }
 
-    if (action === 'descargar' || action === 'download') {
+    if (action === "descargar" || action === "download") {
       // Placeholder: implement download logic
-      console.log('Descargando contrato', contractId);
+      console.log("Descargando contrato", contractId);
       return;
     }
 
-    if (action === 'eliminar' || action === 'delete') {
+    if (action === "eliminar" || action === "delete") {
       // Simulate deletion from local mock data
       setContracts((prev) => prev.filter((c) => c.id !== contractId));
       if (selectedContract?.id === contractId) setSelectedContract(null);
@@ -76,15 +76,9 @@ const ContractsPage: React.FC = () => {
 
   return (
     <>
-      {/* AQUI MODIFIQUE: Se renderiza el Header principal antes del contenido de la página. */}
-      <HeaderUpbarNovalia
-        role="agent_org" // Se usa 'agent_org' para mostrar los enlaces de "Mis propiedades", "Documentos", "Contratos".
-      />
-
       <div className={styles.pageContainer}>
         <header className={styles.header}>
           <div>
-            <div className={styles.breadcrumb}>Dashboard / Contratos</div>
             <h1>Gestión de Contratos</h1>
             <p className={styles.subtitle}>
               Administra y firma contratos y expedientes de tus propiedades
@@ -108,22 +102,22 @@ const ContractsPage: React.FC = () => {
               const isActive = activeFilter === filter.value;
               // decide color class only when active
               const colorClass = isActive
-                ? filter.value === 'Todos'
+                ? filter.value === "Todos"
                   ? styles.activeBlue
-                  : filter.value === 'Vigente'
-                  ? styles.activeBlue //falta definir color diferente para vigente
-                  : filter.value === 'PendienteDeFirma'
-                  ? styles.activeOrange
-                  : filter.value === 'Cerrados/Archivados'
-                  ? styles.activeGray
-                  : ''
-                : '';
+                  : filter.value === "Vigente"
+                    ? styles.activeBlue //falta definir color diferente para vigente
+                    : filter.value === "PendienteDeFirma"
+                      ? styles.activeOrange
+                      : filter.value === "Cerrados/Archivados"
+                        ? styles.activeGray
+                        : ""
+                : "";
 
               return (
                 <button
                   key={filter.value}
                   className={`${styles.filterButton} ${
-                    isActive ? styles.active : ''
+                    isActive ? styles.active : ""
                   } ${colorClass}`}
                   onClick={() => setActiveFilter(filter.value)}
                   /*

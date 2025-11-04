@@ -74,7 +74,7 @@
   width: 56px;
   height: 42px;
   object-fit: cover;
-  border-radius: 6px;
+  border-radius: 8px;
   border: 1px solid #e5e7eb;
 }
 
@@ -258,7 +258,7 @@
   top: 0;
   bottom: 0;
   border: 2px solid #d1d0d0;
-  border-radius: 6px;
+  border-radius: 8px;
   pointer-events: none;
 }
 

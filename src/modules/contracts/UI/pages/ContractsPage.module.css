@@ -46,7 +46,7 @@ h1 {
   background: #fff;
   border: 1px solid #e5e7eb;
   padding: 8px 12px;
-  border-radius: 8px;
+  border-radius: 12px;
   text-align: center;
 }
 
@@ -71,7 +71,7 @@ h1 {
   width: 100%;
   padding: 12px 15px 12px 40px;
   border: 1px solid #e2e3e4;
-  border-radius: 8px;
+  border-radius: 6px;
   font-size: 15px;
   transition: border-color 0.2s;
   background-color: #f7f2f2;

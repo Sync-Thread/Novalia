@@ -1,5 +1,5 @@
-import ContractsPage from "../modules/contracts/UI/pages/ContractsPage"; //esta madre luego la quito
 // src/app/routes.tsx
+import ContractsPage from "../modules/contracts/UI/pages/ContractsPage";
 import { createBrowserRouter, Navigate } from "react-router-dom";
 import Dashboard from "../pages/Dashboard";
 import MyPropertiesPage from "../modules/properties/UI/pages/MyPropertiesPage";
@@ -32,16 +32,16 @@ export const router = createBrowserRouter([
       </AuthGuard>
     ),
     children: [
-      {path: "/transactions", element: <TransactionsAndContracts /> },
+      { path: "/transactions", element: <TransactionsAndContracts /> },
       { path: "/dashboard", element: <Dashboard /> },
       { path: "/properties", element: <MyPropertiesPage /> },
       { path: "/properties/new", element: <PublishWizardPage /> },
       { path: "/properties/:id/edit", element: <PublishWizardPage /> },
+      { path: "/contracts", element: <ContractsPage /> },
       { path: "/kyc", element: <VerifyINEPage /> },
       { path: "/verify-rpp", element: <VerifyRPPPage /> },
     ],
   },
-  { path: "/contracts", element: <ContractsPage /> },//esta madre luego la quito
   { path: "/auth/login", element: <Login /> },
   { path: "/auth/register", element: <Register /> },
   { path: "/auth/forgot-password", element: <ForgotPassword /> },
