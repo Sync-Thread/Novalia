@@ -3,6 +3,7 @@ import { createBrowserRouter, Navigate } from "react-router-dom";
 import Dashboard from "../pages/Dashboard";
 import MyPropertiesPage from "../modules/properties/UI/pages/MyPropertiesPage";
 import PublishWizardPage from "../modules/properties/UI/pages/PublishWizardPage";
+import TransactionsAndContracts from "../modules/properties/UI/pages/TransactionsAndContracts";
 import AuthGuard from "./guards/AuthGuard";
 import Login from "../modules/auth/UI/pages/Login";
 import Register from "../modules/auth/UI/pages/Register";
@@ -22,6 +23,7 @@ export const router = createBrowserRouter([
       </AuthGuard>
     ),
     children: [
+      {path: "/transactions", element: <TransactionsAndContracts /> },
       { path: "/dashboard", element: <Dashboard /> },
       { path: "/properties", element: <MyPropertiesPage /> },
       { path: "/properties/new", element: <PublishWizardPage /> },
