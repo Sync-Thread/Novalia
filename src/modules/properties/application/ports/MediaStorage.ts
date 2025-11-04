@@ -7,4 +7,5 @@ export interface MediaStorage {
   setCover(propertyId: string, mediaId: string): Promise<Result<void>>;
   reorder(propertyId: string, orderedIds: string[]): Promise<Result<void>>;
   listMedia(propertyId: string): Promise<Result<MediaDTO[]>>;
+  getAllS3Keys(propertyId: string): Promise<Result<string[]>>;
 }

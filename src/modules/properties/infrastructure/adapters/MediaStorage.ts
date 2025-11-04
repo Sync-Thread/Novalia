@@ -139,6 +139,34 @@ export async function downloadFileExample(key: string, filename?: string) {
 }
 
 /**
+ * getPresignedUrlDirect
+ * - obtiene presigned URL de S3 directamente sin descargar como blob
+ * - útil para videos y archivos grandes que soportan streaming
+ *
+ * @param s3Key ruta dentro del bucket (ej: 'uploads/1234-video.mp4')
+ * @returns presigned URL directa
+ */
+export async function getPresignedUrlDirect(s3Key: string): Promise<string> {
+  if (!s3Key) throw new Error('No s3Key specified');
+
+  const resp = await fetch(`${WORKER_BASE}/generate-presigned-download`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ key: s3Key })
+  });
+
+  if (!resp.ok) {
+    const txt = await resp.text().catch(() => '');
+    throw new Error('Failed to get presigned URL: ' + txt);
+  }
+
+  const { url } = await resp.json();
+  if (!url) throw new Error('No presigned url returned');
+
+  return url;
+}
+
+/**
  * getPresignedUrlForDisplay
  * - obtiene presigned URL de S3 y descarga el archivo como blob
  * - devuelve blob URL local para mostrar la imagen sin necesidad de autenticación
@@ -177,4 +205,44 @@ export async function getPresignedUrlForDisplay(s3Key: string): Promise<string> 
   const blobUrl = URL.createObjectURL(blob);
   
   return blobUrl;
+}
+
+/**
+ * deleteFromS3
+ * - pide presigned DELETE al worker
+ * - elimina el archivo de S3
+ * - devuelve true si fue exitoso
+ *
+ * @param s3Key ruta del archivo en S3 (ej: 'uploads/1761461397650-ARCHIVO.pdf')
+ */
+export async function deleteFromS3(s3Key: string): Promise<boolean> {
+  if (!s3Key) throw new Error('No s3Key specified');
+
+  console.log('🗑️ Eliminando de S3:', s3Key);
+
+  // 1) Pedir presigned DELETE al worker
+  const resp = await fetch(`${WORKER_BASE}/generate-presigned-delete`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ key: s3Key })
+  });
+
+  if (!resp.ok) {
+    const txt = await resp.text().catch(() => '');
+    throw new Error('Failed to get delete presigned URL: ' + txt);
+  }
+
+  const { url } = await resp.json();
+  if (!url) throw new Error('No delete presigned url returned');
+
+  // 2) Ejecutar DELETE en S3
+  const deleteResp = await fetch(url, { method: 'DELETE' });
+  
+  if (!deleteResp.ok) {
+    console.error('❌ Error eliminando de S3:', deleteResp.status, deleteResp.statusText);
+    throw new Error(`Delete from S3 failed: ${deleteResp.status} ${deleteResp.statusText}`);
+  }
+
+  console.log('✅ Archivo eliminado de S3:', s3Key);
+  return true;
 }

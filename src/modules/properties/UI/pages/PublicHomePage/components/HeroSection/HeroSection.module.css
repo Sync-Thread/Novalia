@@ -1,0 +1,150 @@
+﻿.hero {
+  --hero-dur: 260ms;
+  --hero-ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --z-hero-bg: 1;
+  position: relative;
+  z-index: var(--z-hero-bg);
+  display: flex;
+  justify-content: center;
+  padding: clamp(48px, 10vw, 96px) var(--pad-x) clamp(64px, 8vw, 112px);
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  color: #f8fafc;
+  isolation: isolate;
+  max-height: 520px;
+  overflow: visible;
+  transition:
+    padding var(--hero-dur) var(--hero-ease),
+    max-height var(--hero-dur) var(--hero-ease);
+}
+
+.hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(15, 23, 42, 0.68) 0%,
+    rgba(15, 23, 42, 0.82) 100%
+  );
+  pointer-events: none;
+  z-index: -1;
+  transition:
+    transform var(--hero-dur) var(--hero-ease),
+    opacity var(--hero-dur) var(--hero-ease);
+}
+
+.hero[data-mode="compact"] {
+  max-height: 180px;
+  padding: clamp(20px, 4vw, 32px) var(--pad-x) clamp(24px, 5vw, 40px);
+  overflow: visible;
+}
+
+.hero[data-mode="compact"]::before {
+  transform: translateY(-20px);
+  opacity: 0.5;
+}
+
+.inner {
+  position: relative;
+  z-index: 1;
+  width: min(var(--container-max), 100%);
+  display: flex;
+  flex-direction: column;
+  gap: clamp(18px, 3vw, 36px);
+  align-items: center;
+  overflow: visible;
+  transition: gap var(--hero-dur) var(--hero-ease);
+}
+
+
+
+.copy {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(12px, 3vw, 22px);
+  text-align: center;
+  max-width: 720px;
+  overflow: hidden;
+  transition:
+    opacity var(--hero-dur) var(--hero-ease),
+    transform var(--hero-dur) var(--hero-ease),
+    max-height var(--hero-dur) var(--hero-ease);
+}
+
+.hero[data-mode="compact"] .copy {
+  opacity: 0;
+  transform: translateY(-28px);
+  max-height: 0;
+  pointer-events: none;
+}
+
+.title {
+  margin: 0;
+  font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: clamp(28px, 4.5vw, 52px);
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+}
+
+.accent {
+  display: block;
+  background: linear-gradient(135deg, #6aa4ff 0%, #295dff 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  white-space: nowrap;
+}
+
+.subtitle {
+  margin: 0;
+  font-size: clamp(16px, 2.1vw, 20px);
+  line-height: 1.6;
+  color: rgba(248, 250, 252, 0.9);
+}
+
+.card {
+  width: fit-content;
+  max-width: min(100%, 1280px);
+  margin: 0 auto;
+  overflow: visible;
+  transition:
+    transform var(--hero-dur) var(--hero-ease),
+    box-shadow var(--hero-dur) var(--hero-ease);
+}
+
+.hero[data-mode="compact"] .card {
+  transform: translateY(-12px);
+}
+
+@media (max-width: 860px) {
+  .hero {
+    padding: clamp(36px, 10vw, 60px) var(--pad-x) clamp(48px, 12vw, 72px);
+  }
+
+  .inner {
+    align-items: flex-start;
+    text-align: left;
+  }
+
+  .copy {
+    text-align: left;
+  }
+
+  .hero[data-mode="compact"] .inner {
+    align-items: stretch;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero,
+  .inner,
+  .copy,
+  .card,
+  .hero::before {
+    transition: none !important;
+  }
+}

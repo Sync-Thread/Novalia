@@ -18,9 +18,7 @@ function mapToDomainType(type: DocumentDTO["docType"]): (typeof DOCUMENT_TYPE)[k
       return DOCUMENT_TYPE.RppCertificate;
     case "deed":
       return DOCUMENT_TYPE.Deed;
-    case "id_doc":
-      return DOCUMENT_TYPE.Ine;
-    case "floorplan":
+    case "plan":
       return DOCUMENT_TYPE.Plan;
     default:
       return DOCUMENT_TYPE.Other;
@@ -33,10 +31,10 @@ function mapToDtoType(type: (typeof DOCUMENT_TYPE)[keyof typeof DOCUMENT_TYPE]):
       return "rpp_certificate";
     case DOCUMENT_TYPE.Deed:
       return "deed";
-    case DOCUMENT_TYPE.Ine:
-      return "id_doc";
     case DOCUMENT_TYPE.Plan:
-      return "floorplan";
+      return "plan";
+    case DOCUMENT_TYPE.Ine:
+      return "other"; // INE no se usa en este contexto, mapear a "other"
     default:
       return "other";
   }
@@ -99,19 +97,27 @@ export function fromDomain(document: Document): DocumentDTO {
 const DTO_TO_DB_DOC_TYPE: Record<AttachDocumentDTO["docType"], string> = {
   rpp_certificate: "rpp_certificate",
   deed: "deed",
-  id_doc: "ine",
-  floorplan: "plan",
+  plan: "plan",  // Cambio: mantener "plan" en BD también
   other: "other",
 };
 
 const DB_TO_DTO_DOC_TYPE: Record<string, DocumentDTO["docType"]> = {
   rpp_certificate: "rpp_certificate",
   deed: "deed",
-  ine: "id_doc",
-  plan: "floorplan",
-  floorplan: "floorplan",
+  ine: "other",           // INE no se usa, mapear a "other"
+  plan: "plan",           // Cambio: BD "plan" -> DTO "plan"
+  floorplan: "plan",      // Cambio: BD "floorplan" (legacy) -> DTO "plan"
+  no_predial_debt: "other", // No se usa, mapear a "other"
   other: "other",
 };
+
+/**
+ * Helper para convertir doc_type de BD a DocumentTypeDTO
+ * Maneja tipos legacy como "floorplan" convirtiéndolos a "plan"
+ */
+export function mapDbDocTypeToDto(dbType: string): DocumentDTO["docType"] {
+  return DB_TO_DTO_DOC_TYPE[dbType] ?? "other";
+}
 
 const DB_TO_DTO_VERIFICATION: Record<string, VerificationStatusDTO> = {
   pending: "pending",

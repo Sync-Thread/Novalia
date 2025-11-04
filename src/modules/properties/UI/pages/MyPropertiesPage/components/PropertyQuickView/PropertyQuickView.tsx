@@ -9,23 +9,31 @@ import React, {
 import {
   AlertCircle,
   CheckCircle2,
-  Copy,
   ExternalLink,
   ImageIcon,
   Layers,
   Loader2,
   MapPin,
+  Play,
   Rocket,
   ShieldAlert,
+  ShoppingBag,
   X,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import type { PropertyDTO } from "../../../../../application/dto/PropertyDTO";
 import type { DocumentDTO } from "../../../../../application/dto/DocumentDTO";
+import type { MediaDTO } from "../../../../../application/dto/MediaDTO";
 import type { AuthProfile } from "../../../../../application/ports/AuthService";
 import { usePropertiesActions } from "../../../../hooks/usePropertiesActions";
+import { useTelemetry } from "../../../../../../telemetry/UI/hooks/useTelemetry";
 import ProgressCircle from "../../../../components/ProgressCircle";
 import Modal from "../../../../components/Modal";
+import MarkSoldModal from "../../../../modals/MarkSoldModal";
+import { supabase } from "../../../../../../../core/supabase/client";
+import { SupabaseMediaStorage } from "../../../../../infrastructure/adapters/SupabaseMediaStorage";
+import { SupabaseAuthService } from "../../../../../infrastructure/adapters/SupabaseAuthService";
+import { getPresignedUrlForDisplay } from "../../../../../infrastructure/adapters/MediaStorage";
 import {
   formatCurrency,
   formatDate,
@@ -38,7 +46,6 @@ import {
   OPERATION_LABEL,
   RPP_BADGE,
   CHECKLIST_LABELS,
-  STORAGE_KEY_COPY,
   focusableSelectors,
   STEP_LINKS,
   type VerificationState,
@@ -49,6 +56,9 @@ import {
   getBadgeClass,
   deriveRppStatus,
 } from "./helpers";
+
+const authService = new SupabaseAuthService({ client: supabase });
+const mediaStorage = new SupabaseMediaStorage({ supabase, authService });
 
 type ExtendedProperty = PropertyDTO & {
   metrics?: {
@@ -80,10 +90,12 @@ export function PropertyQuickView({
     listDocuments,
     publishProperty,
     pauseProperty,
+    markSold,
     deleteProperty,
     getAuthProfile,
     loading,
   } = usePropertiesActions();
+  const { trackPropertyView, getPropertyMetrics } = useTelemetry();
   const navigate = useNavigate();
   const panelRef = useRef<HTMLElement | null>(null);
   const headingRef = useRef<HTMLHeadingElement | null>(null);
@@ -91,10 +103,20 @@ export function PropertyQuickView({
 
   const [property, setProperty] = useState<ExtendedProperty | null>(null);
   const [documents, setDocuments] = useState<DocumentDTO[]>([]);
+  const [mediaItems, setMediaItems] = useState<MediaDTO[]>([]);
+  const [loadingMedia, setLoadingMedia] = useState(false);
   const [authProfile, setAuthProfile] = useState<AuthProfile | null>(null);
   const [loadingData, setLoadingData] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [markSoldOpen, setMarkSoldOpen] = useState(false);
+  const [showRppRequiredModal, setShowRppRequiredModal] = useState(false);
+  const [metrics, setMetrics] = useState<{
+    views: number;
+    leads: number;
+    chats: number;
+    updatedAt?: string;
+  } | null>(null);
 
   const rppStatus = useMemo<VerificationState>(() => {
     if (!property) {
@@ -108,11 +130,13 @@ export function PropertyQuickView({
     [authProfile, documents, property]
   );
 
-  const mediaCount = useMemo(
-    () => property?.media?.length ?? 0,
-    [property?.media]
-  );
-  const extraMedia = useMemo(() => Math.max(mediaCount - 2, 0), [mediaCount]);
+  const mediaCount = useMemo(() => mediaItems.length, [mediaItems]);
+
+  // Mostrar solo las primeras 3 imágenes
+  const displayMedia = useMemo(() => mediaItems.slice(0, 3), [mediaItems]);
+
+  // Contador de imágenes adicionales (más allá de las 3 mostradas)
+  const extraMedia = useMemo(() => Math.max(mediaCount - 3, 0), [mediaCount]);
 
   useEffect(() => {
     if (!open || !propertyId) return;
@@ -121,12 +145,20 @@ export function PropertyQuickView({
     setError(null);
     setProperty(null);
     setDocuments([]);
+    setMediaItems([]);
+    setMetrics(null);
 
     const fetchData = async () => {
       const propertyResult = await getProperty(propertyId);
       if (!active) return;
       if (propertyResult.isOk()) {
         setProperty(propertyResult.value as ExtendedProperty);
+
+        // Registrar vista de la propiedad en QuickView
+        trackPropertyView(propertyId, {
+          source: "quickview",
+          status: propertyResult.value.status,
+        });
       } else {
         setError("No pudimos cargar la propiedad seleccionada.");
       }
@@ -137,6 +169,20 @@ export function PropertyQuickView({
         setDocuments(docsResult.value);
       }
 
+      // Cargar métricas de telemetría
+      const metricsResult = await getPropertyMetrics(propertyId);
+      if (!active) return;
+      if (metricsResult) {
+        setMetrics({
+          views: metricsResult.viewsCount ?? 0,
+          leads: metricsResult.contactsCount ?? 0,
+          chats: metricsResult.chatMessagesCount ?? 0,
+          updatedAt: metricsResult.lastEventAt
+            ? metricsResult.lastEventAt.toISOString()
+            : undefined,
+        });
+      }
+
       setLoadingData(false);
     };
 
@@ -145,7 +191,97 @@ export function PropertyQuickView({
     return () => {
       active = false;
     };
-  }, [getProperty, listDocuments, open, propertyId]);
+  }, [
+    getProperty,
+    getPropertyMetrics,
+    listDocuments,
+    open,
+    propertyId,
+    trackPropertyView,
+  ]);
+
+  // Cargar media cuando se abre el QuickView
+  useEffect(() => {
+    if (!open || !propertyId) return;
+
+    let active = true;
+    setLoadingMedia(true);
+
+    const loadMedia = async () => {
+      try {
+        // 1. Obtener registros de media_assets desde BD
+        const mediaResult = await mediaStorage.listMedia(propertyId);
+
+        if (!active) return;
+
+        if (mediaResult.isErr()) {
+          console.error("Error al cargar media:", mediaResult.error);
+          setLoadingMedia(false);
+          return;
+        }
+
+        const mediaRecords = mediaResult.value;
+
+        if (mediaRecords.length === 0) {
+          setMediaItems([]);
+          setLoadingMedia(false);
+          return;
+        }
+
+        // 2. Descargar cada imagen usando presigned URLs
+        const mediaWithBlobUrls = await Promise.all(
+          mediaRecords.map(async (mediaRecord) => {
+            try {
+              if (!mediaRecord.s3Key) {
+                return mediaRecord;
+              }
+
+              // Solo descargar imágenes como blob, videos se quedan con s3Key
+              if (mediaRecord.type === "image") {
+                // Obtener presigned URL y descargar como blob
+                const blobUrl = await getPresignedUrlForDisplay(
+                  mediaRecord.s3Key
+                );
+
+                // Retornar MediaDTO con blob URL local
+                return {
+                  ...mediaRecord,
+                  url: blobUrl,
+                };
+              }
+
+              // Para videos, mantener el registro sin descargar
+              return mediaRecord;
+            } catch (error) {
+              console.error(
+                "Error descargando media:",
+                mediaRecord.s3Key,
+                error
+              );
+              return mediaRecord;
+            }
+          })
+        );
+
+        if (!active) return;
+
+        // 3. Actualizar estado con las imágenes descargadas
+        setMediaItems(mediaWithBlobUrls);
+      } catch (error) {
+        console.error("Error cargando media:", error);
+      } finally {
+        if (active) {
+          setLoadingMedia(false);
+        }
+      }
+    };
+
+    loadMedia();
+
+    return () => {
+      active = false;
+    };
+  }, [open, propertyId]);
 
   useEffect(() => {
     if (!open || authProfile) return;
@@ -207,6 +343,7 @@ export function PropertyQuickView({
         lastFocusedElement.current.focus();
       }
       setConfirmDeleteOpen(false);
+      setMarkSoldOpen(false);
     };
   }, [onClose, open]);
 
@@ -231,18 +368,6 @@ export function PropertyQuickView({
     onClose();
   }, [onClose]);
 
-  const handleCopyId = useCallback(() => {
-    if (!property?.id) return;
-    try {
-      if (navigator.clipboard?.writeText) {
-        void navigator.clipboard.writeText(property.id);
-      }
-    } catch {
-      // Ignorar errores de clipboard en navegadores sin soporte.
-    }
-    sessionStorage.setItem(STORAGE_KEY_COPY, property.id);
-  }, [property?.id]);
-
   const refreshAndClose = useCallback(() => {
     onRefresh?.();
     closeSheet();
@@ -259,6 +384,19 @@ export function PropertyQuickView({
 
   const handlePublish = useCallback(async () => {
     if (!property) return;
+
+    // Validar que el RPP esté verificado antes de publicar
+    if (property.rppVerification !== "verified") {
+      console.log(
+        "⚠️ RPP no verificado. Estado actual:",
+        property.rppVerification
+      );
+      setShowRppRequiredModal(true);
+      return;
+    } else {
+      console.log("valiendo");
+    }
+
     const result = await publishProperty({ id: property.id });
     if (result.isOk()) {
       refreshAndClose();
@@ -273,6 +411,24 @@ export function PropertyQuickView({
       refreshAndClose();
     }
   }, [deleteProperty, property, refreshAndClose]);
+
+  const handleMarkSold = useCallback(
+    async (soldAt: Date) => {
+      if (!property) return;
+      const result = await markSold({ id: property.id, soldAt });
+      if (result.isOk()) {
+        setMarkSoldOpen(false);
+        refreshAndClose();
+      }
+    },
+    [markSold, property, refreshAndClose]
+  );
+
+  const handleViewPublic = useCallback(() => {
+    if (!property) return;
+    // Abrir la página pública de la propiedad en una nueva pestaña
+    navigate(`/properties/${property.id}`);
+  }, [property]);
 
   const handleEdit = useCallback(() => {
     if (!property) return;
@@ -359,16 +515,6 @@ export function PropertyQuickView({
                         {shortenId(property.id)}
                       </span>
                     )}
-                    {property?.id && (
-                      <button
-                        type="button"
-                        className="btn btn-ghost btn-sm quickview-copy"
-                        onClick={handleCopyId}
-                      >
-                        <Copy size={14} />
-                        Copiar ID
-                      </button>
-                    )}
                   </div>
                 </div>
                 {property && (
@@ -423,24 +569,169 @@ export function PropertyQuickView({
               <>
                 <section className="quickview-section">
                   <h3>Resumen visual</h3>
-                  <div className="quickview-gallery">
-                    <div className="quickview-thumb">
-                      <div className="placeholder" aria-hidden="true">
-                        <ImageIcon size={24} />
+                  {loadingMedia ? (
+                    <div className="quickview-gallery">
+                      <div className="quickview-thumb">
+                        <div className="placeholder" aria-hidden="true">
+                          <Loader2 size={24} />
+                        </div>
                       </div>
                     </div>
-                    <div className="quickview-thumb">
-                      <div className="placeholder" aria-hidden="true">
-                        <ImageIcon size={24} />
+                  ) : mediaCount === 0 ? (
+                    <div className="quickview-gallery">
+                      <div className="quickview-thumb">
+                        <div className="placeholder" aria-hidden="true">
+                          <ImageIcon size={24} />
+                        </div>
                       </div>
+                      <p
+                        className="muted"
+                        style={{ fontSize: "12px", marginTop: "8px" }}
+                      >
+                        No hay imágenes disponibles
+                      </p>
                     </div>
-                    <div className="quickview-thumb quickview-thumb--more">
-                      <div className="placeholder" aria-hidden="true">
-                        <span>{extraMedia > 0 ? `+${extraMedia}` : "+N"}</span>
-                      </div>
+                  ) : (
+                    <div className="quickview-gallery">
+                      {displayMedia.map((media, index) => {
+                        const isLast = index === 2;
+                        const showCounter = isLast && extraMedia > 0;
+                        const isVideo = media.type === "video";
+
+                        return (
+                          <div
+                            key={media.id}
+                            className={`quickview-thumb ${showCounter ? "quickview-thumb--more" : ""}`}
+                          >
+                            {media.url && media.type === "image" ? (
+                              <div
+                                style={{
+                                  position: "relative",
+                                  height: "110px",
+                                }}
+                              >
+                                <img
+                                  src={media.url}
+                                  alt={`Imagen ${index + 1}`}
+                                  style={{
+                                    width: "100%",
+                                    height: "100%",
+                                    objectFit: "cover",
+                                  }}
+                                  onError={(e) => {
+                                    console.error(
+                                      "Error cargando imagen:",
+                                      media.url
+                                    );
+                                    e.currentTarget.style.display = "none";
+                                  }}
+                                />
+                                {showCounter && (
+                                  <div
+                                    className="placeholder mediacounter"
+                                    aria-hidden="true"
+                                    style={{
+                                      position: "absolute",
+                                      height: "99.5%",
+                                      top: 0,
+                                      left: 0,
+                                      background: "rgba(0, 0, 0, 0.6)",
+                                      display: "flex",
+                                      alignItems: "center",
+                                      justifyContent: "center",
+                                      placeItems: "center",
+                                      color: "white",
+                                      fontSize: "18px",
+                                      fontWeight: "bold",
+                                    }}
+                                  >
+                                    <span
+                                      style={{
+                                        position: "absolute",
+                                      }}
+                                    >
+                                      +{extraMedia}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            ) : isVideo && media.s3Key ? (
+                              <div
+                                style={{
+                                  position: "relative",
+                                  height: "110px",
+                                  background: "#1a1a1a",
+                                }}
+                              >
+                                {/* Video thumbnail sin reproducir */}
+                                <video
+                                  src={media.s3Key}
+                                  style={{
+                                    width: "100%",
+                                    height: "100%",
+                                    objectFit: "cover",
+                                    pointerEvents: "none",
+                                  }}
+                                  preload="metadata"
+                                />
+                                {/* Indicador de video */}
+                                <div
+                                  style={{
+                                    position: "absolute",
+                                    top: "50%",
+                                    left: "50%",
+                                    transform: "translate(-50%, -50%)",
+                                    width: "48px",
+                                    height: "48px",
+                                    background: "rgba(0, 0, 0, 0.7)",
+                                    borderRadius: "50%",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    color: "white",
+                                  }}
+                                >
+                                  <Play size={24} fill="white" />
+                                </div>
+                                {showCounter && (
+                                  <div
+                                    className="placeholder mediacounter"
+                                    aria-hidden="true"
+                                    style={{
+                                      position: "absolute",
+                                      height: "99.5%",
+                                      top: 0,
+                                      left: 0,
+                                      background: "rgba(0, 0, 0, 0.6)",
+                                      display: "flex",
+                                      alignItems: "center",
+                                      justifyContent: "center",
+                                      placeItems: "center",
+                                      color: "white",
+                                      fontSize: "18px",
+                                      fontWeight: "bold",
+                                    }}
+                                  >
+                                    <span
+                                      style={{
+                                        position: "absolute",
+                                      }}
+                                    >
+                                      +{extraMedia}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <div className="placeholder" aria-hidden="true">
+                                <ImageIcon size={24} />
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
-                  </div>
-                  {/* TODO(IMAGEN): integrar galería real cuando media API esté disponible. */}
+                  )}
                 </section>
 
                 <section className="quickview-section">
@@ -530,24 +821,23 @@ export function PropertyQuickView({
                   <h3>Actividad</h3>
                   <div className="quickview-activity">
                     <div>
-                      <strong>{property.metrics?.views ?? 0}</strong>
-                      <span>Vistas (30d)</span>
+                      <strong>{metrics?.views ?? 0}</strong>
+                      <span>Vistas</span>
                     </div>
                     <div>
-                      <strong>{property.metrics?.leads ?? 0}</strong>
+                      <strong>{metrics?.leads ?? 0}</strong>
                       <span>Leads</span>
                     </div>
                     <div>
-                      <strong>{property.metrics?.chats ?? 0}</strong>
+                      <strong>{metrics?.chats ?? 0}</strong>
                       <span>Chats</span>
                     </div>
                   </div>
                   <p className="muted quickview-note">
-                    {/* TODO(MÉTRICAS): conectar con telemetría real. */}
                     Última actualización:{" "}
-                    {property.metrics?.updatedAt
-                      ? formatDate(property.metrics.updatedAt)
-                      : formatDate(property.updatedAt)}
+                    {metrics?.updatedAt
+                      ? formatDate(metrics.updatedAt)
+                      : "Sin actividad registrada"}
                   </p>
                 </section>
 
@@ -588,7 +878,12 @@ export function PropertyQuickView({
                 type="button"
                 className="btn btn-outline btn-sm"
                 onClick={handlePause}
-                disabled={loading.pauseProperty || !property}
+                disabled={isDraft || loading.pauseProperty || !property}
+                title={
+                  isDraft
+                    ? "No se puede pausar una propiedad en borrador"
+                    : "Pausar publicación"
+                }
               >
                 {loading.pauseProperty ? "Pausando..." : "Pausar"}
               </button>
@@ -611,14 +906,12 @@ export function PropertyQuickView({
               <button
                 type="button"
                 className={publishButtonClass}
-                onClick={isDraft ? handlePublish : undefined}
-                disabled={
-                  !property || (isDraft ? loading.publishProperty : true)
-                }
+                onClick={isDraft ? handlePublish : handleViewPublic}
+                disabled={!property || (isDraft && loading.publishProperty)}
                 title={
                   isDraft
                     ? "Publica la propiedad para que aparezca en tu inventario."
-                    : "Disponibilidad de vista pública en desarrollo."
+                    : "Ver cómo se ve tu propiedad en la página pública"
                 }
               >
                 {isDraft ? (
@@ -641,20 +934,34 @@ export function PropertyQuickView({
                   </>
                 )}
               </button>
+              {!isDraft && property?.status === "published" && (
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  onClick={() => setMarkSoldOpen(true)}
+                  disabled={loading.markSold || !property}
+                  title="Marcar esta propiedad como vendida"
+                >
+                  <ShoppingBag size={14} aria-hidden="true" />
+                  <span>Marcar como vendida</span>
+                </button>
+              )}
             </div>
           </footer>
         </aside>
       </div>
 
+      {/* Modal de confirmación de eliminación */}
       <Modal
         open={confirmDeleteOpen}
         onClose={() => setConfirmDeleteOpen(false)}
         title="¿Eliminar propiedad?"
+        zIndex={1100}
         actions={
           <>
             <button
               type="button"
-              className="btn btn-ghost"
+              className="btn btn-outline"
               onClick={() => setConfirmDeleteOpen(false)}
             >
               Cancelar
@@ -662,7 +969,10 @@ export function PropertyQuickView({
             <button
               type="button"
               className="btn btn-danger"
-              onClick={handleDelete}
+              onClick={async () => {
+                setConfirmDeleteOpen(false);
+                await handleDelete();
+              }}
               disabled={loading.deleteProperty}
             >
               {loading.deleteProperty ? "Eliminando..." : "Eliminar"}
@@ -670,9 +980,68 @@ export function PropertyQuickView({
           </>
         }
       >
-        <p>
-          Esta acción no puede deshacerse. La propiedad se eliminará del
-          listado.
+        <p style={{ fontSize: "14px", lineHeight: "1.5" }}>
+          Esta acción eliminará permanentemente la propiedad{" "}
+          <strong>{property?.title ? `"${property.title}"` : ""}</strong>,
+          incluyendo todas sus imágenes, documentos y datos asociados. Esta
+          operación no se puede deshacer.
+        </p>
+      </Modal>
+
+      <MarkSoldModal
+        open={markSoldOpen}
+        onClose={() => setMarkSoldOpen(false)}
+        defaultDate={property?.soldAt ?? undefined}
+        loading={loading.markSold}
+        onConfirm={({ soldAt }) => {
+          void handleMarkSold(new Date(soldAt));
+        }}
+      />
+
+      {/* Modal cuando falta verificación de RPP */}
+      <Modal
+        open={showRppRequiredModal}
+        onClose={() => setShowRppRequiredModal(false)}
+        title="Verificación de RPP requerida"
+        zIndex={1100}
+        actions={
+          <>
+            <button
+              type="button"
+              className="btn btn-outline"
+              onClick={() => setShowRppRequiredModal(false)}
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => {
+                setShowRppRequiredModal(false);
+                if (property?.id) {
+                  navigate(
+                    `/verify-rpp?propertyId=${property.id}&returnStep=publish`
+                  );
+                }
+                closeSheet();
+              }}
+            >
+              Verificar RPP ahora
+            </button>
+          </>
+        }
+      >
+        <p style={{ fontSize: "14px", lineHeight: "1.5" }}>
+          Para publicar esta propiedad necesitas verificar el documento del
+          Registro Público de la Propiedad (RPP).
+        </p>
+        <p style={{ fontSize: "14px", lineHeight: "1.5", marginTop: "12px" }}>
+          Estado actual del RPP:{" "}
+          <strong>{formatVerification(rppStatus)}</strong>
+        </p>
+        <p style={{ fontSize: "14px", lineHeight: "1.5", marginTop: "12px" }}>
+          Este documento certifica la legalidad de la propiedad y es requerido
+          para proteger tanto a compradores como vendedores.
         </p>
       </Modal>
     </>

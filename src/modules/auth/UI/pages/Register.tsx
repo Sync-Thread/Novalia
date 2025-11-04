@@ -1,5 +1,5 @@
 ﻿// src/modules/auth/UI/pages/Register.tsx
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -21,28 +21,60 @@ import AgentExtras from "../forms/AgentExtras";
 import OwnerExtras from "../forms/OwnerExtras";
 import Button from "../../../../shared/UI/Button";
 import SiteFooter from "../components/SiteFooter";
-
+import AccountTypeModal from "../components/AccountTypeModal";
 
 type Form = any;
 
 export default function Register() {
   const [sp] = useSearchParams();
   const nav = useNavigate();
+  const [showAccountTypeModal, setShowAccountTypeModal] = useState(false);
 
   const [notice, setNotice] = useState<{
     type: "success" | "error" | "info" | "warning";
     text: React.ReactNode;
   } | null>(null);
 
+  const returnTo = useMemo(() => {
+    const candidate = sp.get("returnTo");
+    if (candidate && candidate.startsWith("/")) {
+      return candidate;
+    }
+    return "/properties";
+  }, [sp]);
+
+  const oauthRedirect = useMemo(() => {
+    const base = env.VITE_OAUTH_REDIRECT_URL;
+    const fallback =
+      typeof window !== "undefined" ? window.location.origin : "/";
+    const redirectBase = base && base.length > 0 ? base : fallback;
+    if (!returnTo) return redirectBase;
+    const separator = redirectBase.includes("?") ? "&" : "?";
+    return `${redirectBase}${separator}returnTo=${encodeURIComponent(returnTo)}`;
+  }, [returnTo]);
+
   const accountType = useMemo<AccountType | null>(() => {
     const t = sp.get("type");
     return t === "buyer" || t === "agent" || t === "owner" ? t : null;
   }, [sp]);
 
-  const schema = useMemo(() => getRegisterSchema(accountType ?? "buyer"), [accountType]);
+  // Mostrar modal si no hay tipo de cuenta seleccionado
+  useEffect(() => {
+    if (!accountType) {
+      setShowAccountTypeModal(true);
+    }
+  }, [accountType]);
+
+  const schema = useMemo(
+    () => getRegisterSchema(accountType ?? "buyer"),
+    [accountType]
+  );
 
   const {
-    register, handleSubmit, watch, setValue,
+    register,
+    handleSubmit,
+    watch,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<Form>({ resolver: zodResolver(schema) });
 
@@ -50,7 +82,11 @@ export default function Register() {
     setNotice(null);
 
     if (!accountType) {
-      setNotice({ type: "warning", text: "Selecciona un tipo de cuenta." });
+      setNotice({
+        type: "warning",
+        text: "Debes seleccionar un tipo de cuenta antes de continuar.",
+      });
+      setShowAccountTypeModal(true);
       return;
     }
 
@@ -63,8 +99,9 @@ export default function Register() {
           email: f.email,
           password: f.password,
           phone: f.phone,
-          belongs_to_org: accountType === "agent" ? !!f.belongs_to_org : undefined,
-          org_code: accountType === "agent" ? (f.org_code || null) : null,
+          belongs_to_org:
+            accountType === "agent" ? !!f.belongs_to_org : undefined,
+          org_code: accountType === "agent" ? f.org_code || null : null,
           org_name: accountType === "owner" ? f.org_name : null,
         },
         registerAdapter
@@ -84,56 +121,70 @@ export default function Register() {
         nav(`/auth/login?registered=1&email=${encodeURIComponent(f.email)}`);
       }, 800);
     } catch (e: any) {
-  const code = e?.code || e?.message;
-  const msg = (e?.message || "").toString().toLowerCase();
+      const code = e?.code || e?.message;
+      const msg = (e?.message || "").toString().toLowerCase();
 
-  if (code === "EMAIL_IN_USE") {
-    setNotice({
-      type: "warning",
-      text: (
-        <>
-          Este correo ya está registrado.{" "}
-          <Link to={`/auth/login?email=${encodeURIComponent(f.email)}`} style={{ color: "var(--brand-700)", fontWeight: 600 }}>
-            Inicia sesión
-          </Link>{" "}
-          o usa otro correo.
-        </>
-      ),
-    });
-    return;
-  }
+      if (code === "EMAIL_IN_USE") {
+        setNotice({
+          type: "warning",
+          text: (
+            <>
+              Este correo ya está registrado.{" "}
+              <Link
+                to={`/auth/login?email=${encodeURIComponent(f.email)}`}
+                style={{ color: "var(--brand-700)", fontWeight: 600 }}
+              >
+                Inicia sesión
+              </Link>{" "}
+              o usa otro correo.
+            </>
+          ),
+        });
+        return;
+      }
 
-  // fallback por si algún entorno antiguo devuelve texto en lugar de code
-  const isDupEmail =
-    e?.status === 400 ||
-    msg.includes("already registered") ||
-    msg.includes("already exists") ||
-    msg.includes("duplicate key") ||
-    msg.includes("user already") ||
-    msg.includes("email address is already registered");
+      // fallback por si algún entorno antiguo devuelve texto en lugar de code
+      const isDupEmail =
+        e?.status === 400 ||
+        msg.includes("already registered") ||
+        msg.includes("already exists") ||
+        msg.includes("duplicate key") ||
+        msg.includes("user already") ||
+        msg.includes("email address is already registered");
 
-  if (isDupEmail) {
-    setNotice({
-      type: "warning",
-      text: (
-        <>
-          Este correo ya está registrado.{" "}
-          <Link to={`/auth/login?email=${encodeURIComponent(f.email)}`} style={{ color: "var(--brand-700)", fontWeight: 600 }}>
-            Inicia sesión
-          </Link>{" "}
-          o usa otro correo.
-        </>
-      ),
-    });
-    return;
-  }
+      if (isDupEmail) {
+        setNotice({
+          type: "warning",
+          text: (
+            <>
+              Este correo ya está registrado.{" "}
+              <Link
+                to={`/auth/login?email=${encodeURIComponent(f.email)}`}
+                style={{ color: "var(--brand-700)", fontWeight: 600 }}
+              >
+                Inicia sesión
+              </Link>{" "}
+              o usa otro correo.
+            </>
+          ),
+        });
+        return;
+      }
 
-  setNotice({
-    type: "error",
-    text: e?.message ?? "Ocurrió un error durante el registro.",
-  });
-}
+      setNotice({
+        type: "error",
+        text: e?.message ?? "Ocurrió un error durante el registro.",
+      });
+    }
+  };
 
+  const handleAccountTypeSelection = (selectedType: AccountType | null) => {
+    if (!selectedType) return;
+    setShowAccountTypeModal(false);
+    // Actualizar la URL con el tipo de cuenta seleccionado
+    const params = new URLSearchParams(sp);
+    params.set("type", selectedType);
+    nav(`/auth/register?${params.toString()}`, { replace: true });
   };
 
   return (
@@ -150,6 +201,13 @@ export default function Register() {
             </Notice>
           )}
 
+          {!accountType && (
+            <Notice variant="info">
+              Por favor, selecciona un tipo de cuenta para continuar con el
+              registro.
+            </Notice>
+          )}
+
           {/* OAuth */}
           <div className="oauth-section">
             <div className="oauth-row">
@@ -159,7 +217,7 @@ export default function Register() {
                   onClick={() =>
                     supabase.auth.signInWithOAuth({
                       provider: "google",
-                      options: { redirectTo: env.VITE_OAUTH_REDIRECT_URL },
+                      options: { redirectTo: oauthRedirect },
                     })
                   }
                 />
@@ -171,7 +229,7 @@ export default function Register() {
                   onClick={() =>
                     supabase.auth.signInWithOAuth({
                       provider: "apple",
-                      options: { redirectTo: env.VITE_OAUTH_REDIRECT_URL },
+                      options: { redirectTo: oauthRedirect },
                     })
                   }
                 /> */}
@@ -183,28 +241,67 @@ export default function Register() {
 
           {/* GRID 2 COLS */}
           <form onSubmit={handleSubmit(onSubmit)} noValidate>
-            <div className="form-grid">
+            <div className="form-grid" style={{ marginBottom: "20px" }}>
               <BaseFields register={register} errors={errors} />
               {accountType === "agent" && (
-                <AgentExtras register={register} watch={watch} setValue={setValue} errors={errors} />
+                <AgentExtras
+                  register={register}
+                  watch={watch}
+                  setValue={setValue}
+                  errors={errors}
+                />
               )}
-              {accountType === "owner" && <OwnerExtras register={register} errors={errors} />}
+              {accountType === "owner" && (
+                <OwnerExtras register={register} errors={errors} />
+              )}
             </div>
 
-            <Button type="submit" disabled={isSubmitting} style={{ marginTop: 12 }}>
+            {/* <div className="auth-actions"> */}
+            <Button
+              type="submit"
+              disabled={isSubmitting}
+              className="auth-actions__primary"
+            >
               {isSubmitting ? "Creando..." : "Crear cuenta"}
             </Button>
+            {/* <Link
+                to={`/auth/login?returnTo=${encodeURIComponent(returnTo)}`}
+                className="btn btn-outline auth-actions__secondary"
+              >
+                Iniciar sesion
+              </Link> */}
+            {/* </div> */}
           </form>
-
-          <p style={{ textAlign: "center", marginTop: 14, color: "var(--text-600)" }}>
+          <p
+            style={{
+              textAlign: "center",
+              marginTop: 14,
+              color: "var(--text-600)",
+            }}
+          >
             ¿Ya tienes cuenta?{" "}
-            <Link to="/auth/login" style={{ color: "var(--brand-700)", fontWeight: 600 }}>
+            <Link
+              to="/auth/login"
+              style={{ color: "var(--brand-700)", fontWeight: 600 }}
+            >
               Inicia sesión aquí
             </Link>
           </p>
         </AuthCard>
       </AuthLayout>
-      <SiteFooter/>
+      <SiteFooter />
+
+      <AccountTypeModal
+        open={showAccountTypeModal}
+        onClose={() => {
+          setShowAccountTypeModal(false);
+          // Si el usuario cierra el modal sin seleccionar, redirigir al login
+          if (!accountType) {
+            nav("/auth/login");
+          }
+        }}
+        onContinue={handleAccountTypeSelection}
+      />
     </>
   );
 }

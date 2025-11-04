@@ -5,6 +5,8 @@ import { supabase } from "../../../../core/supabase/client";
 import { uploadFile } from "../../../properties/infrastructure/adapters/MediaStorage";
 import { SupabaseDocumentStorage } from "../../../properties/infrastructure/adapters/SupabaseDocumentStorage";
 import { SupabaseAuthService } from "../../../properties/infrastructure/adapters/SupabaseAuthService";
+import { PropertiesProvider } from "../../../properties/UI/containers/PropertiesProvider";
+import { usePropertiesActions } from "../../../properties/UI/hooks/usePropertiesActions";
 import styles from "./VerifyRPPPage.module.css";
 
 type VerificationStep = "upload" | "review" | "processing" | "result";
@@ -13,9 +15,21 @@ const authService = new SupabaseAuthService({ client: supabase });
 const documentStorage = new SupabaseDocumentStorage({ supabase, authService });
 
 export default function VerifyRPPPage() {
+  return (
+    <PropertiesProvider>
+      <VerifyRPPPageContent />
+    </PropertiesProvider>
+  );
+}
+
+function VerifyRPPPageContent() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const propertyId = searchParams.get("propertyId");
+  const returnStep = searchParams.get("returnStep"); // Paso al que debe regresar
+
+  // Hook para acceder al use case VerifyRpp
+  const { verifyRpp: verifyRppUseCase } = usePropertiesActions();
 
   const [currentStep, setCurrentStep] = useState<VerificationStep>("upload");
   const [rppDocument, setRppDocument] = useState<string | null>(null);
@@ -155,7 +169,26 @@ export default function VerifyRPPPage() {
 
       console.log("✅ Documento RPP guardado en BD:", dbResult.value);
 
-      // 4. Simular resultado exitoso
+      // 4. Actualizar el atributo rpp_verified de la propiedad usando el use case
+      console.log("🔄 Actualizando rpp_verified de la propiedad...");
+      const verifyUseCaseResult = await verifyRppUseCase({
+        propertyId: propertyId,
+        docId: dbResult.value.id,
+        status: "verified",
+      });
+
+      if (verifyUseCaseResult.isErr()) {
+        console.error(
+          "⚠️ Error al actualizar rpp_verified:",
+          verifyUseCaseResult.error
+        );
+        // No fallar todo el proceso, solo loguear el error
+        // El documento ya está guardado y marcado como verified
+      } else {
+        console.log("✅ Atributo rpp_verified actualizado en la propiedad");
+      }
+
+      // 5. Simular resultado exitoso
       const simulatedResult = {
         verified: true,
         status: "verified",
@@ -414,13 +447,34 @@ export default function VerifyRPPPage() {
 
         <div className={styles.actions}>
           {isSuccess ? (
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={() => navigate("/properties")}
-            >
-              Ir a mis propiedades
-            </button>
+            <>
+              <button
+                type="button"
+                className="btn btn-outline"
+                onClick={() => {
+                  // Regresar al borrador en el paso donde estaba el usuario
+                  if (propertyId) {
+                    // Si hay returnStep, usarlo; si no, usar "publish" por defecto
+                    const stepToReturn = returnStep || "publish";
+                    navigate(
+                      `/properties/${propertyId}/edit?step=${stepToReturn}`
+                    );
+                  } else {
+                    // Fallback si no hay propertyId
+                    navigate("/properties");
+                  }
+                }}
+              >
+                Regresar al borrador
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => navigate("/properties")}
+              >
+                Ir a mis propiedades
+              </button>
+            </>
           ) : (
             <button
               type="button"
@@ -445,13 +499,21 @@ export default function VerifyRPPPage() {
             Registro Público de la Propiedad
           </p>
         </div>
-        <button
-          type="button"
-          className="btn btn-outline"
-          onClick={() => navigate(-1)}
-        >
-          Cancelar
-        </button>
+        {/* Ocultar botón Cancelar si la verificación fue exitosa */}
+        {!(currentStep === "result" && result?.verified) && (
+          <button
+            type="button"
+            className="btn btn-outline"
+            onClick={() => {
+              // Si hay returnStep, usarlo; si no, usar "publish" por defecto
+              const stepToReturn = returnStep || "publish";
+              navigate(`/properties/${propertyId}/edit?step=${stepToReturn}`);
+              // navigate(-1)
+            }}
+          >
+            Cancelar
+          </button>
+        )}
       </header>
 
       {renderStepIndicator()}
