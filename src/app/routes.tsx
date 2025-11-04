@@ -1,5 +1,6 @@
 // src/app/routes.tsx
 import ContractsPage from "../modules/contracts/UI/pages/ContractsPage";
+import { SignContractPage } from "../modules/contracts/UI/pages/SignContractPage";
 import { createBrowserRouter, Navigate } from "react-router-dom";
 import Dashboard from "../pages/Dashboard";
 import MyPropertiesPage from "../modules/properties/UI/pages/MyPropertiesPage";
@@ -38,6 +39,7 @@ export const router = createBrowserRouter([
       { path: "/properties/new", element: <PublishWizardPage /> },
       { path: "/properties/:id/edit", element: <PublishWizardPage /> },
       { path: "/contracts", element: <ContractsPage /> },
+      { path: "/contracts/:contractId/sign", element: <SignContractPage /> },
       { path: "/kyc", element: <VerifyINEPage /> },
       { path: "/verify-rpp", element: <VerifyRPPPage /> },
     ],

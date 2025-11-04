@@ -1,4 +1,5 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 import type { IContract } from "../../domain/entities/contractType";
 import {
   AlertTriangleIcon,
@@ -19,6 +20,8 @@ const ContractDetailSideSheet: React.FC<DetailSheetProps> = ({
   contract,
   onClose,
 }) => {
+  const navigate = useNavigate();
+
   if (!contract) return null;
 
   const formatDate = (dateString: string) => {
@@ -186,8 +189,12 @@ const ContractDetailSideSheet: React.FC<DetailSheetProps> = ({
               </div>
 
               <button
-                className={`btn btn-primary ${!isSignable ? "btn-disabled" : ""}`}
-                disabled={!isSignable}
+                className={`btn btn-primary ${!isSignable ? "" : ""}`} // "btn-disabled" : ""}`}
+                onClick={() => {
+                  navigate(`/contracts/${contract.id}/sign`);
+                  onClose();
+                }}
+                // disabled={!isSignable}
                 aria-label={
                   !isSignable
                     ? "Completa el checklist para habilitar la firma"
