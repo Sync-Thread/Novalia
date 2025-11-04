@@ -41,7 +41,6 @@
 
 .contractTable thead th:last-child {
   padding-right: 20px;
-  text-align: center;
 }
 
 /* Filas con zebra y hover mejorado */
@@ -192,25 +191,21 @@
   text-align: left;
 }
 
-.thActions {
-  text-align: center;
-}
-
 /* Anchos de columna con table-layout: fixed */
 .colProperty {
-  width: 30%;
+  width: 32%;
 }
 
 .colTipo {
-  width: 16%;
+  width: 18%;
 }
 
 .colClient {
-  width: 15%;
+  width: 16%;
 }
 
 .colMonto {
-  width: 13%;
+  width: 14%;
 }
 
 .colStatus {
@@ -218,12 +213,7 @@
 }
 
 .colVigencia {
-  width: 10%;
-}
-
-.colActions {
-  width: 4%;
-  min-width: 60px;
+  width: 8%;
 }
 
 /* Alineación de celdas del cuerpo */
@@ -256,10 +246,6 @@
   text-align: left;
   color: #6b7280;
   font-size: 13px;
-}
-
-.tdActions {
-  text-align: center;
 }
 
 /* Estado de foco accesible */
@@ -340,8 +326,5 @@
   }
   .tdMonto {
     text-align: left;
-  }
-  .tdActions {
-    align-self: flex-end;
   }
 }

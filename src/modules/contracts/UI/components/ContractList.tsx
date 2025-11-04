@@ -1,13 +1,12 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import styles from "./ContractList.module.css";
-import KebabMenu from "./KebabMenu";
 import type { IContract } from "../../domain/entities/contractType";
 import { FileText, Loader2, PlusIcon } from "lucide-react";
+import { getPresignedUrlForDisplay } from "../../../properties/infrastructure/adapters/MediaStorage";
 
 interface ContractListProps {
   contracts: IContract[];
   onRowClick: (contract: IContract) => void;
-  onMenuAction: (action: string, contractId: string) => void;
   loading?: boolean;
   onNewDocument?: () => void;
 }
@@ -55,10 +54,31 @@ const getEstadoClass = (estado: IContract["estadoFirma"]) => {
 const ContractList: React.FC<ContractListProps> = ({
   contracts,
   onRowClick,
-  onMenuAction,
   loading = false,
   onNewDocument,
 }) => {
+  const [previews, setPreviews] = useState<Record<string, string>>({});
+
+  // Cargar previews de imágenes
+  useEffect(() => {
+    contracts.forEach(async (contract) => {
+      // Si el contrato tiene una URL que parece un s3Key (no empieza con http)
+      if (
+        contract.propiedadImagenUrl &&
+        !contract.propiedadImagenUrl.startsWith("http")
+      ) {
+        try {
+          const previewUrl = await getPresignedUrlForDisplay(
+            contract.propiedadImagenUrl
+          );
+          setPreviews((prev) => ({ ...prev, [contract.id]: previewUrl }));
+        } catch (error) {
+          console.error("Error cargando preview:", contract.id, error);
+        }
+      }
+    });
+  }, [contracts]);
+
   // Loading state
   if (loading) {
     return (
@@ -141,7 +161,6 @@ const ContractList: React.FC<ContractListProps> = ({
           <col className={styles.colMonto} />
           <col className={styles.colStatus} />
           <col className={styles.colVigencia} />
-          <col className={styles.colActions} />
         </colgroup>
         <thead>
           <tr>
@@ -151,9 +170,6 @@ const ContractList: React.FC<ContractListProps> = ({
             <th className={styles.thMonto}>Monto</th>
             <th className={styles.thStatus}>Estado</th>
             <th className={styles.thVigencia}>Vigencia</th>
-            <th className={styles.thActions} aria-label="Acciones">
-              <span>Acciones</span>
-            </th>
           </tr>
         </thead>
         <tbody>
@@ -169,11 +185,25 @@ const ContractList: React.FC<ContractListProps> = ({
               }}
             >
               <td className={styles.tdProperty}>
-                <img
-                  src={contract.propiedadImagenUrl || "/path/to/thumb.jpg"}
-                  alt={`Imagen de ${contract.propiedadNombre}`}
-                  className={styles.propertyThumb}
-                />
+                {previews[contract.id] ? (
+                  <img
+                    src={previews[contract.id]}
+                    alt={`Imagen de ${contract.propiedadNombre}`}
+                    className={styles.propertyThumb}
+                  />
+                ) : (
+                  <div
+                    className={styles.propertyThumb}
+                    style={{
+                      background: "#f3f4f6",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <FileText size={20} style={{ color: "#9ca3af" }} />
+                  </div>
+                )}
                 <div className={styles.propertyInfo}>
                   <div className={styles.propertyTitle}>
                     {contract.propiedadNombre}
@@ -206,13 +236,6 @@ const ContractList: React.FC<ContractListProps> = ({
               </td>
               <td className={styles.tdVigencia}>
                 {formatDate(contract.vigencia)}
-              </td>
-              <td
-                className={styles.tdActions}
-                onClick={(e) => e.stopPropagation()}
-                onKeyDown={(e) => e.stopPropagation()}
-              >
-                <KebabMenu contract={contract} onActionClick={onMenuAction} />
               </td>
             </tr>
           ))}

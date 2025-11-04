@@ -7,10 +7,14 @@ import {
   CheckCircle2,
   Loader2,
   Search,
+  ChevronDown,
+  User,
 } from "lucide-react";
+import { getPresignedUrlForDisplay } from "../../../properties/infrastructure/adapters/MediaStorage";
 
-// Tipos de documento disponibles
+/** Tipos de documento disponibles */
 const DOCUMENT_TYPES = [
+  { value: "", label: "Selecciona un tipo" },
   { value: "contract", label: "Contrato" },
   { value: "annex", label: "Anexo" },
   { value: "identification", label: "Identificación" },
@@ -23,13 +27,21 @@ interface PropertyOption {
   id: string;
   name: string;
   folio: string;
-  thumbnail?: string;
+  s3Key?: string;
   address: string;
+}
+
+interface ClientOption {
+  id: string;
+  fullName: string;
+  email?: string;
+  phone?: string;
 }
 
 interface FormData {
   documentType: string;
   propertyId: string;
+  clientId: string;
   title: string;
   description: string;
   issuedDate: string;
@@ -56,14 +68,17 @@ export default function NewDocumentQuickView({
   open,
   onClose,
   onSuccess,
-  contractId,
 }: NewDocumentQuickViewProps) {
+  // Inicializar fecha de emisión con fecha actual del dispositivo
+  const today = new Date().toISOString().split("T")[0];
+
   const [formData, setFormData] = useState<FormData>({
     documentType: "",
     propertyId: "",
+    clientId: "",
     title: "",
     description: "",
-    issuedDate: "",
+    issuedDate: today,
     expirationDate: "",
     file: null,
   });
@@ -75,12 +90,20 @@ export default function NewDocumentQuickView({
   const [propertyOptions, setPropertyOptions] = useState<PropertyOption[]>([]);
   const [loadingProperties, setLoadingProperties] = useState(false);
   const [showPropertyDropdown, setShowPropertyDropdown] = useState(false);
+  const [clientSearch, setClientSearch] = useState("");
+  const [clientOptions, setClientOptions] = useState<ClientOption[]>([]);
+  const [loadingClients, setLoadingClients] = useState(false);
+  const [showClientDropdown, setShowClientDropdown] = useState(false);
+  const [propertyPreviews, setPropertyPreviews] = useState<
+    Record<string, string>
+  >({});
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const panelRef = useRef<HTMLElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const propertySearchRef = useRef<HTMLInputElement>(null);
+  const clientSearchRef = useRef<HTMLInputElement>(null);
 
-  // Trap focus dentro del QuickView cuando está abierto
+  /** Cerrar al presionar Escape */
   useEffect(() => {
     if (!open) return;
 
@@ -94,13 +117,8 @@ export default function NewDocumentQuickView({
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [open, onClose]);
 
-  // Buscar propiedades (mock - reemplazar con caso de uso real)
-  const searchProperties = useCallback(async (query: string) => {
-    if (!query.trim()) {
-      setPropertyOptions([]);
-      return;
-    }
-
+  /** Cargar todas las propiedades */
+  const loadAllProperties = useCallback(async () => {
     setLoadingProperties(true);
     // TODO: Reemplazar con caso de uso ListProperties real
     await new Promise((resolve) => setTimeout(resolve, 300));
@@ -111,13 +129,14 @@ export default function NewDocumentQuickView({
         name: "Casa moderna en Polanco",
         folio: "PROP-001",
         address: "Polanco, CDMX",
-        thumbnail: "/placeholder.jpg",
+        s3Key: "uploads/1234-polanco.jpg",
       },
       {
         id: "P002",
         name: "Departamento en Roma Norte",
         folio: "PROP-002",
         address: "Roma Norte, CDMX",
+        s3Key: "uploads/5678-roma.jpg",
       },
       {
         id: "P003",
@@ -125,26 +144,89 @@ export default function NewDocumentQuickView({
         folio: "PROP-003",
         address: "Santa Fe, CDMX",
       },
-    ].filter(
-      (p) =>
-        p.name.toLowerCase().includes(query.toLowerCase()) ||
-        p.folio.toLowerCase().includes(query.toLowerCase())
-    );
+    ];
 
     setPropertyOptions(mockProperties);
     setLoadingProperties(false);
+
+    // Cargar previews de imágenes
+    mockProperties.forEach(async (prop) => {
+      if (prop.s3Key) {
+        try {
+          const previewUrl = await getPresignedUrlForDisplay(prop.s3Key);
+          setPropertyPreviews((prev) => ({ ...prev, [prop.id]: previewUrl }));
+        } catch (error) {
+          console.error("Error cargando preview de propiedad:", prop.id, error);
+        }
+      }
+    });
   }, []);
 
+  /** Filtrar propiedades localmente */
+  const filteredProperties = propertyOptions.filter(
+    (p) =>
+      !propertySearch.trim() ||
+      p.name.toLowerCase().includes(propertySearch.toLowerCase()) ||
+      p.folio.toLowerCase().includes(propertySearch.toLowerCase())
+  );
+
+  /** Cargar clientes */
+  const loadAllClients = useCallback(async () => {
+    setLoadingClients(true);
+    // TODO: Reemplazar con caso de uso ListClients real desde lead_contacts
+    await new Promise((resolve) => setTimeout(resolve, 300));
+
+    const mockClients: ClientOption[] = [
+      {
+        id: "C001",
+        fullName: "María González",
+        email: "maria@example.com",
+        phone: "+52 55 1234 5678",
+      },
+      {
+        id: "C002",
+        fullName: "Carlos Ruiz",
+        email: "carlos@example.com",
+        phone: "+52 55 8765 4321",
+      },
+      {
+        id: "C003",
+        fullName: "Ana Martínez",
+        email: "ana@example.com",
+      },
+    ];
+
+    setClientOptions(mockClients);
+    setLoadingClients(false);
+  }, []);
+
+  /** Filtrar clientes localmente */
+  const filteredClients = clientOptions.filter(
+    (c) =>
+      !clientSearch.trim() ||
+      c.fullName.toLowerCase().includes(clientSearch.toLowerCase()) ||
+      c.email?.toLowerCase().includes(clientSearch.toLowerCase()) ||
+      c.phone?.includes(clientSearch.trim())
+  );
+
+  /** Cargar propiedades y clientes al abrir */
   useEffect(() => {
-    const timer = setTimeout(() => {
-      if (propertySearch) {
-        searchProperties(propertySearch);
-      }
-    }, 300);
+    if (open) {
+      loadAllProperties();
+      loadAllClients();
+    }
+  }, [open, loadAllProperties, loadAllClients]);
 
-    return () => clearTimeout(timer);
-  }, [propertySearch, searchProperties]);
+  /** Auto-resize del textarea cuando cambia el contenido */
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      textarea.style.height = "auto";
+      textarea.style.height = `${textarea.scrollHeight}px`;
+    }
+  }, [formData.description]);
 
+  /** Validación del formulario */
   const validateForm = useCallback((): boolean => {
     const newErrors: FormErrors = {};
 
@@ -187,6 +269,7 @@ export default function NewDocumentQuickView({
     return Object.keys(newErrors).length === 0;
   }, [formData]);
 
+  /** Manejo de selección de archivo */
   const handleFileSelect = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
@@ -198,6 +281,7 @@ export default function NewDocumentQuickView({
     []
   );
 
+  /** Manejo de selección de propiedad */
   const handlePropertySelect = useCallback((property: PropertyOption) => {
     setFormData((prev) => ({ ...prev, propertyId: property.id }));
     setPropertySearch(property.name);
@@ -205,6 +289,7 @@ export default function NewDocumentQuickView({
     setErrors((prev) => ({ ...prev, propertyId: undefined }));
   }, []);
 
+  /** Manejo del envío del formulario */
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault();
@@ -228,7 +313,6 @@ export default function NewDocumentQuickView({
           setUploadProgress(i);
         }
 
-        // Mock success
         const documentId = `DOC-${Date.now()}`;
 
         if (onSuccess) {
@@ -239,13 +323,15 @@ export default function NewDocumentQuickView({
         setFormData({
           documentType: "",
           propertyId: "",
+          clientId: "",
           title: "",
           description: "",
-          issuedDate: "",
+          issuedDate: today,
           expirationDate: "",
           file: null,
         });
         setPropertySearch("");
+        setClientSearch("");
         setErrors({});
 
         onClose();
@@ -259,9 +345,10 @@ export default function NewDocumentQuickView({
         setUploadProgress(0);
       }
     },
-    [formData, validateForm, onSuccess, onClose]
+    [formData, validateForm, onSuccess, onClose, today]
   );
 
+  /** Cambio de campos del formulario */
   const handleChange = useCallback((field: keyof FormData, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     setErrors((prev) => ({ ...prev, [field]: undefined }));
@@ -275,169 +362,283 @@ export default function NewDocumentQuickView({
 
   return (
     <div className="sheet" role="presentation">
+      {/* Backdrop */}
       <div
         role="presentation"
         className="quickview-scrim"
         onClick={onClose}
         style={{ cursor: "pointer" }}
       />
+
+      {/* Panel lateral */}
       <aside
-        ref={panelRef}
         className="sheet-panel"
         role="dialog"
         aria-modal="true"
         aria-labelledby="new-document-title"
         tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
+        style={{
+          background: "#ffffff",
+          boxShadow: "0 0 30px rgba(0, 0, 0, 0.15)",
+        }}
       >
-        <button
-          type="button"
-          className="btn btn-ghost btn-icon sheet-close"
-          onClick={onClose}
-          aria-label="Cerrar"
+        {/* Header con título y botón de cierre alineados */}
+        <header
+          style={{
+            position: "sticky",
+            top: 0,
+            zIndex: 10,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "20px 24px",
+            borderBottom: "1px solid #e5e7eb",
+            background: "rgba(255, 255, 255, 0.98)",
+            backdropFilter: "blur(8px)",
+          }}
         >
-          <X size={18} />
-        </button>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <h2
+              id="new-document-title"
+              style={{
+                margin: 0,
+                fontSize: "20px",
+                fontWeight: 600,
+                color: "#111827",
+                lineHeight: 1.2,
+              }}
+              tabIndex={-1}
+            >
+              Nuevo Documento
+            </h2>
+            <p
+              className="muted"
+              style={{
+                fontSize: "13px",
+                marginTop: "4px",
+                color: "#6b7280",
+                lineHeight: 1.4,
+              }}
+            >
+              Los documentos se almacenan de forma privada y segura
+            </p>
+          </div>
+          <button
+            type="button"
+            className="btn btn-ghost btn-icon"
+            onClick={onClose}
+            aria-label="Cerrar"
+            style={{
+              marginLeft: "16px",
+              flexShrink: 0,
+            }}
+          >
+            <X size={20} />
+          </button>
+        </header>
 
-        <div className="sheet-body">
-          <header className="quickview-header">
-            <div className="quickview-header__left">
-              <div className="quickview-header__title">
-                <h2 id="new-document-title" tabIndex={-1}>
-                  Nuevo Documento
-                </h2>
-                <p
-                  className="muted"
-                  style={{ fontSize: "14px", marginTop: "4px" }}
-                >
-                  Los documentos se almacenan de forma privada y segura
-                </p>
-              </div>
-            </div>
-          </header>
-
-          <form onSubmit={handleSubmit}>
+        {/* Body con scroll */}
+        <div
+          className="sheet-body"
+          style={{
+            padding: "24px",
+            overflowY: "auto",
+          }}
+        >
+          <form
+            onSubmit={handleSubmit}
+            style={{ display: "flex", flexDirection: "column", gap: "24px" }}
+          >
             {/* Tipo de documento */}
-            <section className="quickview-section">
+            <div>
               <label
                 htmlFor="documentType"
                 style={{
                   display: "block",
                   fontWeight: 500,
                   marginBottom: "8px",
+                  fontSize: "14px",
+                  color: "#374151",
                 }}
               >
                 Tipo de documento <span style={{ color: "#dc2626" }}>*</span>
               </label>
-              <select
-                id="documentType"
-                className="btn btn-secondary"
-                style={{
-                  width: "100%",
-                  textAlign: "left",
-                  justifyContent: "flex-start",
-                }}
-                value={formData.documentType}
-                onChange={(e) => handleChange("documentType", e.target.value)}
-                aria-invalid={!!errors.documentType}
-              >
-                <option value="">Selecciona un tipo</option>
-                {DOCUMENT_TYPES.map((type) => (
-                  <option key={type.value} value={type.value}>
-                    {type.label}
-                  </option>
-                ))}
-              </select>
+              <div style={{ position: "relative" }}>
+                <select
+                  id="documentType"
+                  value={formData.documentType}
+                  onChange={(e) => handleChange("documentType", e.target.value)}
+                  aria-invalid={!!errors.documentType}
+                  style={{
+                    width: "100%",
+                    height: "44px",
+                    padding: "0 40px 0 14px",
+                    border: `1px solid ${errors.documentType ? "#dc2626" : "rgba(148, 163, 184, 0.45)"}`,
+                    borderRadius: "12px",
+                    fontSize: "15px",
+                    fontFamily: "inherit",
+                    color: formData.documentType ? "#111827" : "#9ca3af",
+                    background: "#ffffff",
+                    cursor: "pointer",
+                    appearance: "none",
+                    transition: "border-color 0.2s ease, box-shadow 0.2s ease",
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = "#295dff";
+                    e.target.style.boxShadow =
+                      "0 0 0 3px rgba(41, 93, 255, 0.18)";
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = errors.documentType
+                      ? "#dc2626"
+                      : "rgba(148, 163, 184, 0.45)";
+                    e.target.style.boxShadow = "none";
+                  }}
+                >
+                  {DOCUMENT_TYPES.map((type) => (
+                    <option key={type.value} value={type.value}>
+                      {type.label}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown
+                  size={18}
+                  style={{
+                    position: "absolute",
+                    right: "12px",
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    color: "#6b7280",
+                    pointerEvents: "none",
+                  }}
+                />
+              </div>
               {errors.documentType && (
                 <p
                   style={{
                     color: "#dc2626",
                     fontSize: "13px",
-                    marginTop: "4px",
+                    marginTop: "6px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "4px",
                   }}
                 >
-                  <AlertCircle size={14} style={{ marginRight: "4px" }} />
+                  <AlertCircle size={14} />
                   {errors.documentType}
                 </p>
               )}
-            </section>
+            </div>
 
-            {/* Propiedad (selector buscable) */}
-            <section className="quickview-section">
+            {/* Propiedad asociada */}
+            <div>
               <label
                 htmlFor="propertySearch"
                 style={{
                   display: "block",
                   fontWeight: 500,
                   marginBottom: "8px",
+                  fontSize: "14px",
+                  color: "#374151",
                 }}
               >
                 Propiedad asociada <span style={{ color: "#dc2626" }}>*</span>
               </label>
               <div style={{ position: "relative" }}>
-                <div style={{ position: "relative" }}>
-                  <Search
-                    size={18}
-                    style={{
-                      position: "absolute",
-                      left: "12px",
-                      top: "50%",
-                      transform: "translateY(-50%)",
-                      color: "#9ca3af",
-                      pointerEvents: "none",
-                    }}
-                  />
-                  <input
-                    ref={propertySearchRef}
-                    id="propertySearch"
-                    type="text"
-                    className="btn btn-secondary"
-                    style={{
-                      width: "100%",
-                      textAlign: "left",
-                      paddingLeft: "40px",
-                    }}
-                    placeholder="Buscar por nombre o folio..."
-                    value={propertySearch}
-                    onChange={(e) => setPropertySearch(e.target.value)}
-                    onFocus={() => setShowPropertyDropdown(true)}
-                    aria-invalid={!!errors.propertyId}
-                  />
-                </div>
+                <Search
+                  size={18}
+                  style={{
+                    position: "absolute",
+                    left: "12px",
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    color: "#9ca3af",
+                    pointerEvents: "none",
+                    zIndex: 1,
+                  }}
+                />
+                <input
+                  ref={propertySearchRef}
+                  id="propertySearch"
+                  type="text"
+                  placeholder="Buscar por nombre o folio..."
+                  value={propertySearch}
+                  onChange={(e) => setPropertySearch(e.target.value)}
+                  onFocus={() => setShowPropertyDropdown(true)}
+                  aria-invalid={!!errors.propertyId}
+                  style={{
+                    width: "100%",
+                    height: "44px",
+                    padding: "0 14px 0 40px",
+                    border: `1px solid ${errors.propertyId ? "#dc2626" : "rgba(148, 163, 184, 0.45)"}`,
+                    borderRadius: "12px",
+                    fontSize: "15px",
+                    fontFamily: "inherit",
+                    color: "#111827",
+                    background: "#ffffff",
+                    transition: "border-color 0.2s ease, box-shadow 0.2s ease",
+                  }}
+                  onFocusCapture={(e) => {
+                    e.target.style.borderColor = "#295dff";
+                    e.target.style.boxShadow =
+                      "0 0 0 3px rgba(41, 93, 255, 0.18)";
+                  }}
+                  onBlurCapture={(e) => {
+                    setTimeout(() => {
+                      setShowPropertyDropdown(false);
+                      e.target.style.borderColor = errors.propertyId
+                        ? "#dc2626"
+                        : "rgba(148, 163, 184, 0.45)";
+                      e.target.style.boxShadow = "none";
+                    }, 200);
+                  }}
+                />
 
-                {showPropertyDropdown && propertySearch && (
+                {/* Dropdown de propiedades */}
+                {showPropertyDropdown && (
                   <div
                     style={{
                       position: "absolute",
-                      top: "100%",
+                      top: "calc(100% + 8px)",
                       left: 0,
                       right: 0,
-                      marginTop: "4px",
                       background: "#ffffff",
                       border: "1px solid #e5e7eb",
                       borderRadius: "12px",
-                      boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
+                      boxShadow: "0 10px 25px rgba(0, 0, 0, 0.1)",
                       maxHeight: "240px",
                       overflowY: "auto",
                       zIndex: 1000,
                     }}
                   >
                     {loadingProperties ? (
-                      <div style={{ padding: "16px", textAlign: "center" }}>
-                        <Loader2 size={20} className="animate-spin" />
+                      <div
+                        style={{
+                          padding: "16px",
+                          textAlign: "center",
+                          color: "#6b7280",
+                        }}
+                      >
+                        <Loader2
+                          size={20}
+                          className="animate-spin"
+                          style={{ margin: "0 auto" }}
+                        />
                       </div>
-                    ) : propertyOptions.length === 0 ? (
+                    ) : filteredProperties.length === 0 ? (
                       <div
                         style={{
                           padding: "16px",
                           color: "#9ca3af",
                           textAlign: "center",
+                          fontSize: "14px",
                         }}
                       >
                         No se encontraron propiedades
                       </div>
                     ) : (
-                      propertyOptions.map((property) => (
+                      filteredProperties.map((property) => (
                         <button
                           key={property.id}
                           type="button"
@@ -452,26 +653,47 @@ export default function NewDocumentQuickView({
                             background: "transparent",
                             cursor: "pointer",
                             textAlign: "left",
-                            transition: "background 0.2s",
+                            transition: "background 0.15s ease",
+                            borderRadius: "8px",
                           }}
                           onMouseEnter={(e) =>
-                            (e.currentTarget.style.background = "#f9fafb")
+                            (e.currentTarget.style.background =
+                              "rgba(41, 93, 255, 0.08)")
                           }
                           onMouseLeave={(e) =>
                             (e.currentTarget.style.background = "transparent")
                           }
                         >
-                          {property.thumbnail && (
+                          {propertyPreviews[property.id] ? (
                             <img
-                              src={property.thumbnail}
+                              src={propertyPreviews[property.id]}
                               alt={property.name}
                               style={{
                                 width: "40px",
                                 height: "40px",
                                 borderRadius: "8px",
                                 objectFit: "cover",
+                                border: "1px solid #e5e7eb",
                               }}
                             />
+                          ) : (
+                            <div
+                              style={{
+                                width: "40px",
+                                height: "40px",
+                                borderRadius: "8px",
+                                background: "#f3f4f6",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                border: "1px solid #e5e7eb",
+                              }}
+                            >
+                              <FileText
+                                size={20}
+                                style={{ color: "#9ca3af" }}
+                              />
+                            </div>
                           )}
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div
@@ -481,6 +703,7 @@ export default function NewDocumentQuickView({
                                 overflow: "hidden",
                                 textOverflow: "ellipsis",
                                 whiteSpace: "nowrap",
+                                fontSize: "14px",
                               }}
                             >
                               {property.name}
@@ -502,21 +725,23 @@ export default function NewDocumentQuickView({
                 )}
               </div>
 
+              {/* Propiedad seleccionada */}
               {selectedProperty && (
                 <div
                   style={{
                     marginTop: "8px",
                     padding: "12px",
-                    background: "#f9fafb",
+                    background: "#f0f5ff",
                     borderRadius: "8px",
                     display: "flex",
                     alignItems: "center",
                     gap: "12px",
+                    border: "1px solid #bfdbfe",
                   }}
                 >
-                  {selectedProperty.thumbnail && (
+                  {propertyPreviews[selectedProperty.id] ? (
                     <img
-                      src={selectedProperty.thumbnail}
+                      src={propertyPreviews[selectedProperty.id]}
                       alt={selectedProperty.name}
                       style={{
                         width: "32px",
@@ -525,16 +750,39 @@ export default function NewDocumentQuickView({
                         objectFit: "cover",
                       }}
                     />
+                  ) : (
+                    <div
+                      style={{
+                        width: "32px",
+                        height: "32px",
+                        borderRadius: "6px",
+                        background: "#dbeafe",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <FileText size={16} style={{ color: "#3b82f6" }} />
+                    </div>
                   )}
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 500, fontSize: "14px" }}>
+                    <div
+                      style={{
+                        fontWeight: 500,
+                        fontSize: "14px",
+                        color: "#111827",
+                      }}
+                    >
                       {selectedProperty.name}
                     </div>
                     <div style={{ fontSize: "12px", color: "#6b7280" }}>
                       {selectedProperty.address}
                     </div>
                   </div>
-                  <CheckCircle2 size={18} style={{ color: "#16a34a" }} />
+                  <CheckCircle2
+                    size={18}
+                    style={{ color: "#16a34a", flexShrink: 0 }}
+                  />
                 </div>
               )}
 
@@ -543,23 +791,273 @@ export default function NewDocumentQuickView({
                   style={{
                     color: "#dc2626",
                     fontSize: "13px",
-                    marginTop: "4px",
+                    marginTop: "6px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "4px",
                   }}
                 >
-                  <AlertCircle size={14} style={{ marginRight: "4px" }} />
+                  <AlertCircle size={14} />
                   {errors.propertyId}
                 </p>
               )}
-            </section>
+            </div>
+
+            {/* Cliente asociado (opcional) */}
+            <div>
+              <label
+                htmlFor="clientSearch"
+                style={{
+                  display: "block",
+                  fontWeight: 500,
+                  marginBottom: "8px",
+                  fontSize: "14px",
+                  color: "#374151",
+                }}
+              >
+                Cliente asociado (opcional)
+              </label>
+              <div style={{ position: "relative" }}>
+                <User
+                  size={18}
+                  style={{
+                    position: "absolute",
+                    left: "12px",
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    color: "#9ca3af",
+                    pointerEvents: "none",
+                    zIndex: 1,
+                  }}
+                />
+                <input
+                  ref={clientSearchRef}
+                  id="clientSearch"
+                  type="text"
+                  placeholder="Buscar por nombre, email o teléfono..."
+                  value={clientSearch}
+                  onChange={(e) => setClientSearch(e.target.value)}
+                  onFocus={() => setShowClientDropdown(true)}
+                  style={{
+                    width: "100%",
+                    height: "44px",
+                    padding: "0 14px 0 40px",
+                    border: "1px solid rgba(148, 163, 184, 0.45)",
+                    borderRadius: "12px",
+                    fontSize: "15px",
+                    fontFamily: "inherit",
+                    color: "#111827",
+                    background: "#ffffff",
+                    transition: "border-color 0.2s ease, box-shadow 0.2s ease",
+                  }}
+                  onFocusCapture={(e) => {
+                    e.target.style.borderColor = "#295dff";
+                    e.target.style.boxShadow =
+                      "0 0 0 3px rgba(41, 93, 255, 0.18)";
+                  }}
+                  onBlurCapture={(e) => {
+                    setTimeout(() => {
+                      setShowClientDropdown(false);
+                      e.target.style.borderColor = "rgba(148, 163, 184, 0.45)";
+                      e.target.style.boxShadow = "none";
+                    }, 200);
+                  }}
+                />
+
+                {/* Dropdown de clientes */}
+                {showClientDropdown && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: "calc(100% + 8px)",
+                      left: 0,
+                      right: 0,
+                      background: "#ffffff",
+                      border: "1px solid #e5e7eb",
+                      borderRadius: "12px",
+                      boxShadow: "0 10px 25px rgba(0, 0, 0, 0.1)",
+                      maxHeight: "240px",
+                      overflowY: "auto",
+                      zIndex: 1000,
+                    }}
+                  >
+                    {loadingClients ? (
+                      <div
+                        style={{
+                          padding: "16px",
+                          textAlign: "center",
+                          color: "#6b7280",
+                        }}
+                      >
+                        <Loader2
+                          size={20}
+                          className="animate-spin"
+                          style={{ margin: "0 auto" }}
+                        />
+                      </div>
+                    ) : filteredClients.length === 0 ? (
+                      <div
+                        style={{
+                          padding: "16px",
+                          color: "#9ca3af",
+                          textAlign: "center",
+                          fontSize: "14px",
+                        }}
+                      >
+                        No se encontraron clientes
+                      </div>
+                    ) : (
+                      filteredClients.map((client) => (
+                        <button
+                          key={client.id}
+                          type="button"
+                          onClick={() => {
+                            setFormData((prev) => ({
+                              ...prev,
+                              clientId: client.id,
+                            }));
+                            setClientSearch(client.fullName);
+                            setShowClientDropdown(false);
+                          }}
+                          style={{
+                            width: "100%",
+                            padding: "12px 16px",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "12px",
+                            border: "none",
+                            background: "transparent",
+                            cursor: "pointer",
+                            textAlign: "left",
+                            transition: "background 0.15s ease",
+                            borderRadius: "8px",
+                          }}
+                          onMouseEnter={(e) =>
+                            (e.currentTarget.style.background =
+                              "rgba(41, 93, 255, 0.08)")
+                          }
+                          onMouseLeave={(e) =>
+                            (e.currentTarget.style.background = "transparent")
+                          }
+                        >
+                          <div
+                            style={{
+                              width: "40px",
+                              height: "40px",
+                              borderRadius: "50%",
+                              background:
+                                "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              color: "#ffffff",
+                              fontWeight: 600,
+                              fontSize: "16px",
+                            }}
+                          >
+                            {client.fullName.charAt(0).toUpperCase()}
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div
+                              style={{
+                                fontWeight: 500,
+                                color: "#111827",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap",
+                                fontSize: "14px",
+                              }}
+                            >
+                              {client.fullName}
+                            </div>
+                            <div
+                              style={{
+                                fontSize: "12px",
+                                color: "#6b7280",
+                                marginTop: "2px",
+                              }}
+                            >
+                              {client.email || client.phone || "Sin contacto"}
+                            </div>
+                          </div>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Cliente seleccionado */}
+              {formData.clientId &&
+                (() => {
+                  const selectedClient = clientOptions.find(
+                    (c) => c.id === formData.clientId
+                  );
+                  return selectedClient ? (
+                    <div
+                      style={{
+                        marginTop: "8px",
+                        padding: "12px",
+                        background: "#f0fdf4",
+                        borderRadius: "8px",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "12px",
+                        border: "1px solid #bbf7d0",
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: "32px",
+                          height: "32px",
+                          borderRadius: "50%",
+                          background:
+                            "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          color: "#ffffff",
+                          fontWeight: 600,
+                          fontSize: "14px",
+                        }}
+                      >
+                        {selectedClient.fullName.charAt(0).toUpperCase()}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div
+                          style={{
+                            fontWeight: 500,
+                            fontSize: "14px",
+                            color: "#111827",
+                          }}
+                        >
+                          {selectedClient.fullName}
+                        </div>
+                        <div style={{ fontSize: "12px", color: "#6b7280" }}>
+                          {selectedClient.email ||
+                            selectedClient.phone ||
+                            "Sin contacto"}
+                        </div>
+                      </div>
+                      <CheckCircle2
+                        size={18}
+                        style={{ color: "#16a34a", flexShrink: 0 }}
+                      />
+                    </div>
+                  ) : null;
+                })()}
+            </div>
 
             {/* Título */}
-            <section className="quickview-section">
+            <div>
               <label
                 htmlFor="title"
                 style={{
                   display: "block",
                   fontWeight: 500,
                   marginBottom: "8px",
+                  fontSize: "14px",
+                  color: "#374151",
                 }}
               >
                 Título <span style={{ color: "#dc2626" }}>*</span>
@@ -567,136 +1065,226 @@ export default function NewDocumentQuickView({
               <input
                 id="title"
                 type="text"
-                className="btn btn-secondary"
-                style={{ width: "100%", textAlign: "left" }}
                 placeholder="Ej: Contrato de compraventa"
                 value={formData.title}
                 onChange={(e) => handleChange("title", e.target.value)}
                 maxLength={120}
                 aria-invalid={!!errors.title}
+                style={{
+                  width: "100%",
+                  height: "44px",
+                  padding: "0 14px",
+                  border: `1px solid ${errors.title ? "#dc2626" : "rgba(148, 163, 184, 0.45)"}`,
+                  borderRadius: "12px",
+                  fontSize: "15px",
+                  fontFamily: "inherit",
+                  color: "#111827",
+                  background: "#ffffff",
+                  transition: "border-color 0.2s ease, box-shadow 0.2s ease",
+                }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = "#295dff";
+                  e.target.style.boxShadow =
+                    "0 0 0 3px rgba(41, 93, 255, 0.18)";
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = errors.title
+                    ? "#dc2626"
+                    : "rgba(148, 163, 184, 0.45)";
+                  e.target.style.boxShadow = "none";
+                }}
               />
               {errors.title && (
                 <p
                   style={{
                     color: "#dc2626",
                     fontSize: "13px",
-                    marginTop: "4px",
+                    marginTop: "6px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "4px",
                   }}
                 >
-                  <AlertCircle size={14} style={{ marginRight: "4px" }} />
+                  <AlertCircle size={14} />
                   {errors.title}
                 </p>
               )}
-            </section>
+            </div>
 
-            {/* Descripción */}
-            <section className="quickview-section">
+            {/* Descripción con auto-resize */}
+            <div>
               <label
                 htmlFor="description"
                 style={{
                   display: "block",
                   fontWeight: 500,
                   marginBottom: "8px",
+                  fontSize: "14px",
+                  color: "#374151",
                 }}
               >
                 Descripción (opcional)
               </label>
               <textarea
+                ref={textareaRef}
                 id="description"
-                className="btn btn-secondary"
-                style={{
-                  width: "100%",
-                  textAlign: "left",
-                  minHeight: "80px",
-                  resize: "vertical",
-                  fontFamily: "inherit",
-                }}
                 placeholder="Describe brevemente el contenido del documento..."
                 value={formData.description}
                 onChange={(e) => handleChange("description", e.target.value)}
                 maxLength={400}
+                rows={3}
+                style={{
+                  width: "100%",
+                  minHeight: "80px",
+                  padding: "12px 14px",
+                  border: "1px solid rgba(148, 163, 184, 0.45)",
+                  borderRadius: "12px",
+                  fontSize: "15px",
+                  fontFamily: "inherit",
+                  color: "#111827",
+                  background: "#ffffff",
+                  resize: "none",
+                  overflow: "hidden",
+                  lineHeight: 1.5,
+                  transition: "border-color 0.2s ease, box-shadow 0.2s ease",
+                }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = "#295dff";
+                  e.target.style.boxShadow =
+                    "0 0 0 3px rgba(41, 93, 255, 0.18)";
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = "rgba(148, 163, 184, 0.45)";
+                  e.target.style.boxShadow = "none";
+                }}
               />
               <p
                 style={{ fontSize: "12px", color: "#9ca3af", marginTop: "4px" }}
               >
                 {formData.description.length}/400 caracteres
               </p>
-            </section>
+            </div>
 
             {/* Fechas */}
-            <section className="quickview-section">
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
-                  gap: "16px",
-                }}
-              >
-                <div>
-                  <label
-                    htmlFor="issuedDate"
-                    style={{
-                      display: "block",
-                      fontWeight: 500,
-                      marginBottom: "8px",
-                    }}
-                  >
-                    Fecha de emisión
-                  </label>
-                  <input
-                    id="issuedDate"
-                    type="date"
-                    className="btn btn-secondary"
-                    style={{ width: "100%" }}
-                    value={formData.issuedDate}
-                    onChange={(e) => handleChange("issuedDate", e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label
-                    htmlFor="expirationDate"
-                    style={{
-                      display: "block",
-                      fontWeight: 500,
-                      marginBottom: "8px",
-                    }}
-                  >
-                    Vencimiento
-                  </label>
-                  <input
-                    id="expirationDate"
-                    type="date"
-                    className="btn btn-secondary"
-                    style={{ width: "100%" }}
-                    value={formData.expirationDate}
-                    onChange={(e) =>
-                      handleChange("expirationDate", e.target.value)
-                    }
-                    aria-invalid={!!errors.expirationDate}
-                  />
-                  {errors.expirationDate && (
-                    <p
-                      style={{
-                        color: "#dc2626",
-                        fontSize: "12px",
-                        marginTop: "4px",
-                      }}
-                    >
-                      {errors.expirationDate}
-                    </p>
-                  )}
-                </div>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: "16px",
+              }}
+            >
+              <div>
+                <label
+                  htmlFor="issuedDate"
+                  style={{
+                    display: "block",
+                    fontWeight: 500,
+                    marginBottom: "8px",
+                    fontSize: "14px",
+                    color: "#374151",
+                  }}
+                >
+                  Fecha de emisión
+                </label>
+                <input
+                  id="issuedDate"
+                  type="date"
+                  value={formData.issuedDate}
+                  onChange={(e) => handleChange("issuedDate", e.target.value)}
+                  style={{
+                    width: "100%",
+                    height: "44px",
+                    padding: "0 14px",
+                    border: "1px solid rgba(148, 163, 184, 0.45)",
+                    borderRadius: "12px",
+                    fontSize: "15px",
+                    fontFamily: "inherit",
+                    color: "#111827",
+                    background: "#ffffff",
+                    cursor: "pointer",
+                    transition: "border-color 0.2s ease, box-shadow 0.2s ease",
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = "#295dff";
+                    e.target.style.boxShadow =
+                      "0 0 0 3px rgba(41, 93, 255, 0.18)";
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = "rgba(148, 163, 184, 0.45)";
+                    e.target.style.boxShadow = "none";
+                  }}
+                />
               </div>
-            </section>
+              <div>
+                <label
+                  htmlFor="expirationDate"
+                  style={{
+                    display: "block",
+                    fontWeight: 500,
+                    marginBottom: "8px",
+                    fontSize: "14px",
+                    color: "#374151",
+                  }}
+                >
+                  Vencimiento
+                </label>
+                <input
+                  id="expirationDate"
+                  type="date"
+                  value={formData.expirationDate}
+                  onChange={(e) =>
+                    handleChange("expirationDate", e.target.value)
+                  }
+                  aria-invalid={!!errors.expirationDate}
+                  style={{
+                    width: "100%",
+                    height: "44px",
+                    padding: "0 14px",
+                    border: `1px solid ${errors.expirationDate ? "#dc2626" : "rgba(148, 163, 184, 0.45)"}`,
+                    borderRadius: "12px",
+                    fontSize: "15px",
+                    fontFamily: "inherit",
+                    color: "#111827",
+                    background: "#ffffff",
+                    cursor: "pointer",
+                    transition: "border-color 0.2s ease, box-shadow 0.2s ease",
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = "#295dff";
+                    e.target.style.boxShadow =
+                      "0 0 0 3px rgba(41, 93, 255, 0.18)";
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = errors.expirationDate
+                      ? "#dc2626"
+                      : "rgba(148, 163, 184, 0.45)";
+                    e.target.style.boxShadow = "none";
+                  }}
+                />
+                {errors.expirationDate && (
+                  <p
+                    style={{
+                      color: "#dc2626",
+                      fontSize: "12px",
+                      marginTop: "4px",
+                    }}
+                  >
+                    {errors.expirationDate}
+                  </p>
+                )}
+              </div>
+            </div>
 
-            {/* Archivo */}
-            <section className="quickview-section">
+            {/* Dropzone para archivo */}
+            <div>
               <label
                 htmlFor="file"
                 style={{
                   display: "block",
                   fontWeight: 500,
                   marginBottom: "8px",
+                  fontSize: "14px",
+                  color: "#374151",
                 }}
               >
                 Archivo <span style={{ color: "#dc2626" }}>*</span>
@@ -710,7 +1298,7 @@ export default function NewDocumentQuickView({
                   textAlign: "center",
                   background: "#fafbfc",
                   cursor: "pointer",
-                  transition: "all 0.2s",
+                  transition: "all 0.2s ease",
                 }}
                 onClick={() => fileInputRef.current?.click()}
                 onDragOver={(e) => {
@@ -752,7 +1340,13 @@ export default function NewDocumentQuickView({
                   >
                     <FileText size={32} style={{ color: "#295dff" }} />
                     <div style={{ textAlign: "left" }}>
-                      <div style={{ fontWeight: 500, color: "#111827" }}>
+                      <div
+                        style={{
+                          fontWeight: 500,
+                          color: "#111827",
+                          fontSize: "14px",
+                        }}
+                      >
                         {formData.file.name}
                       </div>
                       <div style={{ fontSize: "13px", color: "#6b7280" }}>
@@ -766,7 +1360,14 @@ export default function NewDocumentQuickView({
                       size={32}
                       style={{ color: "#9ca3af", margin: "0 auto 8px" }}
                     />
-                    <p style={{ fontWeight: 500, marginBottom: "4px" }}>
+                    <p
+                      style={{
+                        fontWeight: 500,
+                        marginBottom: "4px",
+                        fontSize: "14px",
+                        color: "#374151",
+                      }}
+                    >
                       Arrastra un archivo o haz clic para seleccionar
                     </p>
                     <p style={{ fontSize: "13px", color: "#9ca3af" }}>
@@ -776,6 +1377,7 @@ export default function NewDocumentQuickView({
                 )}
               </div>
 
+              {/* Barra de progreso */}
               {uploadProgress > 0 && uploadProgress < 100 && (
                 <div style={{ marginTop: "12px" }}>
                   <div
@@ -792,7 +1394,7 @@ export default function NewDocumentQuickView({
                         width: `${uploadProgress}%`,
                         height: "100%",
                         background: "#295dff",
-                        transition: "width 0.3s",
+                        transition: "width 0.3s ease",
                       }}
                     />
                   </div>
@@ -814,45 +1416,59 @@ export default function NewDocumentQuickView({
                     color: "#dc2626",
                     fontSize: "13px",
                     marginTop: "8px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "4px",
                   }}
                 >
-                  <AlertCircle size={14} style={{ marginRight: "4px" }} />
+                  <AlertCircle size={14} />
                   {errors.file}
                 </p>
               )}
-            </section>
+            </div>
 
-            {/* Privacidad note */}
-            <section className="quickview-section">
+            {/* Nota de privacidad */}
+            <div
+              style={{
+                padding: "12px 16px",
+                background: "#f0f5ff",
+                border: "1px solid #bfdbfe",
+                borderRadius: "8px",
+                display: "flex",
+                gap: "12px",
+                alignItems: "flex-start",
+              }}
+            >
+              <AlertCircle
+                size={18}
+                style={{ color: "#2563eb", flexShrink: 0, marginTop: "2px" }}
+              />
               <div
-                style={{
-                  padding: "12px 16px",
-                  background: "#f0f5ff",
-                  border: "1px solid #bfdbfe",
-                  borderRadius: "8px",
-                  display: "flex",
-                  gap: "12px",
-                }}
+                style={{ fontSize: "13px", color: "#1e40af", lineHeight: 1.5 }}
               >
-                <AlertCircle
-                  size={18}
-                  style={{ color: "#2563eb", flexShrink: 0 }}
-                />
-                <div style={{ fontSize: "13px", color: "#1e40af" }}>
-                  Los documentos se almacenan en el bucket privado de forma
-                  segura
-                </div>
+                Los documentos se almacenan en el bucket privado de forma segura
               </div>
-            </section>
+            </div>
 
-            {/* Botones */}
-            <div style={{ display: "flex", gap: "12px", marginTop: "8px" }}>
+            {/* Botones de acción */}
+            <div
+              style={{
+                display: "flex",
+                gap: "12px",
+                paddingTop: "8px",
+                borderTop: "1px solid #f3f4f6",
+              }}
+            >
               <button
                 type="button"
                 className="btn btn-secondary"
                 onClick={onClose}
                 disabled={loading}
-                style={{ flex: 1 }}
+                style={{
+                  flex: 1,
+                  height: "44px",
+                  borderRadius: "12px",
+                }}
               >
                 Cancelar
               </button>
@@ -860,7 +1476,12 @@ export default function NewDocumentQuickView({
                 type="submit"
                 className="btn btn-primary"
                 disabled={loading}
-                style={{ flex: 1, gap: "8px" }}
+                style={{
+                  flex: 1,
+                  height: "44px",
+                  borderRadius: "12px",
+                  gap: "8px",
+                }}
               >
                 {loading ? (
                   <>
