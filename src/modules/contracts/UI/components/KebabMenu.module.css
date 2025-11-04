@@ -1,0 +1,106 @@
+.kebabContainer {
+  position: relative;
+  display: inline-block;
+}
+
+.kebabButton {
+  background: none;
+  border: none;
+  padding: 8px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-around;
+  height: 24px;
+  border-radius: 6px;
+  transition: background-color 0.2s;
+}
+
+.kebabButton:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.dot {
+  width: 4px;
+  height: 4px;
+  background-color: #6b7280;
+  border-radius: 50%;
+  margin: 1px 0;
+  transition: background-color 0.2s;
+}
+
+.kebabButton:hover .dot {
+  background-color: #374151;
+}
+
+.dropdown {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  background-color: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  z-index: 1000;
+  min-width: 180px;
+  padding: 4px;
+  opacity: 0;
+  transform: translateY(-8px);
+  animation: dropdownAppear 0.2s ease forwards;
+}
+
+.dropdown button {
+  width: 100%;
+  padding: 8px 12px;
+  background: none;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  font-size: 14px;
+  color: #374151;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.dropdown button:hover {
+  background-color: #f9fafb;
+}
+
+.dropdown button:disabled {
+  color: #9ca3af;
+  cursor: not-allowed;
+}
+
+.destructive {
+  color: #dc2626;
+}
+
+.destructive:hover {
+  background-color: #fef2f2;
+}
+
+.divider {
+  height: 1px;
+  background-color: #e5e7eb;
+  margin: 4px 0;
+}
+
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 999;
+}
+
+@keyframes dropdownAppear {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
