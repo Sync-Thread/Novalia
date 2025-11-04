@@ -420,14 +420,14 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 }
 .sheet {
   position: fixed;
-  top: var(--header-height);
+  top: 0;
   right: 0;
   bottom: 0;
   left: 0;
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(360px, 560px);
   background: rgba(15, 23, 42, 0.35);
-  z-index: 999;
+  z-index: 1250;
 }
 .sheet-panel {
   margin-left: auto;
