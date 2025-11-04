@@ -10,17 +10,27 @@ import {
   ChevronDown,
   User,
 } from "lucide-react";
-import { getPresignedUrlForDisplay } from "../../../properties/infrastructure/adapters/MediaStorage";
+import {
+  getPresignedUrlForDisplay,
+  uploadFile,
+} from "../../../properties/infrastructure/adapters/MediaStorage";
+import { supabase } from "../../../../core/supabase/client";
+import { useContractsActions } from "../hooks/useContractsActions";
 
-/** Tipos de documento disponibles */
+/** Calcula SHA-256 de un archivo */
+async function calculateSHA256(file: File): Promise<string> {
+  const buffer = await file.arrayBuffer();
+  const hashBuffer = await crypto.subtle.digest("SHA-256", buffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+/** Tipos de contrato disponibles (basados en contract_type_enum) */
 const DOCUMENT_TYPES = [
   { value: "", label: "Selecciona un tipo" },
-  { value: "contract", label: "Contrato" },
-  { value: "annex", label: "Anexo" },
-  { value: "identification", label: "Identificación" },
-  { value: "appraisal", label: "Avalúo" },
-  { value: "rpp", label: "RPP" },
-  { value: "other", label: "Otro" },
+  { value: "intermediacion", label: "Intermediación (2%)" },
+  { value: "oferta", label: "Oferta de Compra" },
+  { value: "promesa", label: "Promesa de Compraventa" },
 ] as const;
 
 interface PropertyOption {
@@ -72,6 +82,13 @@ export default function NewDocumentQuickView({
   // Inicializar fecha de emisión con fecha actual del dispositivo
   const today = new Date().toISOString().split("T")[0];
 
+  // Hook de acciones del módulo contracts
+  const {
+    loading: contractsLoading,
+    listPropertiesForSelector,
+    listClientsForSelector,
+  } = useContractsActions();
+
   const [formData, setFormData] = useState<FormData>({
     documentType: "",
     propertyId: "",
@@ -88,11 +105,9 @@ export default function NewDocumentQuickView({
   const [uploadProgress, setUploadProgress] = useState(0);
   const [propertySearch, setPropertySearch] = useState("");
   const [propertyOptions, setPropertyOptions] = useState<PropertyOption[]>([]);
-  const [loadingProperties, setLoadingProperties] = useState(false);
   const [showPropertyDropdown, setShowPropertyDropdown] = useState(false);
   const [clientSearch, setClientSearch] = useState("");
   const [clientOptions, setClientOptions] = useState<ClientOption[]>([]);
-  const [loadingClients, setLoadingClients] = useState(false);
   const [showClientDropdown, setShowClientDropdown] = useState(false);
   const [propertyPreviews, setPropertyPreviews] = useState<
     Record<string, string>
@@ -117,50 +132,51 @@ export default function NewDocumentQuickView({
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [open, onClose]);
 
-  /** Cargar todas las propiedades */
+  /** Cargar todas las propiedades usando el use case */
   const loadAllProperties = useCallback(async () => {
-    setLoadingProperties(true);
-    // TODO: Reemplazar con caso de uso ListProperties real
-    await new Promise((resolve) => setTimeout(resolve, 300));
-
-    const mockProperties: PropertyOption[] = [
-      {
-        id: "P001",
-        name: "Casa moderna en Polanco",
-        folio: "PROP-001",
-        address: "Polanco, CDMX",
-        s3Key: "uploads/1234-polanco.jpg",
-      },
-      {
-        id: "P002",
-        name: "Departamento en Roma Norte",
-        folio: "PROP-002",
-        address: "Roma Norte, CDMX",
-        s3Key: "uploads/5678-roma.jpg",
-      },
-      {
-        id: "P003",
-        name: "Oficina en Santa Fe",
-        folio: "PROP-003",
-        address: "Santa Fe, CDMX",
-      },
-    ];
-
-    setPropertyOptions(mockProperties);
-    setLoadingProperties(false);
-
-    // Cargar previews de imágenes
-    mockProperties.forEach(async (prop) => {
-      if (prop.s3Key) {
-        try {
-          const previewUrl = await getPresignedUrlForDisplay(prop.s3Key);
-          setPropertyPreviews((prev) => ({ ...prev, [prop.id]: previewUrl }));
-        } catch (error) {
-          console.error("Error cargando preview de propiedad:", prop.id, error);
-        }
-      }
+    const result = await listPropertiesForSelector({
+      pageSize: 100,
     });
-  }, []);
+
+    if (result) {
+      const mappedProperties: PropertyOption[] = result.items.map((prop) => {
+        const addressParts = [prop.neighborhood, prop.city, prop.state].filter(
+          Boolean
+        );
+
+        return {
+          id: prop.id,
+          name: prop.title,
+          folio: prop.internalId || "Sin folio",
+          address:
+            addressParts.length > 0
+              ? addressParts.join(", ")
+              : prop.addressLine || "Sin dirección",
+          s3Key: prop.coverImageS3Key || undefined,
+        };
+      });
+
+      setPropertyOptions(mappedProperties);
+
+      // Cargar previews de imágenes
+      mappedProperties.forEach(async (prop) => {
+        if (prop.s3Key) {
+          try {
+            const previewUrl = await getPresignedUrlForDisplay(prop.s3Key);
+            setPropertyPreviews((prev) => ({ ...prev, [prop.id]: previewUrl }));
+          } catch (error) {
+            console.error(
+              "Error cargando preview de propiedad:",
+              prop.id,
+              error
+            );
+          }
+        }
+      });
+    } else {
+      setPropertyOptions([]);
+    }
+  }, [listPropertiesForSelector]);
 
   /** Filtrar propiedades localmente */
   const filteredProperties = propertyOptions.filter(
@@ -170,35 +186,25 @@ export default function NewDocumentQuickView({
       p.folio.toLowerCase().includes(propertySearch.toLowerCase())
   );
 
-  /** Cargar clientes */
+  /** Cargar clientes usando el use case */
   const loadAllClients = useCallback(async () => {
-    setLoadingClients(true);
-    // TODO: Reemplazar con caso de uso ListClients real desde lead_contacts
-    await new Promise((resolve) => setTimeout(resolve, 300));
+    const result = await listClientsForSelector({
+      pageSize: 200,
+    });
 
-    const mockClients: ClientOption[] = [
-      {
-        id: "C001",
-        fullName: "María González",
-        email: "maria@example.com",
-        phone: "+52 55 1234 5678",
-      },
-      {
-        id: "C002",
-        fullName: "Carlos Ruiz",
-        email: "carlos@example.com",
-        phone: "+52 55 8765 4321",
-      },
-      {
-        id: "C003",
-        fullName: "Ana Martínez",
-        email: "ana@example.com",
-      },
-    ];
+    if (result) {
+      const mappedClients: ClientOption[] = result.map((client) => ({
+        id: client.id,
+        fullName: client.fullName || "Sin nombre",
+        email: client.email || undefined,
+        phone: client.phone || undefined,
+      }));
 
-    setClientOptions(mockClients);
-    setLoadingClients(false);
-  }, []);
+      setClientOptions(mappedClients);
+    } else {
+      setClientOptions([]);
+    }
+  }, [listClientsForSelector]);
 
   /** Filtrar clientes localmente */
   const filteredClients = clientOptions.filter(
@@ -231,12 +237,13 @@ export default function NewDocumentQuickView({
     const newErrors: FormErrors = {};
 
     if (!formData.documentType) {
-      newErrors.documentType = "Selecciona un tipo de documento";
+      newErrors.documentType = "Selecciona un tipo de contrato";
     }
 
-    if (!formData.propertyId) {
-      newErrors.propertyId = "Selecciona una propiedad";
-    }
+    // Propiedad es opcional - puede ser una plantilla sin propiedad
+    // if (!formData.propertyId) {
+    //   newErrors.propertyId = "Selecciona una propiedad";
+    // }
 
     if (!formData.title.trim()) {
       newErrors.title = "El título es obligatorio";
@@ -302,21 +309,80 @@ export default function NewDocumentQuickView({
       setUploadProgress(0);
 
       try {
-        // TODO: Implementar caso de uso CreateDocument
-        // 1. Subir archivo a bucket privado con presign
-        // 2. Crear registro de documento
-        // 3. Asociar con propiedad y contrato si aplica
-
-        // Simulación de progreso de subida
-        for (let i = 0; i <= 100; i += 10) {
-          await new Promise((resolve) => setTimeout(resolve, 100));
-          setUploadProgress(i);
+        if (!formData.file) {
+          throw new Error("No file selected");
         }
 
-        const documentId = `DOC-${Date.now()}`;
+        // 1. Calcular hash SHA-256 del archivo
+        setUploadProgress(10);
+        const fileHash = await calculateSHA256(formData.file);
 
-        if (onSuccess) {
-          onSuccess(documentId);
+        // 2. Subir archivo a S3 privado
+        setUploadProgress(30);
+        const uploadResult = await uploadFile(
+          formData.file,
+          "contracts", // folder en S3
+          null
+        );
+
+        if (!uploadResult || !uploadResult.key) {
+          throw new Error("Upload failed - no key returned");
+        }
+
+        setUploadProgress(60);
+
+        // 3. Obtener orgId del usuario actual
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) throw new Error("No authenticated user");
+
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("org_id")
+          .eq("id", user.id)
+          .single();
+
+        if (!profile?.org_id) {
+          throw new Error("No organization found for user");
+        }
+
+        // 4. Crear registro en tabla contracts
+        setUploadProgress(80);
+        const { data: contract, error: insertError } = await supabase
+          .from("contracts")
+          .insert({
+            org_id: profile.org_id,
+            property_id: formData.propertyId || null,
+            client_contact_id: formData.clientId || null,
+            contract_type: formData.documentType, // 'intermediacion' | 'oferta' | 'promesa'
+            status: "draft",
+            is_template: false, // Es un contrato real, no una plantilla
+            title: formData.title,
+            description: formData.description || null,
+            issued_on: formData.issuedDate,
+            due_on: formData.expirationDate || null,
+            s3_key: uploadResult.key,
+            hash_sha256: fileHash,
+            metadata: {
+              fileName: formData.file.name,
+              contentType: formData.file.type,
+              size: formData.file.size,
+              uploadedAt: new Date().toISOString(),
+            },
+          })
+          .select("id")
+          .single();
+
+        if (insertError) {
+          console.error("Error inserting contract:", insertError);
+          throw new Error(`Failed to create contract: ${insertError.message}`);
+        }
+
+        setUploadProgress(100);
+
+        if (onSuccess && contract) {
+          onSuccess(contract.id);
         }
 
         // Reset form
@@ -336,9 +402,13 @@ export default function NewDocumentQuickView({
 
         onClose();
       } catch (error) {
-        console.error("Error creating document:", error);
+        console.error("Error creating contract:", error);
+        const errorMessage =
+          error instanceof Error
+            ? error.message
+            : "Error al subir el documento. Intenta nuevamente.";
         setErrors({
-          file: "Error al subir el documento. Intenta nuevamente.",
+          file: errorMessage,
         });
       } finally {
         setLoading(false);
@@ -543,7 +613,7 @@ export default function NewDocumentQuickView({
                   color: "#374151",
                 }}
               >
-                Propiedad asociada <span style={{ color: "#dc2626" }}>*</span>
+                Propiedad asociada (opcional)
               </label>
               <div style={{ position: "relative" }}>
                 <Search
@@ -612,7 +682,7 @@ export default function NewDocumentQuickView({
                       zIndex: 1000,
                     }}
                   >
-                    {loadingProperties ? (
+                    {contractsLoading.properties ? (
                       <div
                         style={{
                           padding: "16px",
@@ -881,7 +951,7 @@ export default function NewDocumentQuickView({
                       zIndex: 1000,
                     }}
                   >
-                    {loadingClients ? (
+                    {contractsLoading.clients ? (
                       <div
                         style={{
                           padding: "16px",

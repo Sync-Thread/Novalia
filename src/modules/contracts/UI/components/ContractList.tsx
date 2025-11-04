@@ -7,6 +7,7 @@ import { getPresignedUrlForDisplay } from "../../../properties/infrastructure/ad
 interface ContractListProps {
   contracts: IContract[];
   onRowClick: (contract: IContract) => void;
+  onMenuAction?: (action: string, contractId: string) => void;
   loading?: boolean;
   onNewDocument?: () => void;
 }
