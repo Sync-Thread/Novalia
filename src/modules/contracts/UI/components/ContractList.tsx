@@ -22,17 +22,54 @@ const formatMoney = (amount: number, currency: string = "MXN") => {
 };
 
 const formatDate = (dateString: string) => {
+  // Si viene en formato DD/MM/YYYY
   const parts = dateString.split("/");
-  if (parts.length !== 3) return dateString;
+  if (parts.length === 3) {
+    const date = new Date(+parts[2], +parts[1] - 1, +parts[0]);
+    return new Intl.DateTimeFormat("es-MX", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    }).format(date);
+  }
 
-  // Los meses en JavaScript son 0-indexados (0 = Enero)
-  const date = new Date(+parts[2], +parts[1] - 1, +parts[0]);
+  // Si viene en formato ISO
+  try {
+    const date = new Date(dateString);
+    return new Intl.DateTimeFormat("es-MX", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    }).format(date);
+  } catch {
+    return dateString;
+  }
+};
 
-  return new Intl.DateTimeFormat("es-MX", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  }).format(date);
+const formatDateShort = (dateString: string) => {
+  try {
+    const date = new Date(dateString);
+    return new Intl.DateTimeFormat("es-MX", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "2-digit",
+    }).format(date);
+  } catch {
+    return dateString;
+  }
+};
+
+const getContractTypeLabel = (type: IContract["tipoContrato"]) => {
+  switch (type) {
+    case "Intermediacion":
+      return "Intermediación";
+    case "Oferta":
+      return "Oferta de Compra";
+    case "Promesa":
+      return "Promesa de Compraventa";
+    default:
+      return type;
+  }
 };
 
 const getEstadoClass = (estado: IContract["estadoFirma"]) => {
@@ -73,7 +110,7 @@ const ContractList: React.FC<ContractListProps> = ({
             contract.propiedadImagenUrl
           );
           setPreviews((prev) => ({ ...prev, [contract.id]: previewUrl }));
-        } catch (error) {
+        } catch {
           // Silencioso - las imágenes son opcionales
           if (import.meta.env.DEV) {
             console.debug(
@@ -165,18 +202,16 @@ const ContractList: React.FC<ContractListProps> = ({
           <col className={styles.colProperty} />
           <col className={styles.colTipo} />
           <col className={styles.colClient} />
-          <col className={styles.colMonto} />
           <col className={styles.colStatus} />
-          <col className={styles.colVigencia} />
+          <col className={styles.colFechas} />
         </colgroup>
         <thead>
           <tr>
-            <th className={styles.thProperty}>Propiedad</th>
+            <th className={styles.thProperty}>Propiedad & ID</th>
             <th className={styles.thTipo}>Tipo de Contrato</th>
             <th className={styles.thClient}>Contraparte</th>
-            <th className={styles.thMonto}>Monto</th>
             <th className={styles.thStatus}>Estado</th>
-            <th className={styles.thVigencia}>Vigencia</th>
+            <th className={styles.thFechas}>Fechas</th>
           </tr>
         </thead>
         <tbody>
@@ -219,16 +254,30 @@ const ContractList: React.FC<ContractListProps> = ({
                 </div>
               </td>
               <td className={styles.tdTipo}>
-                {contract.tipoContrato === "Intermediacion"
-                  ? "Intermediación (2%)"
-                  : contract.tipoContrato}
-              </td>
-              <td className={styles.tdClient}>{contract.contraparte}</td>
-              <td className={styles.tdMonto}>
-                <div>{formatMoney(contract.monto, contract.moneda)}</div>
-                <div style={{ fontSize: "12px", color: "#6b7280" }}>
-                  {contract.moneda}
+                <div className={styles.tipoLabel}>
+                  {getContractTypeLabel(contract.tipoContrato)}
                 </div>
+                {contract.monto > 0 && (
+                  <div className={styles.tipoMonto}>
+                    {formatMoney(contract.monto, contract.moneda)}
+                  </div>
+                )}
+              </td>
+              <td className={styles.tdClient}>
+                <div className={styles.clientName}>{contract.contraparte}</div>
+                {contract.porcentajeCompletado !== undefined && (
+                  <div className={styles.progressWrapper}>
+                    <div className={styles.progressBar}>
+                      <div
+                        className={styles.progressFill}
+                        style={{ width: `${contract.porcentajeCompletado}%` }}
+                      />
+                    </div>
+                    <span className={styles.progressText}>
+                      {contract.porcentajeCompletado}%
+                    </span>
+                  </div>
+                )}
               </td>
               <td className={styles.tdStatus}>
                 <span
@@ -241,8 +290,23 @@ const ContractList: React.FC<ContractListProps> = ({
                     : contract.estadoFirma.replace(/([A-Z])/g, " $1").trim()}
                 </span>
               </td>
-              <td className={styles.tdVigencia}>
-                {formatDate(contract.vigencia)}
+              <td className={styles.tdFechas}>
+                <div className={styles.fechasWrapper}>
+                  {contract.fechaCreacion && (
+                    <div className={styles.fechaItem}>
+                      <span className={styles.fechaLabel}>Creado:</span>
+                      <span className={styles.fechaValue}>
+                        {formatDateShort(contract.fechaCreacion)}
+                      </span>
+                    </div>
+                  )}
+                  <div className={styles.fechaItem}>
+                    <span className={styles.fechaLabel}>Vigencia:</span>
+                    <span className={styles.fechaValue}>
+                      {formatDate(contract.vigencia)}
+                    </span>
+                  </div>
+                </div>
               </td>
             </tr>
           ))}
