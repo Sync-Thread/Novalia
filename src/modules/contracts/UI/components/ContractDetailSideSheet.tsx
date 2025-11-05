@@ -53,6 +53,7 @@ const ContractDetailSideSheet: React.FC<DetailSheetProps> = ({
     null
   );
   const [isSavingClient, setIsSavingClient] = useState(false);
+  const [isLoadingClients, setIsLoadingClients] = useState(false);
   const clientSearchRef = useRef<HTMLInputElement>(null);
 
   // Cargar preview de la propiedad desde S3
@@ -105,27 +106,32 @@ const ContractDetailSideSheet: React.FC<DetailSheetProps> = ({
   const loadClients = useCallback(async () => {
     if (!contract) return;
 
-    const result = await listClientsForSelector({
-      pageSize: 200,
-      propertyId: contract.propiedadId || undefined,
-    });
+    setIsLoadingClients(true);
+    try {
+      const result = await listClientsForSelector({
+        pageSize: 200,
+        propertyId: contract.propiedadId || undefined,
+      });
 
-    if (result) {
-      const mappedClients: ClientOption[] = result.map((client) => ({
-        id: client.id,
-        fullName: client.fullName || "Sin nombre",
-        email: client.email || undefined,
-        phone: client.phone || undefined,
-        type: client.type || "lead_contact",
-      }));
+      if (result) {
+        const mappedClients: ClientOption[] = result.map((client) => ({
+          id: client.id,
+          fullName: client.fullName || "Sin nombre",
+          email: client.email || undefined,
+          phone: client.phone || undefined,
+          type: client.type || "lead_contact",
+        }));
 
-      setClientOptions(mappedClients);
+        setClientOptions(mappedClients);
+      }
+    } finally {
+      setIsLoadingClients(false);
     }
   }, [listClientsForSelector, contract?.propiedadId, contract]);
 
   // Cargar clientes cuando se active el modo edición
   useEffect(() => {
-    if (isEditingClient && contract && !contract.contraparte) {
+    if (isEditingClient && contract) {
       loadClients();
     }
   }, [isEditingClient, loadClients, contract]);
@@ -474,19 +480,7 @@ const ContractDetailSideSheet: React.FC<DetailSheetProps> = ({
             )}
 
             {/* Cliente/Contraparte */}
-            {contract.contraparte ? (
-              <div className={styles.entityCardHorizontal}>
-                <div className={styles.entityAvatar}>
-                  {contract.contraparte.charAt(0).toUpperCase()}
-                </div>
-                <div className={styles.entityCardInfo}>
-                  <div className={styles.entityCardName}>
-                    {contract.contraparte}
-                  </div>
-                  <div className={styles.entityCardMeta}>Cliente</div>
-                </div>
-              </div>
-            ) : isEditingClient ? (
+            {isEditingClient ? (
               <div className={styles.clientSelector}>
                 <div style={{ position: "relative" }}>
                   <User
@@ -517,7 +511,18 @@ const ContractDetailSideSheet: React.FC<DetailSheetProps> = ({
                   {/* Dropdown de clientes */}
                   {showClientDropdown && (
                     <div className={styles.clientDropdown}>
-                      {clientOptions.length === 0 ? (
+                      {isLoadingClients ? (
+                        <div className={styles.clientDropdownEmpty}>
+                          <Loader2
+                            size={20}
+                            className="animate-spin"
+                            style={{ margin: "0 auto" }}
+                          />
+                          <span style={{ marginTop: "8px" }}>
+                            Cargando clientes...
+                          </span>
+                        </div>
+                      ) : clientOptions.length === 0 ? (
                         <div className={styles.clientDropdownEmpty}>
                           {contract.propiedadId
                             ? "Sin clientes interesados en esta propiedad"
@@ -587,6 +592,30 @@ const ContractDetailSideSheet: React.FC<DetailSheetProps> = ({
                     )}
                   </button>
                 </div>
+              </div>
+            ) : contract.contraparte ? (
+              <div className={styles.entityCardHorizontal}>
+                <div className={styles.entityAvatar}>
+                  {contract.contraparte.charAt(0).toUpperCase()}
+                </div>
+                <div className={styles.entityCardInfo}>
+                  <div className={styles.entityCardName}>
+                    {contract.contraparte}
+                  </div>
+                  <div className={styles.entityCardMeta}>Cliente</div>
+                </div>
+                <button
+                  className={styles.btnIconSmall}
+                  onClick={() => {
+                    setIsEditingClient(true);
+                    setClientSearch("");
+                    setSelectedClient(null);
+                  }}
+                  title="Modificar cliente asociado"
+                  aria-label="Modificar cliente asociado"
+                >
+                  <User size={16} />
+                </button>
               </div>
             ) : (
               <div className={styles.entityCardEmpty}>

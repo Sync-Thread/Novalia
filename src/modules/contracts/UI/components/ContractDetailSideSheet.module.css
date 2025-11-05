@@ -669,6 +669,11 @@
   color: #9ca3af;
   text-align: center;
   font-size: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 
 .clientDropdownItem {
