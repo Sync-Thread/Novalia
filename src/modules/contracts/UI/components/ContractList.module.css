@@ -179,73 +179,128 @@
   text-align: left;
 }
 
-.thMonto {
-  text-align: right;
-}
-
 .thStatus {
   text-align: center;
 }
 
-.thVigencia {
+.thFechas {
   text-align: left;
 }
 
 /* Anchos de columna con table-layout: fixed */
 .colProperty {
-  width: 32%;
+  width: 30%;
 }
 
 .colTipo {
-  width: 18%;
+  width: 22%;
 }
 
 .colClient {
-  width: 16%;
-}
-
-.colMonto {
-  width: 14%;
+  width: 22%;
 }
 
 .colStatus {
-  width: 12%;
+  width: 13%;
 }
 
-.colVigencia {
-  width: 8%;
+.colFechas {
+  width: 13%;
 }
 
 /* Alineación de celdas del cuerpo */
 .tdTipo {
   text-align: left;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+}
+
+.tipoLabel {
+  font-weight: 500;
+  color: #111827;
+  margin-bottom: 4px;
+  line-height: 1.3;
+}
+
+.tipoMonto {
+  font-size: 13px;
+  color: #6b7280;
+  font-variant-numeric: tabular-nums;
 }
 
 .tdClient {
   text-align: left;
+}
+
+.clientName {
+  font-weight: 500;
+  color: #111827;
+  margin-bottom: 6px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.tdMonto {
+.progressWrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.progressBar {
+  flex: 1;
+  height: 6px;
+  background: #e5e7eb;
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  background: linear-gradient(90deg, #295dff 0%, #3b82f6 100%);
+  border-radius: 9999px;
+  transition: width 0.3s ease;
+}
+
+.progressText {
+  font-size: 11px;
+  font-weight: 600;
+  color: #6b7280;
+  min-width: 32px;
   text-align: right;
-  font-weight: 500;
-  font-variant-numeric: tabular-nums;
-  color: #111827;
 }
 
 .tdStatus {
   text-align: center;
 }
 
-.tdVigencia {
+.tdFechas {
   text-align: left;
-  color: #6b7280;
+}
+
+.fechasWrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.fechaItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: 13px;
+}
+
+.fechaLabel {
+  color: #9ca3af;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  font-weight: 600;
+}
+
+.fechaValue {
+  color: #374151;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Estado de foco accesible */
@@ -261,6 +316,72 @@
   border: 2px solid #295dff;
   border-radius: 4px;
   pointer-events: none;
+}
+
+/* Skeleton loading states */
+.rowSkeleton {
+  background: #ffffff;
+  pointer-events: none;
+}
+
+.rowSkeleton:nth-child(even) {
+  background: #fafbfc;
+}
+
+.rowSkeleton td {
+  padding: 14px 16px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.skeletonThumb {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background: linear-gradient(90deg, #f3f4f6 0%, #e5e7eb 50%, #f3f4f6 100%);
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.5s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+.skeletonText {
+  height: 12px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, #f3f4f6 0%, #e5e7eb 50%, #f3f4f6 100%);
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.5s ease-in-out infinite;
+}
+
+.skeletonBar {
+  height: 6px;
+  width: 100%;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, #f3f4f6 0%, #e5e7eb 50%, #f3f4f6 100%);
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.5s ease-in-out infinite;
+}
+
+.skeletonPill {
+  height: 24px;
+  width: 80px;
+  border-radius: 9999px;
+  margin: 0 auto;
+  background: linear-gradient(90deg, #f3f4f6 0%, #e5e7eb 50%, #f3f4f6 100%);
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes skeletonShimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Tooltip para barra de progreso */
+.progressWrapper {
+  cursor: help;
 }
 
 /* Screen reader only */
@@ -289,8 +410,8 @@
   border: 0;
 }
 
-/* Responsive: convert to stacked rows on narrow screens to avoid horizontal scroll and keep content readable. */
-@media (max-width: 760px) {
+/* Responsive: convert to cards on narrow screens */
+@media (max-width: 900px) {
   .contractTable,
   .contractTable thead,
   .contractTable tbody,
@@ -299,32 +420,90 @@
   .contractTable tr {
     display: block;
   }
+  
   .contractTable thead {
     display: none;
   }
+  
   .rowItem {
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    border-bottom: 1px solid #e5e7eb;
-    padding: 12px 16px;
+    gap: 12px;
+    border-bottom: 2px solid #e5e7eb;
+    padding: 16px;
     min-height: auto;
+    margin-bottom: 2px;
   }
+  
+  .rowItem:hover {
+    transform: none;
+  }
+  
   .tdProperty {
     display: flex;
     gap: 12px;
     align-items: center;
+    padding: 0;
+    border-bottom: 1px solid #f3f4f6;
+    padding-bottom: 12px;
   }
+  
   .tdTipo,
   .tdClient,
-  .tdMonto,
   .tdStatus,
-  .tdVigencia {
+  .tdFechas {
     display: block;
     text-align: left;
-    padding-left: 8px;
+    padding: 0;
+    border-bottom: none;
   }
-  .tdMonto {
-    text-align: left;
+  
+  .tdTipo {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .tipoLabel {
+    flex: 1;
+  }
+  
+  .tipoMonto {
+    font-size: 14px;
+    font-weight: 600;
+    color: #111827;
+  }
+  
+  .tdClient {
+    padding-bottom: 8px;
+  }
+  
+  .tdStatus {
+    display: flex;
+    justify-content: flex-start;
+  }
+  
+  .pill {
+    padding: 6px 14px;
+    font-size: 13px;
+  }
+  
+  .fechasWrapper {
+    flex-direction: row;
+    gap: 16px;
+  }
+  
+  .fechaItem {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+  }
+  
+  .fechaLabel {
+    font-size: 10px;
+  }
+  
+  .fechaValue {
+    font-size: 12px;
   }
 }

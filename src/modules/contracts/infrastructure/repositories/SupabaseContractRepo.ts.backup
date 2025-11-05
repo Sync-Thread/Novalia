@@ -128,10 +128,46 @@ export class SupabaseContractRepo implements ContractRepo {
         .map((c) => c.client_profile_id)
         .filter((id): id is string => id !== null);
 
+      console.log("� IDs a buscar:", {
+        contactIds: contactIds.length,
+        profileIds: profileIds.length,
+      });
+
+      // Buscar nombres de lead_contacts
+      const contactNamesMap = new Map<string, string>();
+      if (contactIds.length > 0) {
+        const { data: contactsData, error: contactsError } = await this.client
+          .from("lead_contacts")
+          .select("id, full_name")
+          .in("id", contactIds);
+
+        if (contactsError) {
+          console.error("Error loading lead_contacts:", contactsError);
+        } else if (contactsData) {
+          contactsData.forEach((contact) => {
+            if (contact.full_name) {
+              contactNamesMap.set(contact.id, contact.full_name);
+            }
+          });
+          console.log("✅ Lead contacts cargados:", contactNamesMap.size);
+        }
+      }
+
+      const profileIds = contractRows
+        .map((c) => c.client_profile_id)
+        .filter((id): id is string => id !== null);
+
+      const profileIds = contractRows
+        .map((c) => c.client_profile_id)
+        .filter((id): id is string => id !== null);
+
       console.log("📋 IDs a buscar:", {
         contactIds: contactIds.length,
         profileIds: profileIds.length,
       });
+
+      // Usar función RPC para obtener nombres (bypass RLS)
+      const clientNamesMap = new Map<string, string>();
 
       // Usar función RPC para obtener nombres (bypass RLS)
       const clientNamesMap = new Map<string, string>();
@@ -166,6 +202,8 @@ export class SupabaseContractRepo implements ContractRepo {
           console.log("📋 Map de clientes:", Array.from(clientNamesMap.entries()));
         }
       }
+
+      // Obtener property_ids para buscar imágenes de portada
 
       // Obtener property_ids para buscar imágenes de portada
       const propertyIds = contractRows
