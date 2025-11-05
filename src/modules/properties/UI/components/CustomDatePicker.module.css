@@ -1,0 +1,180 @@
+.customDatePicker {
+  position: relative;
+  display: inline-block;
+  width: 100%;
+  overflow: visible;
+}
+
+.customDatePicker[data-disabled] {
+  opacity: 0.5;
+}
+
+.trigger {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 0;
+  background: transparent;
+  border: none;
+  font-family: inherit;
+  font-size: 15px;
+  color: #0f172a;
+  text-align: left;
+  cursor: pointer;
+  transition: color 0.2s ease;
+  outline: none;
+}
+
+.trigger:hover:not(:disabled) {
+  color: #295dff;
+}
+
+.trigger:disabled {
+  cursor: not-allowed;
+}
+
+.icon {
+  flex-shrink: 0;
+  color: #64748b;
+  transition: color 0.2s ease;
+}
+
+.trigger:hover:not(:disabled) .icon {
+  color: #295dff;
+}
+
+.triggerText {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 15px;
+  line-height: 1.4;
+}
+
+.customDatePicker[data-disabled] .triggerText {
+  color: #94a3b8;
+}
+
+/* Calendario dropdown */
+.calendarDropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: -14px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  padding: 16px;
+  z-index: 1000;
+  min-width: 280px;
+  animation: fadeIn 0.15s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Header del calendario */
+.calendarHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.monthYear {
+  font-weight: 600;
+  font-size: 14px;
+  color: #111827;
+}
+
+.navButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  color: #6b7280;
+  transition: all 0.15s ease;
+}
+
+.navButton:hover {
+  background: rgba(41, 93, 255, 0.08);
+  color: #295dff;
+}
+
+/* Días de la semana */
+.weekDays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.weekDay {
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+  padding: 4px 0;
+}
+
+/* Grid de días */
+.daysGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.dayButton {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #111827;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-weight: 500;
+}
+
+.dayButton:hover:not(:disabled) {
+  background: rgba(41, 93, 255, 0.08);
+  color: #295dff;
+}
+
+.dayButton:disabled {
+  cursor: default;
+  opacity: 0;
+}
+
+.dayButton.today {
+  color: #295dff;
+  font-weight: 600;
+}
+
+.dayButton.selected {
+  background: #295dff;
+  color: #ffffff;
+}
+
+.dayButton.selected:hover {
+  background: #1e40af;
+  color: #ffffff;
+}

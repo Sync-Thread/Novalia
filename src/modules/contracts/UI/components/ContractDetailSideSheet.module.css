@@ -64,7 +64,7 @@
   height: 32px;
   background: none;
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
   cursor: pointer;
   color: #4b6357;
   transition: all 0.2s;
@@ -166,7 +166,7 @@
   color: white;
   border: none;
   padding: 10px 16px;
-  border-radius: 6px;
+  border-radius: 8px;
   cursor: pointer;
   flex-grow: 1;
   font-weight: 500;
@@ -193,7 +193,7 @@
   background-color: white;
   border: 1px solid #d1d5db;
   padding: 10px 16px;
-  border-radius: 6px;
+  border-radius: 8px;
   cursor: pointer;
   color: #374151;
   font-size: 14px;
@@ -314,7 +314,7 @@
 .tag {
   background-color: #f0f0f0;
   padding: 4px 8px;
-  border-radius: 4px;
+  border-radius: 6px;
   font-size: 12px;
   color: #555;
 }

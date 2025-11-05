@@ -17,6 +17,13 @@ export interface IContract {
   // Nuevos campos
   moneda?: string;
   fechaCreacion?: string;
+  s3Key?: string; // s3Key del documento del contrato para descarga
+  metadata?: {
+    fileName?: string;
+    size?: number;
+    contentType?: string;
+    uploadedAt?: string;
+  };
   checklist?: Array<{
     id: number;
     tarea: string;
@@ -40,7 +47,7 @@ export const mockContracts: IContract[] = [
     id: 'CONT-001',
     propiedadId: 'P001',
     propiedadNombre: 'Casa moderna en Polanco',
-    propiedadImagenUrl: 'url_polanco.jpg',
+    propiedadImagenUrl: 'uploads/1234-polanco.jpg', // s3Key para preview
     tipoContrato: 'Intermediacion',
     contraparte: 'María González',
     monto: 2850000,
@@ -80,7 +87,7 @@ export const mockContracts: IContract[] = [
     id: 'CONT-002',
     propiedadId: 'P002',
     propiedadNombre: 'Departamento en Roma Norte',
-    propiedadImagenUrl: 'url_roma.jpg',
+    propiedadImagenUrl: 'uploads/5678-roma.jpg', // s3Key para preview
     tipoContrato: 'Oferta',
     contraparte: 'Carlos Ruiz',
     monto: 1850000,
@@ -127,7 +134,7 @@ export const mockContracts: IContract[] = [
     id: 'CONT-003',
     propiedadId: 'P003',
     propiedadNombre: 'Oficina en Santa Fe',
-    propiedadImagenUrl: 'url_santafe.jpg',
+    propiedadImagenUrl: 'uploads/9012-santafe.jpg', // s3Key para preview
     tipoContrato: 'Promesa',
     contraparte: 'Inmobiliaria Del Valle',
     monto: 3500000,
@@ -167,7 +174,7 @@ export const mockContracts: IContract[] = [
     id: 'CONT-004',
     propiedadId: 'P004',
     propiedadNombre: 'Casa en Guadalajara Centro',
-    propiedadImagenUrl: 'url_guadalajara.jpg',
+    propiedadImagenUrl: 'uploads/3456-guadalajara.jpg', // s3Key para preview
     tipoContrato: 'Intermediacion',
     contraparte: 'Ana Martínez',
     monto: 3100000,
@@ -200,7 +207,7 @@ export const mockContracts: IContract[] = [
     id: 'CONT-005',
     propiedadId: 'P005',
     propiedadNombre: 'Terreno comercial en Monterrey',
-    propiedadImagenUrl: 'url_monterrey.jpg',
+    propiedadImagenUrl: 'uploads/7890-monterrey.jpg', // s3Key para preview
     tipoContrato: 'Intermediacion',
     contraparte: 'Grupo Inmobiliario Norte',
     monto: 1800000,

@@ -274,6 +274,15 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
   background: rgba(41, 93, 255, 0.12);
   box-shadow: 0 8px 18px rgba(41, 93, 255, 0.18);
 }
+.btn-secondary {
+  border-color: #e5e7eb;
+  background: #ffffff;
+  color: #374151;
+}
+.btn-secondary:hover:not(:disabled) {
+  background: #f9fafb;
+  border-color: #d1d5db;
+}
 .btn-danger {
   border-color: rgba(220, 38, 38, 0.7);
   background: #dc2626;
@@ -420,14 +429,14 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 }
 .sheet {
   position: fixed;
-  top: var(--header-height);
+  top: 0;
   right: 0;
   bottom: 0;
   left: 0;
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(360px, 560px);
   background: rgba(15, 23, 42, 0.35);
-  z-index: 999;
+  z-index: 1250;
 }
 .sheet-panel {
   margin-left: auto;
@@ -956,6 +965,59 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 .nav-icon svg {
   width: 100%;
   height: 100%;
+}
+.nav-item-wrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+}
+.nav-submenu {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--gap) * 0.9);
+  max-width: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: max-width 300ms ease, opacity 300ms ease;
+}
+.nav-submenu--open {
+  max-width: 300px;
+  opacity: 1;
+}
+.nav-submenu-item {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  border-radius: calc(var(--radius) * 0.75);
+  font-weight: 500;
+  color: #1f2937;
+  transition: background 120ms ease, color 120ms ease, transform 80ms ease;
+  white-space: nowrap;
+  text-decoration: none;
+}
+.nav-submenu-item:hover,
+.nav-submenu-item:focus-visible {
+  background: rgba(41, 93, 255, 0.08);
+  color: var(--accent);
+}
+.nav-submenu-item--active {
+  color: var(--accent);
+  font-weight: 600;
+}
+.nav-submenu-item--active::after {
+  content: "";
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 4px;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--accent);
+}
+.nav-item--has-submenu {
+  cursor: pointer;
 }
 .upbar-actions {
   display: flex;
@@ -2128,6 +2190,12 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 }
 @keyframes shimmer-sweep {
   100% { transform: translateX(100%); }
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.animate-spin {
+  animation: spin 1s linear infinite;
 }
 @media (max-width: 768px) {
   .public-home__hero {

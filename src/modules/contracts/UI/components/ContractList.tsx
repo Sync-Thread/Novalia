@@ -1,17 +1,20 @@
-import React from 'react';
-import styles from './ContractList.module.css';
-import KebabMenu from './KebabMenu';
-import type { IContract } from '../../domain/entities/contractType';
+import React, { useEffect, useState } from "react";
+import styles from "./ContractList.module.css";
+import type { IContract } from "../../domain/entities/contractType";
+import { FileText, Loader2, PlusIcon } from "lucide-react";
+import { getPresignedUrlForDisplay } from "../../../properties/infrastructure/adapters/MediaStorage";
 
 interface ContractListProps {
   contracts: IContract[];
   onRowClick: (contract: IContract) => void;
-  onMenuAction: (action: string, contractId: string) => void;
+  onMenuAction?: (action: string, contractId: string) => void;
+  loading?: boolean;
+  onNewDocument?: () => void;
 }
 
-const formatMoney = (amount: number, currency: string = 'MXN') => {
-  return new Intl.NumberFormat('es-MX', {
-    style: 'currency',
+const formatMoney = (amount: number, currency: string = "MXN") => {
+  return new Intl.NumberFormat("es-MX", {
+    style: "currency",
     currency,
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
@@ -19,41 +22,142 @@ const formatMoney = (amount: number, currency: string = 'MXN') => {
 };
 
 const formatDate = (dateString: string) => {
-  const parts = dateString.split('/');
+  const parts = dateString.split("/");
   if (parts.length !== 3) return dateString;
 
   // Los meses en JavaScript son 0-indexados (0 = Enero)
   const date = new Date(+parts[2], +parts[1] - 1, +parts[0]);
 
-  return new Intl.DateTimeFormat('es-MX', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
+  return new Intl.DateTimeFormat("es-MX", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
   }).format(date);
 };
 
-const getEstadoClass = (estado: IContract['estadoFirma']) => {
+const getEstadoClass = (estado: IContract["estadoFirma"]) => {
   switch (estado) {
-    case 'Firmado':
+    case "Firmado":
       return styles.pillSigned;
-    case 'PendienteDeFirma':
+    case "PendienteDeFirma":
       return styles.pillPending;
-    case 'Rechazado':
+    case "Rechazado":
       return styles.pillRejected;
-    case 'Vigente':
+    case "Vigente":
       return styles.pillVigente;
-    case 'Archivado':
+    case "Archivado":
       return styles.pillArchived;
     default:
-      return '';
+      return "";
   }
 };
 
 const ContractList: React.FC<ContractListProps> = ({
   contracts,
   onRowClick,
-  onMenuAction,
+  loading = false,
+  onNewDocument,
 }) => {
+  const [previews, setPreviews] = useState<Record<string, string>>({});
+
+  // Cargar previews de imágenes
+  useEffect(() => {
+    contracts.forEach(async (contract) => {
+      // Si el contrato tiene una URL que parece un s3Key (no empieza con http)
+      if (
+        contract.propiedadImagenUrl &&
+        !contract.propiedadImagenUrl.startsWith("http")
+      ) {
+        try {
+          const previewUrl = await getPresignedUrlForDisplay(
+            contract.propiedadImagenUrl
+          );
+          setPreviews((prev) => ({ ...prev, [contract.id]: previewUrl }));
+        } catch (error) {
+          // Silencioso - las imágenes son opcionales
+          if (import.meta.env.DEV) {
+            console.debug(
+              "No se pudo cargar preview para contrato:",
+              contract.id
+            );
+          }
+        }
+      }
+    });
+  }, [contracts]);
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className={styles.tableContainer}>
+        <div style={{ padding: "48px", textAlign: "center" }}>
+          <Loader2
+            size={48}
+            className="animate-spin"
+            style={{ color: "#295dff", margin: "0 auto" }}
+          />
+          <p style={{ marginTop: "16px", color: "#6b7280", fontSize: "15px" }}>
+            Cargando contratos...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Empty state
+  if (contracts.length === 0) {
+    return (
+      <div className={styles.tableContainer}>
+        <div
+          style={{
+            padding: "64px 32px",
+            textAlign: "center",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: "16px",
+          }}
+        >
+          <div
+            style={{
+              width: "80px",
+              height: "80px",
+              borderRadius: "50%",
+              background: "#f0f5ff",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <FileText size={40} style={{ color: "#295dff" }} />
+          </div>
+          <div>
+            <h3
+              style={{ fontSize: "18px", fontWeight: 600, marginBottom: "8px" }}
+            >
+              No hay contratos registrados
+            </h3>
+            <p
+              style={{ color: "#6b7280", fontSize: "15px", maxWidth: "400px" }}
+            >
+              Comienza creando un nuevo documento para tu propiedad
+            </p>
+          </div>
+          {onNewDocument && (
+            <button
+              className="btn btn-primary"
+              onClick={onNewDocument}
+              style={{ marginTop: "8px", gap: "8px" }}
+            >
+              <PlusIcon size={18} />
+              Nuevo documento
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={styles.tableContainer}>
       <table className={styles.contractTable}>
@@ -64,7 +168,6 @@ const ContractList: React.FC<ContractListProps> = ({
           <col className={styles.colMonto} />
           <col className={styles.colStatus} />
           <col className={styles.colVigencia} />
-          <col className={styles.colActions} />
         </colgroup>
         <thead>
           <tr>
@@ -74,9 +177,6 @@ const ContractList: React.FC<ContractListProps> = ({
             <th className={styles.thMonto}>Monto</th>
             <th className={styles.thStatus}>Estado</th>
             <th className={styles.thVigencia}>Vigencia</th>
-            <th className={styles.thActions} aria-label="Acciones">
-              <span>Acciones</span>
-            </th>
           </tr>
         </thead>
         <tbody>
@@ -88,15 +188,29 @@ const ContractList: React.FC<ContractListProps> = ({
               role="button"
               tabIndex={0}
               onKeyPress={(e) => {
-                if (e.key === 'Enter') onRowClick(contract);
+                if (e.key === "Enter") onRowClick(contract);
               }}
             >
               <td className={styles.tdProperty}>
-                <img
-                  src={contract.propiedadImagenUrl || '/path/to/thumb.jpg'}
-                  alt={`Imagen de ${contract.propiedadNombre}`}
-                  className={styles.propertyThumb}
-                />
+                {previews[contract.id] ? (
+                  <img
+                    src={previews[contract.id]}
+                    alt={`Imagen de ${contract.propiedadNombre}`}
+                    className={styles.propertyThumb}
+                  />
+                ) : (
+                  <div
+                    className={styles.propertyThumb}
+                    style={{
+                      background: "#f3f4f6",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <FileText size={20} style={{ color: "#9ca3af" }} />
+                  </div>
+                )}
                 <div className={styles.propertyInfo}>
                   <div className={styles.propertyTitle}>
                     {contract.propiedadNombre}
@@ -105,14 +219,14 @@ const ContractList: React.FC<ContractListProps> = ({
                 </div>
               </td>
               <td className={styles.tdTipo}>
-                {contract.tipoContrato === 'Intermediacion'
-                  ? 'Intermediación (2%)'
+                {contract.tipoContrato === "Intermediacion"
+                  ? "Intermediación (2%)"
                   : contract.tipoContrato}
               </td>
               <td className={styles.tdClient}>{contract.contraparte}</td>
               <td className={styles.tdMonto}>
                 <div>{formatMoney(contract.monto, contract.moneda)}</div>
-                <div style={{ fontSize: '12px', color: '#6b7280' }}>
+                <div style={{ fontSize: "12px", color: "#6b7280" }}>
                   {contract.moneda}
                 </div>
               </td>
@@ -122,23 +236,13 @@ const ContractList: React.FC<ContractListProps> = ({
                     contract.estadoFirma
                   )}`}
                 >
-                  {contract.estadoFirma === 'PendienteDeFirma'
-                    ? 'Pendiente'
-                    : contract.estadoFirma.replace(/([A-Z])/g, ' $1').trim()}
+                  {contract.estadoFirma === "PendienteDeFirma"
+                    ? "Pendiente"
+                    : contract.estadoFirma.replace(/([A-Z])/g, " $1").trim()}
                 </span>
               </td>
               <td className={styles.tdVigencia}>
                 {formatDate(contract.vigencia)}
-              </td>
-              <td
-                className={styles.tdActions}
-                onClick={(e) => e.stopPropagation()}
-                onKeyDown={(e) => e.stopPropagation()}
-              >
-                <KebabMenu
-                  contract={contract}
-                  onActionClick={onMenuAction}
-                />
               </td>
             </tr>
           ))}
