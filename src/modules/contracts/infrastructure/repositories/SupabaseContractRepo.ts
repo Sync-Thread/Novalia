@@ -117,7 +117,7 @@ export class SupabaseContractRepo implements ContractRepo {
 
       const contractRows = data as unknown as ContractRow[];
 
-      console.log("🔍 Contratos raw desde DB:", contractRows.length);
+      // console.log("🔍 Contratos raw desde DB:", contractRows.length);
 
       // Recolectar IDs de clientes para hacer queries separadas
       const contactIds = contractRows
@@ -128,16 +128,16 @@ export class SupabaseContractRepo implements ContractRepo {
         .map((c) => c.client_profile_id)
         .filter((id): id is string => id !== null);
 
-      console.log("📋 IDs a buscar:", {
-        contactIds: contactIds.length,
-        profileIds: profileIds.length,
-      });
+      // console.log("📋 IDs a buscar:", {
+      //   contactIds: contactIds.length,
+      //   profileIds: profileIds.length,
+      // });
 
       // Usar función RPC para obtener nombres (bypass RLS)
       const clientNamesMap = new Map<string, string>();
       
       if (contactIds.length > 0 || profileIds.length > 0) {
-        console.log("🔍 Llamando get_client_names RPC...");
+        // console.log("🔍 Llamando get_client_names RPC...");
         
         const { data: clientsData, error: clientsError } = await this.client
           .rpc('get_client_names', {
@@ -145,25 +145,26 @@ export class SupabaseContractRepo implements ContractRepo {
             p_profile_ids: profileIds,
           });
 
-        console.log("📊 Respuesta de get_client_names:", {
-          error: clientsError,
-          data: clientsData,
-          cantidad: clientsData?.length || 0,
-        });
+        // console.log("📊 Respuesta de get_client_names:", {
+        //   error: clientsError,
+        //   data: clientsData,
+        //   cantidad: clientsData?.length || 0,
+        // });
 
         if (clientsError) {
           console.error("❌ Error loading client names:", clientsError);
-        } else if (clientsData) {
+        } 
+        else if (clientsData) {
           clientsData.forEach((client: { id: string; full_name: string; source: string }) => {
-            console.log(`👤 Cliente encontrado:`, {
-              id: client.id,
-              full_name: client.full_name,
-              source: client.source,
-            });
+            // console.log(`👤 Cliente encontrado:`, {
+            //   id: client.id,
+            //   full_name: client.full_name,
+            //   source: client.source,
+            // });
             clientNamesMap.set(client.id, client.full_name);
           });
-          console.log("✅ Clientes cargados:", clientNamesMap.size);
-          console.log("📋 Map de clientes:", Array.from(clientNamesMap.entries()));
+          // console.log("✅ Clientes cargados:", clientNamesMap.size);
+          // console.log("📋 Map de clientes:", Array.from(clientNamesMap.entries()));
         }
       }
 
@@ -205,19 +206,19 @@ export class SupabaseContractRepo implements ContractRepo {
         if (row.client_contact_id) {
           clientName = clientNamesMap.get(row.client_contact_id) || null;
           clientType = "lead_contact";
-          console.log(`🔎 Contrato ${row.id.substring(0, 8)}: Buscando lead_contact ${row.client_contact_id}:`, {
-            encontrado: clientName,
-            enMap: clientNamesMap.has(row.client_contact_id),
-          });
+          // console.log(`🔎 Contrato ${row.id.substring(0, 8)}: Buscando lead_contact ${row.client_contact_id}:`, {
+          //   encontrado: clientName,
+          //   enMap: clientNamesMap.has(row.client_contact_id),
+          // });
         } else if (row.client_profile_id) {
           clientName = clientNamesMap.get(row.client_profile_id) || null;
           clientType = "profile";
-          console.log(`🔎 Contrato ${row.id.substring(0, 8)}: Buscando profile ${row.client_profile_id}:`, {
-            encontrado: clientName,
-            enMap: clientNamesMap.has(row.client_profile_id),
-            mapSize: clientNamesMap.size,
-            mapKeys: Array.from(clientNamesMap.keys()),
-          });
+          // console.log(`🔎 Contrato ${row.id.substring(0, 8)}: Buscando profile ${row.client_profile_id}:`, {
+          //   encontrado: clientName,
+          //   enMap: clientNamesMap.has(row.client_profile_id),
+          //   mapSize: clientNamesMap.size,
+          //   mapKeys: Array.from(clientNamesMap.keys()),
+          // });
         }
 
         return {

@@ -32,15 +32,15 @@ export class ListContracts {
       orgId: orgId || null,
       userId,
     });
-    console.log('execute para cargar usuarios:');
-    result.value.items.map(c => {
-      console.log('propiedad: ',c.propertyId);
-      console.log('client bla bla:', c.clientContactId);
-      console.log('client to to ', c.clientName);    
-      console.log('no se', c.clientProfileId);
+    // console.log('execute para cargar usuarios:');
+    // result.value.items.map(c => {
+    //   console.log('propiedad: ',c.propertyId);
+    //   console.log('client bla bla:', c.clientContactId);
+    //   console.log('client to to ', c.clientName);    
+    //   console.log('no se', c.clientProfileId);
       
-    });
-    console.log(result.value.items);
+    // });
+    // console.log(result.value.items);
     
     
     

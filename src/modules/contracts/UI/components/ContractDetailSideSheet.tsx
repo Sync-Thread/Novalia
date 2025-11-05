@@ -223,7 +223,7 @@ const ContractDetailSideSheet: React.FC<DetailSheetProps> = ({
                   <button
                     className={styles.btnPrimary}
                     onClick={handleSign}
-                    disabled={!canSign}
+                    // disabled={!canSign}
                     aria-label={
                       canSign
                         ? "Firmar"
