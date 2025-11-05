@@ -24,8 +24,57 @@ export class SupabaseClientRepo implements ClientRepo {
     try {
       const pageSize = Math.max(filters.pageSize ?? 200, 1);
 
-      // Query base: todos los contactos
-      // TODO: Filtrar por aquellos que hayan interactuado con propiedades del usuario
+      console.log("🔍 SupabaseClientRepo.listForSelector - filters:", filters);
+
+      // Si se proporciona propertyId, filtrar por usuarios que han interactuado con esa propiedad
+      if (filters.propertyId) {
+        console.log("✅ Filtrando por propertyId:", filters.propertyId);
+        
+        // Usar RPC function que omite RLS para obtener perfiles de usuarios interesados
+        // Esta función valida que el usuario actual tenga acceso a la propiedad
+        const { data, error } = await this.client
+          .rpc('get_interested_profiles', { p_property_id: filters.propertyId });
+
+        console.log("👥 Profiles encontrados (via RPC):", data?.length || 0);
+
+        if (error) {
+          console.error("❌ Error loading interested profiles:", error);
+          return Result.fail({
+            code: "DATABASE_ERROR",
+            message: error.message || String(error),
+          });
+        }
+
+        // Si hay búsqueda, filtrar en cliente (ya que RPC no soporta parámetros adicionales)
+        let filteredData = data || [];
+        if (filters.search && filters.search.trim()) {
+          const term = filters.search.trim().toLowerCase();
+          filteredData = filteredData.filter((row: ClientRow) => 
+            row.full_name?.toLowerCase().includes(term) ||
+            row.email?.toLowerCase().includes(term) ||
+            row.phone?.includes(term)
+          );
+        }
+
+        // Limitar resultados
+        filteredData = filteredData.slice(0, pageSize);
+
+        // Mapear a DTOs
+        const items: ClientSummaryDTO[] = (filteredData || []).map(
+          (row: ClientRow) => ({
+            id: row.id,
+            fullName: row.full_name || "Sin nombre",
+            email: row.email,
+            phone: row.phone,
+          })
+        );
+
+        return Result.ok(items);
+      }
+
+      // Si NO hay propertyId, cargar todos los contactos
+      console.log("📋 No hay propertyId, cargando todos los contactos");
+      
       let query = this.client
         .from("lead_contacts")
         .select("id, full_name, email, phone")

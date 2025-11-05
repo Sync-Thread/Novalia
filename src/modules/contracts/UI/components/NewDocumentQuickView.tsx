@@ -7,7 +7,6 @@ import {
   CheckCircle2,
   Loader2,
   Search,
-  ChevronDown,
   User,
 } from "lucide-react";
 import {
@@ -16,6 +15,7 @@ import {
 } from "../../../properties/infrastructure/adapters/MediaStorage";
 import { supabase } from "../../../../core/supabase/client";
 import { useContractsActions } from "../hooks/useContractsActions";
+import { CustomSelect } from "../../../properties/UI/components/CustomSelect";
 
 /** Calcula SHA-256 de un archivo */
 async function calculateSHA256(file: File): Promise<string> {
@@ -31,7 +31,7 @@ const DOCUMENT_TYPES = [
   { value: "intermediacion", label: "Intermediación (2%)" },
   { value: "oferta", label: "Oferta de Compra" },
   { value: "promesa", label: "Promesa de Compraventa" },
-] as const;
+];
 
 interface PropertyOption {
   id: string;
@@ -188,9 +188,16 @@ export default function NewDocumentQuickView({
 
   /** Cargar clientes usando el use case */
   const loadAllClients = useCallback(async () => {
+    console.log("🔍 Cargando clientes con propertyId:", formData.propertyId);
+
+    // Si hay propiedad seleccionada, cargar solo clientes interesados
+    // Si NO hay propiedad, cargar todos los contactos
     const result = await listClientsForSelector({
       pageSize: 200,
+      propertyId: formData.propertyId || undefined,
     });
+
+    console.log("📊 Resultado de clientes:", result);
 
     if (result) {
       const mappedClients: ClientOption[] = result.map((client) => ({
@@ -200,11 +207,12 @@ export default function NewDocumentQuickView({
         phone: client.phone || undefined,
       }));
 
+      console.log("✅ Clientes mapeados:", mappedClients.length);
       setClientOptions(mappedClients);
     } else {
       setClientOptions([]);
     }
-  }, [listClientsForSelector]);
+  }, [listClientsForSelector, formData.propertyId]);
 
   /** Filtrar clientes localmente */
   const filteredClients = clientOptions.filter(
@@ -222,6 +230,16 @@ export default function NewDocumentQuickView({
       loadAllClients();
     }
   }, [open, loadAllProperties, loadAllClients]);
+
+  /** Recargar clientes cuando cambie la propiedad seleccionada */
+  useEffect(() => {
+    if (open && formData.propertyId) {
+      loadAllClients();
+      // Limpiar cliente seleccionado al cambiar de propiedad
+      setFormData((prev) => ({ ...prev, clientId: "" }));
+      setClientSearch("");
+    }
+  }, [formData.propertyId, open, loadAllClients]);
 
   /** Auto-resize del textarea cuando cambia el contenido */
   useEffect(() => {
@@ -533,58 +551,51 @@ export default function NewDocumentQuickView({
               >
                 Tipo de documento <span style={{ color: "#dc2626" }}>*</span>
               </label>
-              <div style={{ position: "relative" }}>
-                <select
-                  id="documentType"
+              <div
+                style={{
+                  position: "relative",
+                  display: "flex",
+                  alignItems: "center",
+                  width: "100%",
+                  height: "44px",
+                  padding: "0 14px",
+                  border: `1px solid ${errors.documentType ? "#dc2626" : "rgba(148, 163, 184, 0.45)"}`,
+                  borderRadius: "12px",
+                  background: "#ffffff",
+                  transition: "border-color 0.2s ease, box-shadow 0.2s ease",
+                  overflow: "visible",
+                }}
+                onMouseEnter={(e) => {
+                  if (!errors.documentType) {
+                    e.currentTarget.style.borderColor =
+                      "rgba(41, 93, 255, 0.35)";
+                    e.currentTarget.style.boxShadow =
+                      "0 0 0 3px rgba(41, 93, 255, 0.08)";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!errors.documentType) {
+                    e.currentTarget.style.borderColor =
+                      "rgba(148, 163, 184, 0.45)";
+                    e.currentTarget.style.boxShadow = "none";
+                  }
+                }}
+              >
+                <CustomSelect
                   value={formData.documentType}
-                  onChange={(e) => handleChange("documentType", e.target.value)}
-                  aria-invalid={!!errors.documentType}
-                  style={{
-                    width: "100%",
-                    height: "44px",
-                    padding: "0 40px 0 14px",
-                    border: `1px solid ${errors.documentType ? "#dc2626" : "rgba(148, 163, 184, 0.45)"}`,
-                    borderRadius: "12px",
-                    fontSize: "15px",
-                    fontFamily: "inherit",
-                    color: formData.documentType ? "#111827" : "#9ca3af",
-                    background: "#ffffff",
-                    cursor: "pointer",
-                    appearance: "none",
-                    transition: "border-color 0.2s ease, box-shadow 0.2s ease",
-                  }}
-                  onFocus={(e) => {
-                    e.target.style.borderColor = "#295dff";
-                    e.target.style.boxShadow =
-                      "0 0 0 3px rgba(41, 93, 255, 0.18)";
-                  }}
-                  onBlur={(e) => {
-                    e.target.style.borderColor = errors.documentType
-                      ? "#dc2626"
-                      : "rgba(148, 163, 184, 0.45)";
-                    e.target.style.boxShadow = "none";
-                  }}
-                >
-                  {DOCUMENT_TYPES.map((type) => (
-                    <option key={type.value} value={type.value}>
-                      {type.label}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown
-                  size={18}
-                  style={{
-                    position: "absolute",
-                    right: "12px",
-                    top: "50%",
-                    transform: "translateY(-50%)",
-                    color: "#6b7280",
-                    pointerEvents: "none",
-                  }}
+                  options={DOCUMENT_TYPES}
+                  onChange={(value) => handleChange("documentType", value)}
+                  disabled={false}
+                  placeholder="Selecciona un tipo"
+                  ariaLabel="Tipo de documento"
+                  ariaDescribedBy={
+                    errors.documentType ? "documentType-error" : undefined
+                  }
                 />
               </div>
               {errors.documentType && (
                 <p
+                  id="documentType-error"
                   style={{
                     color: "#dc2626",
                     fontSize: "13px",
@@ -973,7 +984,9 @@ export default function NewDocumentQuickView({
                           fontSize: "14px",
                         }}
                       >
-                        No se encontraron clientes
+                        {formData.propertyId
+                          ? "Sin clientes interesados en esta propiedad"
+                          : "No se encontraron clientes"}
                       </div>
                     ) : (
                       filteredClients.map((client) => (

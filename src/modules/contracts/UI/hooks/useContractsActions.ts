@@ -35,6 +35,7 @@ interface UseContractsActionsState {
   listClientsForSelector: (params?: {
     search?: string;
     pageSize?: number;
+    propertyId?: string;
   }) => Promise<ClientSummaryDTO[] | null>;
   listContracts: (params?: {
     search?: string;
@@ -111,6 +112,7 @@ export function useContractsActions(): UseContractsActionsState {
     async (params?: {
       search?: string;
       pageSize?: number;
+      propertyId?: string;
     }): Promise<ClientSummaryDTO[] | null> => {
       setLoading((prev) => ({ ...prev, clients: true }));
       setErrors((prev) => ({ ...prev, clients: null }));
@@ -120,6 +122,7 @@ export function useContractsActions(): UseContractsActionsState {
           await container.useCases.listClientsForSelector.execute({
             search: params?.search,
             pageSize: params?.pageSize ?? 200,
+            propertyId: params?.propertyId,
           });
 
         if (result.isOk()) {
