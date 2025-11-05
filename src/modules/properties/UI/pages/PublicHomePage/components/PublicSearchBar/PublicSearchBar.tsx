@@ -29,8 +29,10 @@ import {
   clampRange,
   formatPrice,
   hasActiveFilters,
+  getActiveExtraFilters,
 } from "../../utils/filterUtils";
 import { useStateCityOptions } from "./hooks/useStateCityOptions";
+import { ExtraFilterChipsRow } from "./ExtraFilterChipsRow";
 import styles from "./PublicSearchBar.module.css";
 
 export interface PublicSearchBarHandle {
@@ -133,6 +135,32 @@ export const PublicSearchBar = forwardRef<
       onChange(patch, options);
     },
     [onChange]
+  );
+
+  const handleClearExtraFilter = useCallback(
+    (patch: Partial<PublicSearchFilters>) => {
+      applyChange(patch, { apply: true });
+    },
+    [applyChange]
+  );
+
+  const handleClearAllExtras = useCallback(() => {
+    applyChange(
+      {
+        levels: null,
+        bedrooms: null,
+        bathrooms: null,
+        parkingSpots: null,
+        areaMin: null,
+        areaMax: null,
+      },
+      { apply: true }
+    );
+  }, [applyChange]);
+
+  const activeExtraFilters = useMemo(
+    () => getActiveExtraFilters(value, handleClearExtraFilter),
+    [value, handleClearExtraFilter]
   );
 
   const flushSearch = useCallback(
@@ -265,6 +293,21 @@ export const PublicSearchBar = forwardRef<
     const handleOutside = (event: MouseEvent) => {
       if (!priceDialogRef.current) return;
       if (priceDialogRef.current.contains(event.target as Node)) return;
+      // Aplicar cambios antes de cerrar
+      const min = parseInteger(priceDraft.min);
+      const max = parseInteger(priceDraft.max);
+      const { min: safeMin, max: safeMax } = clampRange(min, max);
+      applyChange(
+        {
+          priceMin: safeMin ?? null,
+          priceMax: safeMax ?? null,
+        },
+        { apply: true }
+      );
+      setPriceDraft({
+        min: toInputValue(safeMin ?? null),
+        max: toInputValue(safeMax ?? null),
+      });
       setPriceOpen(false);
     };
     document.addEventListener("mousedown", handleOutside);
@@ -275,7 +318,7 @@ export const PublicSearchBar = forwardRef<
     return () => {
       document.removeEventListener("mousedown", handleOutside);
     };
-  }, [priceOpen]);
+  }, [priceOpen, priceDraft, applyChange]);
 
   const priceSummary = formatPriceSummary(
     value.priceMin ?? null,
@@ -294,73 +337,74 @@ export const PublicSearchBar = forwardRef<
         Buscar propiedades publicas
       </span>
 
-      <div className={`${styles.control} ${styles.searchControl}`}>
-        <label className={styles.srOnly} htmlFor={`${searchId}-query`}>
-          Buscar por palabras clave
-        </label>
-        <div className={styles.searchField}>
-          <SearchIcon size={18} aria-hidden="true" />
-          <input
-            id={`${searchId}-query`}
-            type="search"
-            inputMode="search"
-            value={searchDraft}
-            onChange={(event) => setSearchDraft(event.target.value)}
-            onKeyDown={handleSearchKeyDown}
-            placeholder="Buscar..."
-            autoComplete="off"
-            aria-label="Buscar por nombre, palabra clave o ubicacion"
-          />
-          {searchDraft.trim().length > 0 && (
-            <button
-              type="button"
-              className={styles.searchClear}
-              onClick={() => {
-                setSearchDraft("");
-                applyChange({ q: "" }, { apply: true });
-              }}
-              aria-label="Limpiar busqueda"
-              title="Limpiar busqueda"
-            >
-              <X size={14} aria-hidden="true" />
-            </button>
-          )}
+      <div className={styles.filtersGrid}>
+        <div className={`${styles.control} ${styles.searchControl}`}>
+          <label className={styles.srOnly} htmlFor={`${searchId}-query`}>
+            Buscar por palabras clave
+          </label>
+          <div className={styles.searchField}>
+            <SearchIcon size={18} aria-hidden="true" />
+            <input
+              id={`${searchId}-query`}
+              type="search"
+              inputMode="search"
+              value={searchDraft}
+              onChange={(event) => setSearchDraft(event.target.value)}
+              onKeyDown={handleSearchKeyDown}
+              placeholder="Buscar..."
+              autoComplete="off"
+              aria-label="Buscar por nombre, palabra clave o ubicacion"
+            />
+            {searchDraft.trim().length > 0 && (
+              <button
+                type="button"
+                className={styles.searchClear}
+                onClick={() => {
+                  setSearchDraft("");
+                  applyChange({ q: "" }, { apply: true });
+                }}
+                aria-label="Limpiar busqueda"
+                title="Limpiar busqueda"
+              >
+                <X size={14} aria-hidden="true" />
+              </button>
+            )}
+          </div>
         </div>
-      </div>
 
-      <div className={`${styles.control} ${styles.typeControl}`}>
-        <div className={styles.selectShell}>
-          <CustomSelect
-            value={value.propertyType}
-            options={typeOptions}
-            onChange={(next) =>
-              applyChange({ propertyType: next }, { apply: true })
-            }
-            placeholder="Todos"
-            ariaLabel="Filtrar por tipo de propiedad"
-          />
+        <div className={`${styles.control} ${styles.typeControl}`}>
+          <div className={styles.selectShell}>
+            <CustomSelect
+              value={value.propertyType}
+              options={typeOptions}
+              onChange={(next) =>
+                applyChange({ propertyType: next }, { apply: true })
+              }
+              placeholder="Todos"
+              ariaLabel="Filtrar por tipo de propiedad"
+            />
+          </div>
         </div>
-      </div>
 
-      <div
-        className={`${styles.control} ${styles.cityControl}`}
-        data-visible={showCity || loadingCities || undefined}
-      >
         <div
-          className={styles.selectShell}
-          data-disabled={cityDisabled || undefined}
+          className={`${styles.control} ${styles.cityControl}`}
+          data-visible={showCity || loadingCities || undefined}
         >
-          <CustomSelect
-            value={value.city}
-            options={cityOptions}
-            onChange={(next) => applyChange({ city: next }, { apply: true })}
-            disabled={cityDisabled}
-            placeholder="Todas"
-            ariaLabel="Filtrar por ciudad"
-            ariaDescribedBy={statusMessage ? cityStatusId : undefined}
-          />
-        </div>
-        {/* {statusMessage && (
+          <div
+            className={styles.selectShell}
+            data-disabled={cityDisabled || undefined}
+          >
+            <CustomSelect
+              value={value.city}
+              options={cityOptions}
+              onChange={(next) => applyChange({ city: next }, { apply: true })}
+              disabled={cityDisabled}
+              placeholder="Todas"
+              ariaLabel="Filtrar por ciudad"
+              ariaDescribedBy={statusMessage ? cityStatusId : undefined}
+            />
+          </div>
+          {/* {statusMessage && (
           <span
             className={styles.srOnly}
             id={cityStatusId}
@@ -370,286 +414,320 @@ export const PublicSearchBar = forwardRef<
             {statusMessage}dsd
           </span>
         )} */}
-      </div>
-
-      <div className={`${styles.control} ${styles.stateControl}`}>
-        <div className={styles.selectShell}>
-          <CustomSelect
-            value={value.state}
-            options={[
-              { value: "", label: "Todos los estados" },
-              ...stateOptions,
-            ]}
-            onChange={(next) =>
-              applyChange({ state: next, city: "" }, { apply: true })
-            }
-            ariaLabel="Filtrar por estado"
-          />
         </div>
-      </div>
 
-      <div className={`${styles.control} ${styles.priceControl}`}>
-        <button
-          type="button"
-          className={styles.trigger}
-          onClick={() => setPriceOpen((prev) => !prev)}
-          aria-haspopup="dialog"
-          aria-expanded={priceOpen}
-          title="Filtrar por rango de precios"
-          aria-label="Filtrar por precio"
-        >
-          <span>{priceDisplay}</span>
-          <ChevronDown size={16} aria-hidden="true" />
-        </button>
-        {priceOpen && (
-          <div
-            ref={priceDialogRef}
-            className={styles.pricePopover}
-            role="dialog"
-            aria-label="Rango de precios"
-            onKeyDown={(event) => {
-              if (event.key === "Escape") {
-                setPriceDraft({
-                  min: toInputValue(value.priceMin ?? null),
-                  max: toInputValue(value.priceMax ?? null),
-                });
-                setPriceOpen(false);
+        <div className={`${styles.control} ${styles.stateControl}`}>
+          <div className={styles.selectShell}>
+            <CustomSelect
+              value={value.state}
+              options={[
+                { value: "", label: "Todos los estados" },
+                ...stateOptions,
+              ]}
+              onChange={(next) =>
+                applyChange({ state: next, city: "" }, { apply: true })
               }
-              if (event.key === "Enter") {
-                event.preventDefault();
-                applyPriceDraft();
-              }
-            }}
-          >
-            <div className={styles.priceInputs}>
-              <label className={styles.popoverLabel}>
-                Min
-                <input
-                  ref={priceMinInputRef}
-                  type="number"
-                  min={0}
-                  inputMode="numeric"
-                  value={priceDraft.min}
-                  onChange={(event) =>
-                    setPriceDraft((prev) => ({
-                      ...prev,
-                      min: event.target.value,
-                    }))
-                  }
-                />
-              </label>
-              <label className={styles.popoverLabel}>
-                Max
-                <input
-                  type="number"
-                  min={0}
-                  inputMode="numeric"
-                  value={priceDraft.max}
-                  onChange={(event) =>
-                    setPriceDraft((prev) => ({
-                      ...prev,
-                      max: event.target.value,
-                    }))
-                  }
-                />
-              </label>
-            </div>
-            <div className={styles.popoverActions}>
-              <button
-                type="button"
-                className={styles.popoverSecondary}
-                onClick={() => {
-                  setPriceDraft({ min: "", max: "" });
-                  applyChange(
-                    { priceMin: null, priceMax: null },
-                    { apply: true }
-                  );
-                  setPriceOpen(false);
-                }}
-              >
-                Limpiar
-              </button>
-              <button
-                type="button"
-                className={styles.popoverPrimary}
-                onClick={applyPriceDraft}
-              >
-                Aplicar
-              </button>
-            </div>
-            <button
-              type="button"
-              className={styles.popoverClose}
-              onClick={() => setPriceOpen(false)}
-              aria-label="Cerrar rango de precios"
-            >
-              <X size={16} aria-hidden="true" />
-            </button>
+              ariaLabel="Filtrar por estado"
+            />
           </div>
-        )}
-      </div>
+        </div>
 
-      <div className={`${styles.control} `}>
-        <button
-          type="button"
-          className={styles.iconButton}
-          onClick={() => setMoreOpen((prev) => !prev)}
-          aria-haspopup="dialog"
-          aria-expanded={moreOpen}
-          aria-label="Mas filtros"
-          title="Mas filtros"
-          data-active={moreOpen || undefined}
-        >
-          <SlidersHorizontal size={18} aria-hidden="true" />
-        </button>
-        {moreOpen && (
-          <div
-            ref={moreDialogRef}
-            className={styles.morePopover}
-            role="dialog"
-            aria-label="Filtros adicionales"
+        <div className={`${styles.control} ${styles.priceControl}`}>
+          <button
+            type="button"
+            className={styles.trigger}
+            onClick={() => setPriceOpen((prev) => !prev)}
+            aria-haspopup="dialog"
+            aria-expanded={priceOpen}
+            title="Filtrar por rango de precios"
+            aria-label="Filtrar por precio"
           >
-            <div className={styles.moreGrid}>
-              <label className={styles.popoverLabel}>
-                Pisos
-                <input
-                  ref={moreFirstFieldRef}
-                  type="number"
-                  min={0}
-                  value={toInputValue(value.levels ?? null)}
-                  onChange={(event) =>
-                    applyChange(
-                      { levels: parseInteger(event.target.value) },
-                      { apply: false }
-                    )
-                  }
-                />
-              </label>
-              <label className={styles.popoverLabel}>
-                Recamaras
-                <input
-                  type="number"
-                  min={0}
-                  value={toInputValue(value.bedrooms ?? null)}
-                  onChange={(event) =>
-                    applyChange(
-                      { bedrooms: parseInteger(event.target.value) },
-                      { apply: false }
-                    )
-                  }
-                />
-              </label>
-              <label className={styles.popoverLabel}>
-                Baños
-                <input
-                  type="number"
-                  min={0}
-                  value={toInputValue(value.bathrooms ?? null)}
-                  onChange={(event) =>
-                    applyChange(
-                      { bathrooms: parseInteger(event.target.value) },
-                      { apply: false }
-                    )
-                  }
-                />
-              </label>
-              <label className={styles.popoverLabel}>
-                Estacionamientos
-                <input
-                  type="number"
-                  min={0}
-                  value={toInputValue(value.parkingSpots ?? null)}
-                  onChange={(event) =>
-                    applyChange(
-                      { parkingSpots: parseInteger(event.target.value) },
-                      { apply: false }
-                    )
-                  }
-                />
-              </label>
-              <label className={styles.popoverLabel}>
-                m2 min
-                <input
-                  type="number"
-                  min={0}
-                  value={toInputValue(value.areaMin ?? null)}
-                  onChange={(event) =>
-                    applyChange(
-                      { areaMin: parseInteger(event.target.value) },
-                      { apply: false }
-                    )
-                  }
-                />
-              </label>
-              <label className={styles.popoverLabel}>
-                m2 max
-                <input
-                  type="number"
-                  min={0}
-                  value={toInputValue(value.areaMax ?? null)}
-                  onChange={(event) =>
-                    applyChange(
-                      { areaMax: parseInteger(event.target.value) },
-                      { apply: false }
-                    )
-                  }
-                />
-              </label>
-            </div>
-            <div className={styles.popoverActions}>
-              <button
-                type="button"
-                className={styles.popoverSecondary}
-                onClick={() => {
+            <span>{priceDisplay}</span>
+            <ChevronDown size={16} aria-hidden="true" />
+          </button>
+          {priceOpen && (
+            <div
+              ref={priceDialogRef}
+              className={styles.pricePopover}
+              role="dialog"
+              aria-label="Rango de precios"
+              onKeyDown={(event) => {
+                if (event.key === "Escape") {
+                  // Aplicar cambios actuales antes de cerrar
+                  const min = parseInteger(priceDraft.min);
+                  const max = parseInteger(priceDraft.max);
+                  const { min: safeMin, max: safeMax } = clampRange(min, max);
                   applyChange(
                     {
-                      levels: null,
-                      bedrooms: null,
-                      bathrooms: null,
-                      parkingSpots: null,
-                      areaMin: null,
-                      areaMax: null,
+                      priceMin: safeMin ?? null,
+                      priceMax: safeMax ?? null,
                     },
                     { apply: true }
                   );
-                  setMoreOpen(false);
-                }}
-              >
-                Limpiar
-              </button>
+                  setPriceDraft({
+                    min: toInputValue(safeMin ?? null),
+                    max: toInputValue(safeMax ?? null),
+                  });
+                  setPriceOpen(false);
+                }
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  applyPriceDraft();
+                }
+              }}
+            >
+              <div className={styles.priceInputs}>
+                <label className={styles.popoverLabel}>
+                  Min
+                  <input
+                    ref={priceMinInputRef}
+                    type="number"
+                    min={0}
+                    inputMode="numeric"
+                    value={priceDraft.min}
+                    onChange={(event) =>
+                      setPriceDraft((prev) => ({
+                        ...prev,
+                        min: event.target.value,
+                      }))
+                    }
+                  />
+                </label>
+                <label className={styles.popoverLabel}>
+                  Max
+                  <input
+                    type="number"
+                    min={0}
+                    inputMode="numeric"
+                    value={priceDraft.max}
+                    onChange={(event) =>
+                      setPriceDraft((prev) => ({
+                        ...prev,
+                        max: event.target.value,
+                      }))
+                    }
+                  />
+                </label>
+              </div>
+              <div className={styles.popoverActions}>
+                <button
+                  type="button"
+                  className={styles.popoverSecondary}
+                  onClick={() => {
+                    setPriceDraft({ min: "", max: "" });
+                    applyChange(
+                      { priceMin: null, priceMax: null },
+                      { apply: true }
+                    );
+                    setPriceOpen(false);
+                  }}
+                >
+                  Limpiar
+                </button>
+                <button
+                  type="button"
+                  className={styles.popoverPrimary}
+                  onClick={applyPriceDraft}
+                >
+                  Aplicar
+                </button>
+              </div>
               <button
                 type="button"
-                className={styles.popoverPrimary}
-                onClick={() => setMoreOpen(false)}
+                className={styles.popoverClose}
+                onClick={() => {
+                  // Aplicar cambios antes de cerrar
+                  const min = parseInteger(priceDraft.min);
+                  const max = parseInteger(priceDraft.max);
+                  const { min: safeMin, max: safeMax } = clampRange(min, max);
+                  applyChange(
+                    {
+                      priceMin: safeMin ?? null,
+                      priceMax: safeMax ?? null,
+                    },
+                    { apply: true }
+                  );
+                  setPriceDraft({
+                    min: toInputValue(safeMin ?? null),
+                    max: toInputValue(safeMax ?? null),
+                  });
+                  setPriceOpen(false);
+                }}
+                aria-label="Cerrar rango de precios"
               >
-                Listo
+                <X size={16} aria-hidden="true" />
               </button>
             </div>
+          )}
+        </div>
+
+        <div className={`${styles.control} `}>
+          <button
+            type="button"
+            className={styles.iconButton}
+            onClick={() => setMoreOpen((prev) => !prev)}
+            aria-haspopup="dialog"
+            aria-expanded={moreOpen}
+            aria-label="Mas filtros"
+            title="Mas filtros"
+            data-active={moreOpen || undefined}
+          >
+            <SlidersHorizontal size={18} aria-hidden="true" />
+          </button>
+          {moreOpen && (
+            <div
+              ref={moreDialogRef}
+              className={styles.morePopover}
+              role="dialog"
+              aria-label="Filtros adicionales"
+            >
+              <div className={styles.moreGrid}>
+                <label className={styles.popoverLabel}>
+                  Pisos
+                  <input
+                    ref={moreFirstFieldRef}
+                    type="number"
+                    min={0}
+                    value={toInputValue(value.levels ?? null)}
+                    onChange={(event) =>
+                      applyChange(
+                        { levels: parseInteger(event.target.value) },
+                        { apply: true }
+                      )
+                    }
+                  />
+                </label>
+                <label className={styles.popoverLabel}>
+                  Recamaras
+                  <input
+                    type="number"
+                    min={0}
+                    value={toInputValue(value.bedrooms ?? null)}
+                    onChange={(event) =>
+                      applyChange(
+                        { bedrooms: parseInteger(event.target.value) },
+                        { apply: true }
+                      )
+                    }
+                  />
+                </label>
+                <label className={styles.popoverLabel}>
+                  Baños
+                  <input
+                    type="number"
+                    min={0}
+                    value={toInputValue(value.bathrooms ?? null)}
+                    onChange={(event) =>
+                      applyChange(
+                        { bathrooms: parseInteger(event.target.value) },
+                        { apply: true }
+                      )
+                    }
+                  />
+                </label>
+                <label className={styles.popoverLabel}>
+                  Estacionamientos
+                  <input
+                    type="number"
+                    min={0}
+                    value={toInputValue(value.parkingSpots ?? null)}
+                    onChange={(event) =>
+                      applyChange(
+                        { parkingSpots: parseInteger(event.target.value) },
+                        { apply: true }
+                      )
+                    }
+                  />
+                </label>
+                <label className={styles.popoverLabel}>
+                  m2 min
+                  <input
+                    type="number"
+                    min={0}
+                    value={toInputValue(value.areaMin ?? null)}
+                    onChange={(event) =>
+                      applyChange(
+                        { areaMin: parseInteger(event.target.value) },
+                        { apply: true }
+                      )
+                    }
+                  />
+                </label>
+                <label className={styles.popoverLabel}>
+                  m2 max
+                  <input
+                    type="number"
+                    min={0}
+                    value={toInputValue(value.areaMax ?? null)}
+                    onChange={(event) =>
+                      applyChange(
+                        { areaMax: parseInteger(event.target.value) },
+                        { apply: true }
+                      )
+                    }
+                  />
+                </label>
+              </div>
+              <div className={styles.popoverActions}>
+                <button
+                  type="button"
+                  className={styles.popoverSecondary}
+                  onClick={() => {
+                    applyChange(
+                      {
+                        levels: null,
+                        bedrooms: null,
+                        bathrooms: null,
+                        parkingSpots: null,
+                        areaMin: null,
+                        areaMax: null,
+                      },
+                      { apply: true }
+                    );
+                    setMoreOpen(false);
+                  }}
+                >
+                  Limpiar
+                </button>
+                <button
+                  type="button"
+                  className={styles.popoverPrimary}
+                  onClick={() => setMoreOpen(false)}
+                >
+                  Listo
+                </button>
+              </div>
+              <button
+                type="button"
+                className={styles.popoverClose}
+                onClick={() => setMoreOpen(false)}
+                aria-label="Cerrar filtros adicionales"
+              >
+                <X size={16} aria-hidden="true" />
+              </button>
+            </div>
+          )}
+        </div>
+
+        {hasFilters && (
+          <div className={`${styles.control} ${styles.resetControl}`}>
             <button
               type="button"
-              className={styles.popoverClose}
-              onClick={() => setMoreOpen(false)}
-              aria-label="Cerrar filtros adicionales"
+              className={styles.iconButton}
+              onClick={handleReset}
+              aria-label="Restablecer filtros"
+              title="Restablecer filtros"
             >
-              <X size={16} aria-hidden="true" />
+              <RotateCcw size={18} aria-hidden="true" />
             </button>
           </div>
         )}
       </div>
 
-      {hasFilters && (
-        <div className={`${styles.control} ${styles.resetControl}`}>
-          <button
-            type="button"
-            className={styles.iconButton}
-            onClick={handleReset}
-            aria-label="Restablecer filtros"
-            title="Restablecer filtros"
-          >
-            <RotateCcw size={18} aria-hidden="true" />
-          </button>
-        </div>
-      )}
+      <ExtraFilterChipsRow
+        items={activeExtraFilters}
+        onClearAll={handleClearAllExtras}
+      />
     </form>
   );
 });

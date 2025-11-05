@@ -107,3 +107,81 @@ export function toAppliedFilters(filters: PublicSearchFilters): PublicAppliedFil
 
   return applied;
 }
+
+export interface ActiveExtraFilter {
+  key: string;
+  label: string;
+  value: string;
+  clear: () => void;
+}
+
+export function getActiveExtraFilters(
+  filters: PublicSearchFilters,
+  onClear: (patch: Partial<PublicSearchFilters>) => void
+): ActiveExtraFilter[] {
+  const active: ActiveExtraFilter[] = [];
+
+  if (isFiniteNumber(filters.bedrooms)) {
+    active.push({
+      key: "bedrooms",
+      label: "Recámaras",
+      value: `${filters.bedrooms}+`,
+      clear: () => onClear({ bedrooms: null }),
+    });
+  }
+
+  if (isFiniteNumber(filters.bathrooms)) {
+    active.push({
+      key: "bathrooms",
+      label: "Baños",
+      value: `${filters.bathrooms}+`,
+      clear: () => onClear({ bathrooms: null }),
+    });
+  }
+
+  if (isFiniteNumber(filters.parkingSpots)) {
+    active.push({
+      key: "parkingSpots",
+      label: "Estac.",
+      value: `${filters.parkingSpots}+`,
+      clear: () => onClear({ parkingSpots: null }),
+    });
+  }
+
+  if (isFiniteNumber(filters.levels)) {
+    active.push({
+      key: "levels",
+      label: "Pisos",
+      value: `${filters.levels}`,
+      clear: () => onClear({ levels: null }),
+    });
+  }
+
+  const hasAreaMin = isFiniteNumber(filters.areaMin);
+  const hasAreaMax = isFiniteNumber(filters.areaMax);
+
+  if (hasAreaMin && hasAreaMax) {
+    active.push({
+      key: "area",
+      label: "Área",
+      value: `${filters.areaMin}–${filters.areaMax} m²`,
+      clear: () => onClear({ areaMin: null, areaMax: null }),
+    });
+  } else if (hasAreaMin) {
+    active.push({
+      key: "areaMin",
+      label: "Área min",
+      value: `${filters.areaMin} m²`,
+      clear: () => onClear({ areaMin: null }),
+    });
+  } else if (hasAreaMax) {
+    active.push({
+      key: "areaMax",
+      label: "Área máx",
+      value: `${filters.areaMax} m²`,
+      clear: () => onClear({ areaMax: null }),
+    });
+  }
+
+  return active;
+}

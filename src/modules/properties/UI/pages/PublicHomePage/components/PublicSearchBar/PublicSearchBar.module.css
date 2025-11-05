@@ -9,29 +9,36 @@
   width: fit-content;
   max-width: 100%;
   margin: 0 auto;
-  display: grid;
-  grid-template-columns: minmax(var(--search-min), 1.5fr) minmax(130px, 1fr) 0 minmax(130px, 1fr) minmax(130px, 1fr) minmax(var(--control-h), auto);
-  grid-auto-rows: minmax(var(--control-h), auto);
-  gap: var(--filter-gap);
-  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
   padding: clamp(12px, 2vw, 16px) clamp(18px, 3.2vw, 24px);
   border-radius: 16px;
   background: rgba(255, 255, 255, 0.97);
   box-shadow: 0 24px 52px rgba(15, 23, 42, 0.18);
   border: 1px solid rgba(15, 23, 42, 0.04);
   overflow: visible;
+}
+
+.filtersGrid {
+  display: grid;
+  grid-template-columns: minmax(var(--search-min), 1.5fr) minmax(130px, 1fr) 0 minmax(130px, 1fr) minmax(130px, 1fr) minmax(var(--control-h), auto);
+  grid-auto-rows: minmax(var(--control-h), auto);
+  gap: var(--filter-gap);
+  align-items: center;
+  width: 100%;
   transition: grid-template-columns 0.3s cubic-bezier(0.2, 0.7, 0.2, 1);
 }
 
-.searchBar:has(.cityControl[data-visible]) {
+.filtersGrid:has(.cityControl[data-visible]) {
   grid-template-columns: minmax(var(--search-min), 1.5fr) minmax(130px, 1fr) minmax(130px, 1fr) minmax(130px, 1fr) minmax(130px, 1fr) minmax(var(--control-h), auto);
 }
 
-.searchBar:has(.resetControl .iconButton) {
+.filtersGrid:has(.resetControl .iconButton) {
   grid-template-columns: minmax(var(--search-min), 1.5fr) minmax(130px, 1fr) 0 minmax(130px, 1fr) minmax(130px, 1fr) minmax(var(--control-h), auto) minmax(var(--control-h), auto);
 }
 
-.searchBar:has(.cityControl[data-visible]):has(.resetControl .iconButton) {
+.filtersGrid:has(.cityControl[data-visible]):has(.resetControl .iconButton) {
   grid-template-columns: minmax(var(--search-min), 1.5fr) minmax(130px, 1fr) minmax(130px, 1fr) minmax(130px, 1fr) minmax(130px, 1fr) minmax(var(--control-h), auto) minmax(var(--control-h), auto);
 }
 
@@ -313,7 +320,7 @@
   transition: opacity 0.3s cubic-bezier(0.2, 0.7, 0.2, 1), width 0.3s cubic-bezier(0.2, 0.7, 0.2, 1);
 }
 
-.searchBar:has(.resetControl .iconButton) .resetControl {
+.filtersGrid:has(.resetControl .iconButton) .resetControl {
   min-width: var(--control-h);
   width: auto;
   opacity: 1;
@@ -529,8 +536,8 @@
 }
 
 @media (max-width: 1279px) {
-  .searchBar,
-  .searchBar:has(.cityControl[data-visible]) {
+  .filtersGrid,
+  .filtersGrid:has(.cityControl[data-visible]) {
     grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
     gap: 10px;
   }
@@ -569,16 +576,20 @@
 }
 
 @media (max-width: 767px) {
-  .searchBar,
-  .searchBar:has(.cityControl[data-visible]) {
+  .searchBar {
+    padding: 12px;
+    gap: 12px;
+  }
+
+  .filtersGrid,
+  .filtersGrid:has(.cityControl[data-visible]) {
     display: flex;
     align-items: stretch;
     overflow-x: auto;
     overflow-y: visible;
     scroll-snap-type: x mandatory;
-    padding: 12px;
     gap: 10px;
-    max-width: 100%;
+    width: 100%;
   }
 
   .control {
@@ -613,6 +624,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .searchBar,
+  .filtersGrid,
   .searchField,
   .selectShell,
   .trigger,
