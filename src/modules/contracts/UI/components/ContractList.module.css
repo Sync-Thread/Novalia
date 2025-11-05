@@ -318,6 +318,72 @@
   pointer-events: none;
 }
 
+/* Skeleton loading states */
+.rowSkeleton {
+  background: #ffffff;
+  pointer-events: none;
+}
+
+.rowSkeleton:nth-child(even) {
+  background: #fafbfc;
+}
+
+.rowSkeleton td {
+  padding: 14px 16px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.skeletonThumb {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background: linear-gradient(90deg, #f3f4f6 0%, #e5e7eb 50%, #f3f4f6 100%);
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.5s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+.skeletonText {
+  height: 12px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, #f3f4f6 0%, #e5e7eb 50%, #f3f4f6 100%);
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.5s ease-in-out infinite;
+}
+
+.skeletonBar {
+  height: 6px;
+  width: 100%;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, #f3f4f6 0%, #e5e7eb 50%, #f3f4f6 100%);
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.5s ease-in-out infinite;
+}
+
+.skeletonPill {
+  height: 24px;
+  width: 80px;
+  border-radius: 9999px;
+  margin: 0 auto;
+  background: linear-gradient(90deg, #f3f4f6 0%, #e5e7eb 50%, #f3f4f6 100%);
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes skeletonShimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Tooltip para barra de progreso */
+.progressWrapper {
+  cursor: help;
+}
+
 /* Screen reader only */
 .sr-only {
   position: absolute;

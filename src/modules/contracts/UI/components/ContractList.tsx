@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import styles from "./ContractList.module.css";
 import type { IContract } from "../../domain/entities/contractType";
-import { FileText, Loader2, PlusIcon } from "lucide-react";
+import { FileText, PlusIcon } from "lucide-react";
 import { getPresignedUrlForDisplay } from "../../../properties/infrastructure/adapters/MediaStorage";
 
 interface ContractListProps {
@@ -123,20 +123,80 @@ const ContractList: React.FC<ContractListProps> = ({
     });
   }, [contracts]);
 
-  // Loading state
+  // Loading state con skeletons
   if (loading) {
     return (
       <div className={styles.tableContainer}>
-        <div style={{ padding: "48px", textAlign: "center" }}>
-          <Loader2
-            size={48}
-            className="animate-spin"
-            style={{ color: "#295dff", margin: "0 auto" }}
-          />
-          <p style={{ marginTop: "16px", color: "#6b7280", fontSize: "15px" }}>
-            Cargando contratos...
-          </p>
-        </div>
+        <table className={styles.contractTable}>
+          <colgroup>
+            <col className={styles.colProperty} />
+            <col className={styles.colTipo} />
+            <col className={styles.colClient} />
+            <col className={styles.colStatus} />
+            <col className={styles.colFechas} />
+          </colgroup>
+          <thead>
+            <tr>
+              <th className={styles.thProperty}>Propiedad & ID</th>
+              <th className={styles.thTipo}>Tipo de Contrato</th>
+              <th className={styles.thClient}>Contraparte</th>
+              <th className={styles.thStatus}>Estado</th>
+              <th className={styles.thFechas}>Fechas</th>
+            </tr>
+          </thead>
+          <tbody>
+            {[1, 2, 3].map((i) => (
+              <tr key={i} className={styles.rowSkeleton}>
+                <td className={styles.tdProperty}>
+                  <div className={styles.skeletonThumb} />
+                  <div style={{ flex: 1 }}>
+                    <div
+                      className={styles.skeletonText}
+                      style={{ width: "70%" }}
+                    />
+                    <div
+                      className={styles.skeletonText}
+                      style={{ width: "40%", marginTop: "6px" }}
+                    />
+                  </div>
+                </td>
+                <td className={styles.tdTipo}>
+                  <div
+                    className={styles.skeletonText}
+                    style={{ width: "80%" }}
+                  />
+                  <div
+                    className={styles.skeletonText}
+                    style={{ width: "50%", marginTop: "6px" }}
+                  />
+                </td>
+                <td className={styles.tdClient}>
+                  <div
+                    className={styles.skeletonText}
+                    style={{ width: "60%" }}
+                  />
+                  <div
+                    className={styles.skeletonBar}
+                    style={{ marginTop: "8px" }}
+                  />
+                </td>
+                <td className={styles.tdStatus}>
+                  <div className={styles.skeletonPill} />
+                </td>
+                <td className={styles.tdFechas}>
+                  <div
+                    className={styles.skeletonText}
+                    style={{ width: "80%" }}
+                  />
+                  <div
+                    className={styles.skeletonText}
+                    style={{ width: "70%", marginTop: "6px" }}
+                  />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     );
   }
@@ -266,7 +326,10 @@ const ContractList: React.FC<ContractListProps> = ({
               <td className={styles.tdClient}>
                 <div className={styles.clientName}>{contract.contraparte}</div>
                 {contract.porcentajeCompletado !== undefined && (
-                  <div className={styles.progressWrapper}>
+                  <div
+                    className={styles.progressWrapper}
+                    title={`Completitud del contrato: ${contract.porcentajeCompletado}% - Indica el avance en la recopilación de documentos requeridos (escrituras, avalúos, identificaciones, etc.)`}
+                  >
                     <div className={styles.progressBar}>
                       <div
                         className={styles.progressFill}
