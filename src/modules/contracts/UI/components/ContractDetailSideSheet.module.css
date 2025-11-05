@@ -283,6 +283,35 @@
   cursor: not-allowed;
 }
 
+.btnSecondaryFull {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  width: 100%;
+  background: #f3f4f6;
+  color: #374151;
+  margin-top: 8px;
+}
+
+.btnSecondaryFull:hover:not(:disabled) {
+  background: #e5e7eb;
+}
+
+.btnSecondaryFull:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .btnLink {
   background: transparent;
   color: #295dff;
@@ -316,92 +345,88 @@
   background: #fecaca;
 }
 
-/* Entities Grid */
-.entitiesGrid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
+/* Entities Cards - Horizontal Layout */
+.entityCardHorizontal {
+  display: flex;
+  align-items: center;
   gap: 12px;
-}
-
-.entityCard {
-  padding: 16px;
+  padding: 12px;
   background: #f9fafb;
   border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.entityImage {
-  width: 100%;
-  height: 120px;
   border-radius: 8px;
-  overflow: hidden;
+  margin-bottom: 8px;
 }
 
-.entityImage img {
-  width: 100%;
-  height: 100%;
+.entityThumbnail {
+  width: 48px;
+  height: 48px;
+  border-radius: 6px;
   object-fit: cover;
+  flex-shrink: 0;
 }
 
-.entityInfo {
-  display: flex;
-  gap: 10px;
-}
-
-.entityIcon {
-  width: 32px;
-  height: 32px;
+.entityThumbnailPlaceholder {
+  width: 48px;
+  height: 48px;
+  border-radius: 6px;
+  background: #e5e7eb;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: white;
-  border-radius: 6px;
   color: #6b7280;
   flex-shrink: 0;
 }
 
-.entityLabel {
-  font-size: 12px;
-  color: #6b7280;
-  margin: 0 0 2px 0;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.entityName {
-  font-size: 14px;
-  font-weight: 500;
-  color: #1f2937;
-  margin: 0 0 2px 0;
-}
-
-.entityMeta {
-  font-size: 13px;
-  color: #6b7280;
-  margin: 0;
-}
-
-.entityEmpty {
+.entityAvatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 24px 16px;
-  text-align: center;
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 18px;
+  flex-shrink: 0;
 }
 
-.entityEmptyIcon {
-  color: #d1d5db;
+.entityCardInfo {
+  flex: 1;
+  min-width: 0;
 }
 
-.entityEmpty p {
-  font-size: 13px;
+.entityCardName {
+  font-size: 14px;
+  font-weight: 500;
+  color: #111827;
+  margin: 0 0 2px 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.entityCardMeta {
+  font-size: 12px;
   color: #6b7280;
   margin: 0;
+}
+
+.entityCardEmpty {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background: #f9fafb;
+  border: 1px dashed #d1d5db;
+  border-radius: 8px;
+  color: #6b7280;
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+
+.entityCardEmpty span {
+  flex: 1;
 }
 
 /* Preview Card */

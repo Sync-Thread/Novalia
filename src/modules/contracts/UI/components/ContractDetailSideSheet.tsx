@@ -55,19 +55,6 @@ const ContractDetailSideSheet: React.FC<DetailSheetProps> = ({
     });
   };
 
-  const formatMoney = (
-    amount: number | undefined,
-    currency: string = "MXN"
-  ) => {
-    if (amount == null) return "—";
-    return new Intl.NumberFormat("es-MX", {
-      style: "currency",
-      currency,
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount);
-  };
-
   const formatFileSize = (bytes: number | undefined) => {
     if (!bytes) return "—";
     if (bytes < 1024) return `${bytes} B`;
@@ -141,8 +128,7 @@ const ContractDetailSideSheet: React.FC<DetailSheetProps> = ({
             </h2>
             <p className={styles.subtitle}>
               {getContractTypeLabel(contract.tipoContrato)} •{" "}
-              {contract.contraparte || "Sin cliente"} •{" "}
-              {formatMoney(contract.monto, contract.moneda)}
+              {contract.contraparte || "Sin cliente"}
             </p>
             <div className={styles.badges}>
               <span
@@ -175,35 +161,46 @@ const ContractDetailSideSheet: React.FC<DetailSheetProps> = ({
                 </button>
               </div>
             ) : (
-              <div className={styles.actions}>
+              <>
+                <div className={styles.actions}>
+                  <button
+                    className={styles.btnSecondary}
+                    onClick={handleDownload}
+                    disabled={loading.download}
+                    aria-label="Descargar contrato"
+                  >
+                    <Download size={16} />
+                    {loading.download ? "Descargando..." : "Descargar"}
+                  </button>
+                  <button
+                    className={styles.btnPrimary}
+                    onClick={handleSign}
+                    disabled={!canSign}
+                    aria-label={
+                      canSign
+                        ? "Firmar"
+                        : "Completa el checklist para habilitar la firma"
+                    }
+                    title={
+                      !canSign && !isChecklistComplete
+                        ? "Completa el checklist para habilitar la firma"
+                        : undefined
+                    }
+                  >
+                    <PenTool size={16} />
+                    Firmar
+                  </button>
+                </div>
                 <button
-                  className={styles.btnSecondary}
-                  onClick={handleDownload}
-                  disabled={loading.download}
-                  aria-label="Descargar contrato"
+                  className={styles.btnSecondaryFull}
+                  disabled
+                  aria-label="Enviar por chat al cliente (próximamente)"
+                  title="Función disponible próximamente cuando se integre el módulo de comunicación"
                 >
-                  <Download size={16} />
-                  {loading.download ? "Descargando..." : "Descargar"}
+                  <User size={16} />
+                  Enviar por chat
                 </button>
-                <button
-                  className={styles.btnPrimary}
-                  onClick={handleSign}
-                  disabled={!canSign}
-                  aria-label={
-                    canSign
-                      ? "Firmar"
-                      : "Completa el checklist para habilitar la firma"
-                  }
-                  title={
-                    !canSign && !isChecklistComplete
-                      ? "Completa el checklist para habilitar la firma"
-                      : undefined
-                  }
-                >
-                  <PenTool size={16} />
-                  Firmar
-                </button>
-              </div>
+              </>
             )}
             {hasFile && !isChecklistComplete && (
               <div className={styles.alert}>
@@ -216,71 +213,56 @@ const ContractDetailSideSheet: React.FC<DetailSheetProps> = ({
           {/* Entidades vinculadas */}
           <section className={styles.section}>
             <h3 className={styles.sectionTitle}>Entidades Vinculadas</h3>
-            <div className={styles.entitiesGrid}>
-              {/* Propiedad */}
-              <div className={styles.entityCard}>
-                {contract.propiedadId ? (
-                  <>
-                    {contract.propiedadImagenUrl && (
-                      <div className={styles.entityImage}>
-                        <img
-                          src={contract.propiedadImagenUrl}
-                          alt={contract.propiedadNombre}
-                        />
-                      </div>
-                    )}
-                    <div className={styles.entityInfo}>
-                      <div className={styles.entityIcon}>
-                        <Building2 size={16} />
-                      </div>
-                      <div>
-                        <p className={styles.entityLabel}>Propiedad</p>
-                        <p className={styles.entityName}>
-                          {contract.propiedadNombre}
-                        </p>
-                        <p className={styles.entityMeta}>
-                          {contract.propiedadId}
-                        </p>
-                      </div>
-                    </div>
-                  </>
-                ) : (
-                  <div className={styles.entityEmpty}>
-                    <MapPin size={20} className={styles.entityEmptyIcon} />
-                    <p>Sin propiedad asignada</p>
-                    <button className={styles.btnLink}>
-                      Asignar propiedad
-                    </button>
-                  </div>
-                )}
-              </div>
 
-              {/* Cliente/Contraparte */}
-              <div className={styles.entityCard}>
-                {contract.contraparte ? (
-                  <div className={styles.entityInfo}>
-                    <div className={styles.entityIcon}>
-                      <User size={16} />
-                    </div>
-                    <div>
-                      <p className={styles.entityLabel}>Contraparte</p>
-                      <p className={styles.entityName}>
-                        {contract.contraparte}
-                      </p>
-                      <p className={styles.entityMeta}>
-                        {formatMoney(contract.monto, contract.moneda)}
-                      </p>
-                    </div>
-                  </div>
+            {/* Propiedad */}
+            {contract.propiedadId ? (
+              <div className={styles.entityCardHorizontal}>
+                {contract.propiedadImagenUrl ? (
+                  <img
+                    src={contract.propiedadImagenUrl}
+                    alt={contract.propiedadNombre}
+                    className={styles.entityThumbnail}
+                  />
                 ) : (
-                  <div className={styles.entityEmpty}>
-                    <User size={20} className={styles.entityEmptyIcon} />
-                    <p>Sin cliente asignado</p>
-                    <button className={styles.btnLink}>Asignar cliente</button>
+                  <div className={styles.entityThumbnailPlaceholder}>
+                    <Building2 size={16} />
                   </div>
                 )}
+                <div className={styles.entityCardInfo}>
+                  <div className={styles.entityCardName}>
+                    {contract.propiedadNombre}
+                  </div>
+                  <div className={styles.entityCardMeta}>Propiedad</div>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className={styles.entityCardEmpty}>
+                <MapPin size={18} />
+                <span>Sin propiedad asignada</span>
+                <button className={styles.btnLink}>Asignar</button>
+              </div>
+            )}
+
+            {/* Cliente/Contraparte */}
+            {contract.contraparte ? (
+              <div className={styles.entityCardHorizontal}>
+                <div className={styles.entityAvatar}>
+                  {contract.contraparte.charAt(0).toUpperCase()}
+                </div>
+                <div className={styles.entityCardInfo}>
+                  <div className={styles.entityCardName}>
+                    {contract.contraparte}
+                  </div>
+                  <div className={styles.entityCardMeta}>Cliente</div>
+                </div>
+              </div>
+            ) : (
+              <div className={styles.entityCardEmpty}>
+                <User size={18} />
+                <span>Sin cliente asignado</span>
+                <button className={styles.btnLink}>Asignar</button>
+              </div>
+            )}
           </section>
 
           {/* Preview del documento */}
