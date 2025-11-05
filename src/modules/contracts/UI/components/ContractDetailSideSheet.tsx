@@ -319,36 +319,6 @@ const ContractDetailSideSheet: React.FC<DetailSheetProps> = ({
             )}
           </section>
 
-          {/* Preview del documento */}
-          {hasFile && (
-            <section className={styles.section}>
-              <h3 className={styles.sectionTitle}>
-                Vista Previa del Documento
-              </h3>
-              <div className={styles.previewCard}>
-                <div className={styles.previewIcon}>
-                  <FileText size={32} />
-                </div>
-                <div className={styles.previewInfo}>
-                  <p className={styles.previewName}>
-                    {contract.metadata?.fileName ||
-                      `contrato-${contract.id}.pdf`}
-                  </p>
-                  <div className={styles.previewMeta}>
-                    <span>{formatFileSize(contract.metadata?.size)}</span>
-                    <span>•</span>
-                    <span>
-                      Actualizado: {formatDate(contract.metadata?.uploadedAt)}
-                    </span>
-                  </div>
-                </div>
-                <span className={`${styles.badge} ${styles.badgeInfo}`}>
-                  Verificado
-                </span>
-              </div>
-            </section>
-          )}
-
           {/* Checklist */}
           <section className={styles.section}>
             <h3 className={styles.sectionTitle}>Checklist Previo a Firma</h3>
@@ -396,36 +366,80 @@ const ContractDetailSideSheet: React.FC<DetailSheetProps> = ({
           <section className={styles.section}>
             <div className={styles.sectionHeader}>
               <h3 className={styles.sectionTitle}>Expediente Digital</h3>
-              <button className={styles.btnLink}>
+              <button
+                className={styles.btnLink}
+                disabled
+                title="Función disponible próximamente"
+                aria-label="Agregar documento o anexo (próximamente)"
+              >
                 <Plus size={14} />
                 Agregar documento
               </button>
             </div>
-            {contract.documentos && contract.documentos.length > 0 ? (
-              <div className={styles.documentsList}>
-                {contract.documentos.map((doc) => (
-                  <div key={doc.id} className={styles.documentItem}>
-                    <FileText size={18} className={styles.documentIcon} />
-                    <div className={styles.documentInfo}>
-                      <p className={styles.documentName}>{doc.nombre}</p>
-                      <p className={styles.documentMeta}>
-                        v{doc.version} • {formatDate(doc.fecha)} • {doc.origen}
-                      </p>
-                    </div>
-                    <button
-                      className={styles.btnIconSmall}
-                      aria-label="Descargar documento"
-                    >
-                      <Download size={16} />
-                    </button>
+            <div className={styles.documentsList}>
+              {/* Contrato Principal */}
+              {hasFile && (
+                <div className={styles.documentItem}>
+                  <div className={styles.previewIcon}>
+                    <FileText size={32} />
                   </div>
-                ))}
-              </div>
-            ) : (
-              <p className={styles.emptyState}>
-                No hay documentos en el expediente
-              </p>
-            )}
+                  <div className={styles.documentInfo}>
+                    <p className={styles.documentName}>
+                      {contract.metadata?.fileName ||
+                        `contrato-${contract.id}.pdf`}
+                      <span
+                        className={`${styles.badge} ${styles.badgeInfo}`}
+                        style={{ marginLeft: "8px" }}
+                      >
+                        Principal
+                      </span>
+                    </p>
+                    <p className={styles.documentMeta}>
+                      {formatFileSize(contract.metadata?.size)} • Actualizado:{" "}
+                      {formatDate(contract.metadata?.uploadedAt)} • Verificado
+                    </p>
+                  </div>
+                  <button
+                    className={styles.btnIconSmall}
+                    onClick={handleDownload}
+                    disabled={loading.download}
+                    aria-label="Descargar contrato principal"
+                  >
+                    <Download size={16} />
+                  </button>
+                </div>
+              )}
+
+              {/* Anexos del contrato */}
+              {contract.documentos && contract.documentos.length > 0
+                ? contract.documentos.map((doc) => (
+                    <div key={doc.id} className={styles.documentItem}>
+                      <FileText size={18} className={styles.documentIcon} />
+                      <div className={styles.documentInfo}>
+                        <p className={styles.documentName}>{doc.nombre}</p>
+                        <p className={styles.documentMeta}>
+                          v{doc.version} • {formatDate(doc.fecha)} •{" "}
+                          {doc.origen}
+                        </p>
+                      </div>
+                      <button
+                        className={styles.btnIconSmall}
+                        aria-label="Descargar documento"
+                      >
+                        <Download size={16} />
+                      </button>
+                    </div>
+                  ))
+                : null}
+
+              {/* Empty state si no hay ningún documento */}
+              {!hasFile &&
+                (!contract.documentos || contract.documentos.length === 0) && (
+                  <p className={styles.emptyState}>
+                    No hay documentos en el expediente
+                  </p>
+                )}
+            </div>
           </section>
 
           {/* Información del Contrato */}

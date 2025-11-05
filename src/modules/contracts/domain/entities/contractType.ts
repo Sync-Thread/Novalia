@@ -38,7 +38,7 @@ export interface IContract {
   }>;
 
   // Mantener índice de string para compatibilidad
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 // Simulación de datos para el desarrollo
@@ -57,14 +57,10 @@ export const mockContracts: IContract[] = [
     fechaCreacion: '2024-03-14T10:00:00Z',
     porcentajeCompletado: 75,
     checklist: [
-      { id: 1, tarea: 'Validación documental RPP', completada: true },
-      { id: 2, tarea: 'Comprobante de Avalúo', completada: true },
-      { id: 3, tarea: 'Identificación Oficial (INE/KYC)', completada: true },
-      {
-        id: 4,
-        tarea: 'Contrato de Oferta firmado por Comprador',
-        completada: false,
-      },
+      { id: 1, tarea: 'KYC del cliente asociado verificado', completada: true },
+      { id: 2, tarea: 'Certificado de no adeudo predial', completada: true },
+      { id: 3, tarea: 'Firma del publicador de la propiedad', completada: true },
+      { id: 4, tarea: 'Firma del cliente asociado', completada: false },
     ],
     documentos: [
       {
@@ -97,14 +93,10 @@ export const mockContracts: IContract[] = [
     fechaCreacion: '2024-02-15T14:30:00Z',
     porcentajeCompletado: 100,
     checklist: [
-      { id: 1, tarea: 'Validación documental RPP', completada: true },
-      { id: 2, tarea: 'Comprobante de Avalúo', completada: true },
-      { id: 3, tarea: 'Identificación Oficial (INE/KYC)', completada: true },
-      {
-        id: 4,
-        tarea: 'Contrato de Oferta firmado por Comprador',
-        completada: true,
-      },
+      { id: 1, tarea: 'KYC del cliente asociado verificado', completada: true },
+      { id: 2, tarea: 'Certificado de no adeudo predial', completada: true },
+      { id: 3, tarea: 'Firma del publicador de la propiedad', completada: true },
+      { id: 4, tarea: 'Firma del cliente asociado', completada: true },
     ],
     documentos: [
       {
@@ -142,16 +134,12 @@ export const mockContracts: IContract[] = [
     estadoFirma: 'Vigente',
     vigencia: '30/12/2024',
     fechaCreacion: '2024-01-20T09:15:00Z',
-    porcentajeCompletado: 85,
+    porcentajeCompletado: 75,
     checklist: [
-      { id: 1, tarea: 'Validación documental RPP', completada: true },
-      { id: 2, tarea: 'Comprobante de Avalúo', completada: true },
-      { id: 3, tarea: 'Identificación Oficial (INE/KYC)', completada: false },
-      {
-        id: 4,
-        tarea: 'Contrato de Oferta firmado por Comprador',
-        completada: true,
-      },
+      { id: 1, tarea: 'KYC del cliente asociado verificado', completada: true },
+      { id: 2, tarea: 'Certificado de no adeudo predial', completada: true },
+      { id: 3, tarea: 'Firma del publicador de la propiedad', completada: true },
+      { id: 4, tarea: 'Firma del cliente asociado', completada: false },
     ],
     documentos: [
       {
@@ -182,16 +170,12 @@ export const mockContracts: IContract[] = [
     estadoFirma: 'Rechazado',
     vigencia: '29/2/2024',
     fechaCreacion: '2024-01-05T16:45:00Z',
-    porcentajeCompletado: 90,
+    porcentajeCompletado: 75,
     checklist: [
-      { id: 1, tarea: 'Validación documental RPP', completada: true },
-      { id: 2, tarea: 'Comprobante de Avalúo', completada: true },
-      { id: 3, tarea: 'Identificación Oficial (INE/KYC)', completada: true },
-      {
-        id: 4,
-        tarea: 'Contrato de Oferta firmado por Comprador',
-        completada: false,
-      },
+      { id: 1, tarea: 'KYC del cliente asociado verificado', completada: true },
+      { id: 2, tarea: 'Certificado de no adeudo predial', completada: true },
+      { id: 3, tarea: 'Firma del publicador de la propiedad', completada: true },
+      { id: 4, tarea: 'Firma del cliente asociado', completada: false },
     ],
     documentos: [
       {
@@ -217,14 +201,10 @@ export const mockContracts: IContract[] = [
     fechaCreacion: '2023-12-01T11:20:00Z',
     porcentajeCompletado: 50,
     checklist: [
-      { id: 1, tarea: 'Validación documental RPP', completada: true },
-      { id: 2, tarea: 'Comprobante de Avalúo', completada: false },
-      { id: 3, tarea: 'Identificación Oficial (INE/KYC)', completada: false },
-      {
-        id: 4,
-        tarea: 'Contrato de Oferta firmado por Comprador',
-        completada: false,
-      },
+      { id: 1, tarea: 'KYC del cliente asociado verificado', completada: true },
+      { id: 2, tarea: 'Certificado de no adeudo predial', completada: true },
+      { id: 3, tarea: 'Firma del publicador de la propiedad', completada: false },
+      { id: 4, tarea: 'Firma del cliente asociado', completada: false },
     ],
     documentos: [
       {
