@@ -94,12 +94,11 @@ export class SupabaseContractRepo implements ContractRepo {
         }
       }
 
-      // Búsqueda opcional (por título, ID de contrato, nombre de propiedad o cliente)
+      // Búsqueda opcional (solo por título de contrato)
+      // Nota: La búsqueda por cliente y propiedad se hace localmente en el frontend
       if (filters.search && filters.search.trim()) {
         const term = filters.search.trim().replace(/[%_]/g, "\\$&");
-        query = query.or(
-          `title.ilike.%${term}%,id.ilike.%${term}%`
-        );
+        query = query.ilike("title", `%${term}%`);
       }
 
       // Ordenar y paginar
