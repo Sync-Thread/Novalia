@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { IContract } from "../../domain/entities/contractType";
+import { getPresignedUrlForDisplay } from "../../../properties/infrastructure/adapters/MediaStorage";
 import {
   AlertCircle,
   Building2,
@@ -30,6 +31,53 @@ const ContractDetailSideSheet: React.FC<DetailSheetProps> = ({
 }) => {
   const navigate = useNavigate();
   const { downloadContract, loading } = useContractsActions();
+  const [propertyPreview, setPropertyPreview] = useState<string | null>(null);
+
+  // Cargar preview de la propiedad desde S3
+  useEffect(() => {
+    if (
+      !contract?.propiedadImagenUrl ||
+      contract.propiedadImagenUrl.startsWith("http")
+    ) {
+      return;
+    }
+
+    let active = true;
+
+    const loadPropertyPreview = async () => {
+      try {
+        const previewUrl = await getPresignedUrlForDisplay(
+          contract.propiedadImagenUrl
+        );
+        if (active) {
+          setPropertyPreview(previewUrl);
+        }
+      } catch (error) {
+        if (import.meta.env.DEV) {
+          console.debug(
+            "No se pudo cargar preview de propiedad:",
+            contract.propiedadId,
+            error
+          );
+        }
+      }
+    };
+
+    loadPropertyPreview();
+
+    return () => {
+      active = false;
+    };
+  }, [contract?.propiedadImagenUrl, contract?.propiedadId]);
+
+  // Liberar blob URL cuando cambie
+  useEffect(() => {
+    return () => {
+      if (propertyPreview?.startsWith("blob:")) {
+        URL.revokeObjectURL(propertyPreview);
+      }
+    };
+  }, [propertyPreview]);
 
   if (!contract) return null;
 
@@ -217,7 +265,13 @@ const ContractDetailSideSheet: React.FC<DetailSheetProps> = ({
             {/* Propiedad */}
             {contract.propiedadId ? (
               <div className={styles.entityCardHorizontal}>
-                {contract.propiedadImagenUrl ? (
+                {propertyPreview ? (
+                  <img
+                    src={propertyPreview}
+                    alt={contract.propiedadNombre}
+                    className={styles.entityThumbnail}
+                  />
+                ) : contract.propiedadImagenUrl?.startsWith("http") ? (
                   <img
                     src={contract.propiedadImagenUrl}
                     alt={contract.propiedadNombre}
