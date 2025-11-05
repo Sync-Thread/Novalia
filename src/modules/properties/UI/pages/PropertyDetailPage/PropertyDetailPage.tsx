@@ -1,4 +1,5 @@
 // PropertyDetailPage: página de detalle público de una propiedad
+import { useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
@@ -13,6 +14,7 @@ import {
 } from "lucide-react";
 import { usePropertyDetail } from "./hooks/usePropertyDetail";
 import { useSimilarProperties } from "./hooks/useSimilarProperties";
+import { useTelemetry } from "../../../../telemetry/UI/hooks/useTelemetry";
 import { GalleryPlaceholder } from "./components/GalleryPlaceholder";
 import { SummaryPanel } from "./components/SummaryPanel";
 import PropertyMap from "./components/PropertyMap";
@@ -32,9 +34,28 @@ import styles from "./PropertyDetailPage.module.css";
 export default function PropertyDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { trackPropertyView } = useTelemetry();
   const { data, loading, error } = usePropertyDetail(id);
   const { items: similarProperties, loading: loadingSimilar } =
     useSimilarProperties(data?.property || null, 3);
+
+  // Registrar vista de la propiedad cuando se carga
+  useEffect(() => {
+    if (!id || !data?.property) return;
+
+    // Registrar el page_view para incrementar el view_count
+    // Nota: Usamos includeUserId=false para que las vistas públicas NO filtren
+    // por owner_id (así se cuentan TODAS las vistas, incluso del propietario)
+    trackPropertyView(
+      id,
+      {
+        source: "public_detail",
+        status: data.property.status,
+        title: data.property.title,
+      },
+      false // No incluir userId para vistas públicas anónimas
+    );
+  }, [id, data?.property, trackPropertyView]);
 
   const handleBack = () => {
     navigate(-1);

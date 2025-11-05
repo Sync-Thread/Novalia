@@ -6,8 +6,14 @@ import {
   ChevronRight,
   X,
   Maximize2,
+  Play,
 } from "lucide-react";
 import styles from "./GalleryPlaceholder.module.css";
+
+// Helper para detectar si es un video
+const isVideoUrl = (url: string): boolean => {
+  return url.toLowerCase().includes(".mp4");
+};
 
 export interface GalleryPlaceholderProps {
   coverUrl: string | null;
@@ -29,6 +35,7 @@ export function GalleryPlaceholder({
 
   const hasImages = galleryUrls.length > 0;
   const displayImage = selectedImage || coverUrl;
+  const isCurrentVideo = displayImage ? isVideoUrl(displayImage) : false;
 
   // Encontrar índice de la imagen actual (-1 si no existe)
   const currentIndex = galleryUrls.findIndex((url) => url === displayImage);
@@ -89,22 +96,35 @@ export function GalleryPlaceholder({
         >
           {displayImage ? (
             <>
-              <img
-                src={displayImage}
-                alt={title}
-                onClick={handleMaximize}
-                className={styles.mainImageClickable}
-              />
+              {isCurrentVideo ? (
+                <video
+                  src={displayImage}
+                  controls
+                  className={styles.mainImageClickable}
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                >
+                  Tu navegador no soporta la reproducción de videos.
+                </video>
+              ) : (
+                <img
+                  src={displayImage}
+                  alt={title}
+                  onClick={handleMaximize}
+                  className={styles.mainImageClickable}
+                />
+              )}
 
-              {/* Botón maximizar */}
-              <button
-                type="button"
-                className={styles.maximizeButton}
-                onClick={handleMaximize}
-                aria-label="Maximizar imagen"
-              >
-                <Maximize2 size={20} aria-hidden="true" />
-              </button>
+              {/* Botón maximizar (solo para imágenes) */}
+              {!isCurrentVideo && (
+                <button
+                  type="button"
+                  className={styles.maximizeButton}
+                  onClick={handleMaximize}
+                  aria-label="Maximizar imagen"
+                >
+                  <Maximize2 size={20} aria-hidden="true" />
+                </button>
+              )}
 
               {/* Flechas de navegación */}
               {canNavigate && (
@@ -140,17 +160,29 @@ export function GalleryPlaceholder({
 
         <div className={styles.thumbnails} aria-label="Miniaturas de galería">
           {hasImages
-            ? galleryUrls.map((url, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  className={`${styles.thumbnail} ${selectedImage === url ? styles.thumbnailActive : ""}`}
-                  onClick={() => setSelectedImage(url)}
-                  aria-label={`Ver imagen ${idx + 1}`}
-                >
-                  <img src={url} alt={`Miniatura ${idx + 1}`} />
-                </button>
-              ))
+            ? galleryUrls.map((url, idx) => {
+                const isVideo = isVideoUrl(url);
+                return (
+                  <button
+                    key={idx}
+                    type="button"
+                    className={`${styles.thumbnail} ${selectedImage === url ? styles.thumbnailActive : ""}`}
+                    onClick={() => setSelectedImage(url)}
+                    aria-label={`Ver ${isVideo ? "video" : "imagen"} ${idx + 1}`}
+                  >
+                    {isVideo ? (
+                      <div className={styles.videoThumbnail}>
+                        <video src={url} className={styles.thumbnailVideo} />
+                        <div className={styles.playOverlay}>
+                          <Play size={24} fill="white" aria-hidden="true" />
+                        </div>
+                      </div>
+                    ) : (
+                      <img src={url} alt={`Miniatura ${idx + 1}`} />
+                    )}
+                  </button>
+                );
+              })
             : [1, 2, 3, 4].map((idx) => (
                 <div key={idx} className={styles.thumbnail} aria-hidden="true">
                   <ImageIcon size={16} />
@@ -175,11 +207,23 @@ export function GalleryPlaceholder({
             className={styles.lightboxContent}
             onClick={(e) => e.stopPropagation()}
           >
-            <img
-              src={displayImage}
-              alt={title}
-              className={styles.lightboxImage}
-            />
+            {isCurrentVideo ? (
+              <video
+                src={displayImage}
+                controls
+                autoPlay
+                className={styles.lightboxImage}
+                style={{ maxWidth: "100%", maxHeight: "100%" }}
+              >
+                Tu navegador no soporta la reproducción de videos.
+              </video>
+            ) : (
+              <img
+                src={displayImage}
+                alt={title}
+                className={styles.lightboxImage}
+              />
+            )}
 
             {canNavigate && (
               <>
