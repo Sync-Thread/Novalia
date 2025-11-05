@@ -76,7 +76,10 @@ const ContractList: React.FC<ContractListProps> = ({
         } catch (error) {
           // Silencioso - las imágenes son opcionales
           if (import.meta.env.DEV) {
-            console.debug("No se pudo cargar preview para contrato:", contract.id);
+            console.debug(
+              "No se pudo cargar preview para contrato:",
+              contract.id
+            );
           }
         }
       }
