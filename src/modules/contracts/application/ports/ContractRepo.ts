@@ -18,4 +18,14 @@ export interface ContractRepo {
    * - Si NO tiene org: muestra solo sus contratos (user_id)
    */
   listContracts(filters: ContractListFilters): Promise<Result<Page<ContractListItemDTO>>>;
+  
+  /**
+   * Obtiene un contrato por ID
+   */
+  getById(contractId: string): Promise<Result<{ id: string; s3Key: string | null }>>;
+  
+  /**
+   * Elimina un contrato (hard delete)
+   */
+  delete(contractId: string): Promise<Result<void>>;
 }

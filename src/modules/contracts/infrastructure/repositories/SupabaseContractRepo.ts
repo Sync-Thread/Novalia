@@ -255,4 +255,65 @@ export class SupabaseContractRepo implements ContractRepo {
       });
     }
   }
+
+  async getById(contractId: string): Promise<Result<{ id: string; s3Key: string | null }>> {
+    try {
+      const { data, error } = await this.client
+        .from("contracts")
+        .select("id, s3_key")
+        .eq("id", contractId)
+        .single();
+
+      if (error) {
+        console.error("Error getting contract:", error);
+        return Result.fail({
+          code: "DATABASE_ERROR",
+          message: error.message,
+        });
+      }
+
+      if (!data) {
+        return Result.fail({
+          code: "NOT_FOUND",
+          message: "Contract not found",
+        });
+      }
+
+      return Result.ok({
+        id: data.id,
+        s3Key: data.s3_key,
+      });
+    } catch (error) {
+      console.error("Unexpected error getting contract:", error);
+      return Result.fail({
+        code: "UNKNOWN",
+        message: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }
+
+  async delete(contractId: string): Promise<Result<void>> {
+    try {
+      const { error } = await this.client
+        .from("contracts")
+        .delete()
+        .eq("id", contractId);
+
+      if (error) {
+        console.error("Error deleting contract:", error);
+        return Result.fail({
+          code: "DATABASE_ERROR",
+          message: error.message,
+        });
+      }
+
+      return Result.ok(undefined);
+    } catch (error) {
+      console.error("Unexpected error deleting contract:", error);
+      return Result.fail({
+        code: "UNKNOWN",
+        message: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }
 }

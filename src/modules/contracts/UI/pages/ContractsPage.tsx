@@ -256,6 +256,10 @@ const ContractsPage: React.FC = () => {
       <ContractDetailSideSheet
         contract={selectedContract}
         onClose={() => setSelectedContract(null)}
+        onDelete={() => {
+          // Recargar lista después de eliminar
+          loadAllContracts();
+        }}
       />
 
       <NewDocumentQuickView
