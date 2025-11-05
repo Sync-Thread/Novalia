@@ -16,6 +16,7 @@ import {
 import { supabase } from "../../../../core/supabase/client";
 import { useContractsActions } from "../hooks/useContractsActions";
 import { CustomSelect } from "../../../properties/UI/components/CustomSelect";
+import { CustomDatePicker } from "../../../properties/UI/components/CustomDatePicker";
 
 /** Calcula SHA-256 de un archivo */
 async function calculateSHA256(file: File): Promise<string> {
@@ -1268,34 +1269,39 @@ export default function NewDocumentQuickView({
                 >
                   Fecha de emisión
                 </label>
-                <input
-                  id="issuedDate"
-                  type="date"
-                  value={formData.issuedDate}
-                  onChange={(e) => handleChange("issuedDate", e.target.value)}
+                <div
                   style={{
+                    position: "relative",
+                    display: "flex",
+                    alignItems: "center",
                     width: "100%",
                     height: "44px",
                     padding: "0 14px",
                     border: "1px solid rgba(148, 163, 184, 0.45)",
                     borderRadius: "12px",
-                    fontSize: "15px",
-                    fontFamily: "inherit",
-                    color: "#111827",
                     background: "#ffffff",
-                    cursor: "pointer",
                     transition: "border-color 0.2s ease, box-shadow 0.2s ease",
+                    overflow: "visible",
                   }}
-                  onFocus={(e) => {
-                    e.target.style.borderColor = "#295dff";
-                    e.target.style.boxShadow =
-                      "0 0 0 3px rgba(41, 93, 255, 0.18)";
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor =
+                      "rgba(41, 93, 255, 0.35)";
+                    e.currentTarget.style.boxShadow =
+                      "0 0 0 3px rgba(41, 93, 255, 0.08)";
                   }}
-                  onBlur={(e) => {
-                    e.target.style.borderColor = "rgba(148, 163, 184, 0.45)";
-                    e.target.style.boxShadow = "none";
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor =
+                      "rgba(148, 163, 184, 0.45)";
+                    e.currentTarget.style.boxShadow = "none";
                   }}
-                />
+                >
+                  <CustomDatePicker
+                    value={formData.issuedDate}
+                    onChange={(value) => handleChange("issuedDate", value)}
+                    placeholder="Seleccionar fecha de emisión"
+                    ariaLabel="Fecha de emisión del documento"
+                  />
+                </div>
               </div>
               <div>
                 <label
@@ -1310,41 +1316,50 @@ export default function NewDocumentQuickView({
                 >
                   Vencimiento
                 </label>
-                <input
-                  id="expirationDate"
-                  type="date"
-                  value={formData.expirationDate}
-                  onChange={(e) =>
-                    handleChange("expirationDate", e.target.value)
-                  }
-                  aria-invalid={!!errors.expirationDate}
+                <div
                   style={{
+                    position: "relative",
+                    display: "flex",
+                    alignItems: "center",
                     width: "100%",
                     height: "44px",
                     padding: "0 14px",
                     border: `1px solid ${errors.expirationDate ? "#dc2626" : "rgba(148, 163, 184, 0.45)"}`,
                     borderRadius: "12px",
-                    fontSize: "15px",
-                    fontFamily: "inherit",
-                    color: "#111827",
                     background: "#ffffff",
-                    cursor: "pointer",
                     transition: "border-color 0.2s ease, box-shadow 0.2s ease",
+                    overflow: "visible",
                   }}
-                  onFocus={(e) => {
-                    e.target.style.borderColor = "#295dff";
-                    e.target.style.boxShadow =
-                      "0 0 0 3px rgba(41, 93, 255, 0.18)";
+                  onMouseEnter={(e) => {
+                    if (!errors.expirationDate) {
+                      e.currentTarget.style.borderColor =
+                        "rgba(41, 93, 255, 0.35)";
+                      e.currentTarget.style.boxShadow =
+                        "0 0 0 3px rgba(41, 93, 255, 0.08)";
+                    }
                   }}
-                  onBlur={(e) => {
-                    e.target.style.borderColor = errors.expirationDate
-                      ? "#dc2626"
-                      : "rgba(148, 163, 184, 0.45)";
-                    e.target.style.boxShadow = "none";
+                  onMouseLeave={(e) => {
+                    if (!errors.expirationDate) {
+                      e.currentTarget.style.borderColor =
+                        "rgba(148, 163, 184, 0.45)";
+                      e.currentTarget.style.boxShadow = "none";
+                    }
                   }}
-                />
+                >
+                  <CustomDatePicker
+                    value={formData.expirationDate}
+                    onChange={(value) => handleChange("expirationDate", value)}
+                    placeholder="Seleccionar fecha de vencimiento"
+                    ariaLabel="Fecha de vencimiento del documento"
+                    ariaDescribedBy={
+                      errors.expirationDate ? "expirationDate-error" : undefined
+                    }
+                    error={!!errors.expirationDate}
+                  />
+                </div>
                 {errors.expirationDate && (
                   <p
+                    id="expirationDate-error"
                     style={{
                       color: "#dc2626",
                       fontSize: "12px",
