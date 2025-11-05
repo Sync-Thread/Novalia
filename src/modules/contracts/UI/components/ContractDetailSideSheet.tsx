@@ -27,6 +27,7 @@ import styles from "./ContractDetailSideSheet.module.css";
 interface DetailSheetProps {
   contract: IContract | null;
   onClose: () => void;
+  onDelete?: () => void; // Callback para notificar al padre que se eliminó
 }
 
 interface ClientOption {
@@ -40,9 +41,10 @@ interface ClientOption {
 const ContractDetailSideSheet: React.FC<DetailSheetProps> = ({
   contract,
   onClose,
+  onDelete,
 }) => {
   const navigate = useNavigate();
-  const { downloadContract, loading, listClientsForSelector } =
+  const { downloadContract, deleteContract, loading, listClientsForSelector } =
     useContractsActions();
   const [propertyPreview, setPropertyPreview] = useState<string | null>(null);
   const [isEditingClient, setIsEditingClient] = useState(false);
@@ -249,6 +251,31 @@ const ContractDetailSideSheet: React.FC<DetailSheetProps> = ({
   const handleSign = () => {
     navigate(`/contracts/${contract.id}/sign`);
     onClose();
+  };
+
+  const handleDelete = async () => {
+    if (!contract?.id) return;
+
+    // Confirmar eliminación
+    const confirmed = window.confirm(
+      `¿Estás seguro de eliminar el contrato "${contract.propiedadNombre || "sin título"}"?\n\n` +
+        `Esta acción no se puede deshacer. El archivo y todos los datos del contrato serán eliminados permanentemente.`
+    );
+
+    if (!confirmed) return;
+
+    const success = await deleteContract(contract.id);
+
+    if (success) {
+      // Cerrar el panel
+      onClose();
+      // Notificar al padre para que recargue la lista
+      if (onDelete) {
+        onDelete();
+      }
+    } else {
+      alert("Error al eliminar el contrato. Por favor, intenta nuevamente.");
+    }
   };
 
   // Filtrar clientes localmente
@@ -727,9 +754,14 @@ const ContractDetailSideSheet: React.FC<DetailSheetProps> = ({
                     permanentemente.
                   </p>
                 </div>
-                <button className={styles.btnDanger}>
+                <button
+                  className={styles.btnDanger}
+                  onClick={handleDelete}
+                  disabled={loading.delete}
+                  aria-label="Eliminar contrato"
+                >
                   <Trash2 size={16} />
-                  Eliminar
+                  {loading.delete ? "Eliminando..." : "Eliminar"}
                 </button>
               </div>
             </section>

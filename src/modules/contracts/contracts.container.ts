@@ -6,6 +6,7 @@ import { supabase } from "../../core/supabase/client";
 import { ListPropertiesForSelector } from "./application/use-cases/ListPropertiesForSelector";
 import { ListClientsForSelector } from "./application/use-cases/ListClientsForSelector";
 import { ListContracts } from "./application/use-cases/ListContracts";
+import { DeleteContract } from "./application/use-cases/DeleteContract";
 
 // Infrastructure
 import { SupabaseAuthService } from "./infrastructure/adapters/SupabaseAuthService";
@@ -21,10 +22,16 @@ export interface ContractsUseCases {
   listPropertiesForSelector: ListPropertiesForSelector;
   listClientsForSelector: ListClientsForSelector;
   listContracts: ListContracts;
+  deleteContract: DeleteContract;
 }
 
 export interface ContractsContainer {
   useCases: ContractsUseCases;
+  // Acceso directo a casos de uso comunes
+  listPropertiesForSelector: ListPropertiesForSelector;
+  listClientsForSelector: ListClientsForSelector;
+  listContracts: ListContracts;
+  deleteContract: DeleteContract;
 }
 
 export function createContractsContainer(
@@ -38,19 +45,31 @@ export function createContractsContainer(
   const clientRepo = new SupabaseClientRepo(client);
   const contractRepo = new SupabaseContractRepo(client);
 
+  // Instanciar casos de uso
+  const listPropertiesForSelector = new ListPropertiesForSelector({
+    propertyRepo,
+    authService,
+  });
+  const listClientsForSelector = new ListClientsForSelector({
+    clientRepo,
+  });
+  const listContracts = new ListContracts({
+    contractRepo,
+    authService,
+  });
+  const deleteContract = new DeleteContract(contractRepo);
+
   return {
     useCases: {
-      listPropertiesForSelector: new ListPropertiesForSelector({
-        propertyRepo,
-        authService,
-      }),
-      listClientsForSelector: new ListClientsForSelector({
-        clientRepo,
-      }),
-      listContracts: new ListContracts({
-        contractRepo,
-        authService,
-      }),
+      listPropertiesForSelector,
+      listClientsForSelector,
+      listContracts,
+      deleteContract,
     },
+    // Acceso directo
+    listPropertiesForSelector,
+    listClientsForSelector,
+    listContracts,
+    deleteContract,
   };
 }
