@@ -177,8 +177,7 @@ export class SupabaseMediaStorage implements MediaStorage {
 
   /**
    * Marca un media como portada (cover)
-   * Nota: La tabla media_assets no tiene campo is_cover, 
-   * podríamos usar metadata o position=0
+   * Actualiza metadata.isCover = true para el media seleccionado
    */
   async setCover(propertyId: string, mediaId: string): Promise<Result<void>> {
     try {

@@ -35,15 +35,25 @@ export class SupabasePropertyRepo implements PropertyRepo {
       const from = (page - 1) * pageSize;
       const to = from + pageSize - 1;
 
-      // Query base: propiedades del org
+      // Query base: propiedades (sin filtro inicial)
       let query = this.client
         .from("properties")
         .select(
           "id, title, internal_id, address_line, neighborhood, city, state",
           { count: "exact" }
         )
-        .eq("org_id", filters.orgId)
         .is("deleted_at", null);
+
+      // Filtro por org O por usuario dueño
+      if (filters.orgId) {
+        // Usuario con organización: mostrar propiedades del org
+        query = query.eq("org_id", filters.orgId);
+      } else {
+        // Usuario sin organización: mostrar solo sus propiedades
+        query = query
+          .is("org_id", null)
+          .eq("lister_user_id", filters.userId);
+      }
 
       // Búsqueda opcional
       if (filters.search && filters.search.trim()) {
@@ -72,9 +82,9 @@ export class SupabasePropertyRepo implements PropertyRepo {
       if (propertyIds.length > 0) {
         const { data: mediaData } = await this.client
           .from("media_assets")
-          .select("property_id, s3_key")
+          .select("property_id, s3_key, metadata")
           .in("property_id", propertyIds)
-          .eq("is_cover", true);
+          .eq("metadata->>isCover", "true");
 
         if (mediaData) {
           coverMap = new Map(

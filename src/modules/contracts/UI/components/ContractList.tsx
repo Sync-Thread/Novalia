@@ -74,7 +74,10 @@ const ContractList: React.FC<ContractListProps> = ({
           );
           setPreviews((prev) => ({ ...prev, [contract.id]: previewUrl }));
         } catch (error) {
-          console.error("Error cargando preview:", contract.id, error);
+          // Silencioso - las imágenes son opcionales
+          if (import.meta.env.DEV) {
+            console.debug("No se pudo cargar preview para contrato:", contract.id);
+          }
         }
       }
     });

@@ -343,16 +343,15 @@ export default function NewDocumentQuickView({
           .eq("id", user.id)
           .single();
 
-        if (!profile?.org_id) {
-          throw new Error("No organization found for user");
-        }
+        const orgId = profile?.org_id || null;
 
         // 4. Crear registro en tabla contracts
         setUploadProgress(80);
         const { data: contract, error: insertError } = await supabase
           .from("contracts")
           .insert({
-            org_id: profile.org_id,
+            org_id: orgId, // Puede ser null para usuarios sin org
+            user_id: user.id, // Usuario creador del contrato
             property_id: formData.propertyId || null,
             client_contact_id: formData.clientId || null,
             contract_type: formData.documentType, // 'intermediacion' | 'oferta' | 'promesa'

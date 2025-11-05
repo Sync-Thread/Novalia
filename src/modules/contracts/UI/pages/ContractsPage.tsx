@@ -4,15 +4,48 @@ import styles from "./ContractsPage.module.css";
 import ContractList from "../components/ContractList";
 import ContractDetailSideSheet from "../components/ContractDetailSideSheet";
 import NewDocumentQuickView from "../components/NewDocumentQuickView";
+import { useContractsActions } from "../hooks/useContractsActions";
 
 import type { IContract } from "../../domain/entities/contractType";
-
-import { mockContracts } from "../../domain/entities/contractType";
+import type { ContractListItemDTO } from "../../application/dto/ContractDTO";
 
 import { SearchIcon, X, PlusIcon } from "lucide-react";
 
+// Función helper para mapear DTO a IContract (mock interface)
+function mapDtoToContract(dto: ContractListItemDTO): IContract {
+  return {
+    id: dto.id,
+    propiedadId: dto.propertyId || "",
+    propiedadNombre: dto.propertyName || "Sin propiedad",
+    propiedadImagenUrl: dto.propertyCoverImageS3Key || "",
+    tipoContrato:
+      dto.contractType === "intermediacion"
+        ? "Intermediacion"
+        : dto.contractType === "oferta"
+          ? "Oferta"
+          : "Promesa",
+    contraparte: dto.clientName || "Sin cliente",
+    monto: 0, // TODO: Agregar monto al DTO cuando se implemente
+    moneda: "MXN",
+    estadoFirma:
+      dto.status === "draft"
+        ? "PendienteDeFirma"
+        : dto.status === "active"
+          ? "Vigente"
+          : dto.status === "cancelled" || dto.status === "expired"
+            ? "Archivado"
+            : "PendienteDeFirma",
+    vigencia: dto.dueOn
+      ? new Date(dto.dueOn).toLocaleDateString("es-MX")
+      : new Date(dto.issuedOn).toLocaleDateString("es-MX"),
+    porcentajeCompletado: 0, // TODO: Calcular basado en checklist cuando se implemente
+  };
+}
+
 const ContractsPage: React.FC = () => {
-  const [contracts, setContracts] = useState<IContract[]>(mockContracts);
+  const { listContracts, loading } = useContractsActions();
+
+  const [contracts, setContracts] = useState<IContract[]>([]);
   const [selectedContract, setSelectedContract] = useState<IContract | null>(
     null
   );
@@ -21,6 +54,25 @@ const ContractsPage: React.FC = () => {
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [showNewDocQuickView, setShowNewDocQuickView] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Cargar contratos al montar el componente
+  const loadContracts = useCallback(async () => {
+    const result = await listContracts({
+      search: debouncedQuery,
+      status: activeFilter,
+      pageSize: 100,
+    });
+
+    if (result) {
+      const mappedContracts = result.items.map(mapDtoToContract);
+      setContracts(mappedContracts);
+    }
+  }, [listContracts, debouncedQuery, activeFilter]);
+
+  // Cargar contratos al inicio y cuando cambien los filtros
+  useEffect(() => {
+    loadContracts();
+  }, [loadContracts]);
 
   // Debounce para búsqueda (300ms)
   useEffect(() => {
@@ -37,43 +89,6 @@ const ContractsPage: React.FC = () => {
     { label: "Vigente", value: "Vigente" },
     { label: "Cerrados/Archivados", value: "Cerrados/Archivados" },
   ];
-
-  // Filtrado por estado y búsqueda
-  const filteredContracts = contracts.filter((contract) => {
-    // Filtro por estado
-    let matchesFilter = true;
-    if (activeFilter !== "Todos") {
-      if (
-        activeFilter === "PendienteDeFirma" &&
-        contract.estadoFirma !== "PendienteDeFirma"
-      ) {
-        matchesFilter = false;
-      } else if (
-        activeFilter === "Vigente" &&
-        contract.estadoFirma !== "Vigente"
-      ) {
-        matchesFilter = false;
-      } else if (
-        activeFilter === "Cerrados/Archivados" &&
-        contract.estadoFirma !== "Archivado" &&
-        contract.estadoFirma !== "Rechazado"
-      ) {
-        matchesFilter = false;
-      }
-    }
-
-    // Filtro por búsqueda (ID, propiedad, contraparte)
-    let matchesSearch = true;
-    if (debouncedQuery.trim()) {
-      const query = debouncedQuery.toLowerCase();
-      matchesSearch =
-        contract.id.toLowerCase().includes(query) ||
-        contract.propiedadNombre.toLowerCase().includes(query) ||
-        contract.contraparte.toLowerCase().includes(query);
-    }
-
-    return matchesFilter && matchesSearch;
-  });
 
   const handleRowClick = (contract: IContract) => {
     setSelectedContract(contract);
@@ -207,10 +222,10 @@ const ContractsPage: React.FC = () => {
         <div className={styles.mainGridFull}>
           <div className={styles.mainColumn}>
             <ContractList
-              contracts={filteredContracts}
+              contracts={contracts}
               onRowClick={handleRowClick}
               onMenuAction={handleMenuAction}
-              loading={false}
+              loading={loading.contracts}
               onNewDocument={() => setShowNewDocQuickView(true)}
             />
           </div>
@@ -227,7 +242,9 @@ const ContractsPage: React.FC = () => {
         onClose={() => setShowNewDocQuickView(false)}
         onSuccess={(documentId) => {
           console.log("Documento creado:", documentId);
-          // TODO: Mostrar toast de éxito y actualizar lista
+          // Recargar lista de contratos
+          loadContracts();
+          setShowNewDocQuickView(false);
         }}
       />
     </>

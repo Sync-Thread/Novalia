@@ -1,23 +1,23 @@
-// Caso de uso: listar propiedades para selector de contratos
+// Caso de uso: listar contratos del usuario
 import { Result } from "../../../properties/application/_shared/result";
-import type { PropertySummaryDTO, Page } from "../dto/PropertyDTO";
-import type { PropertyRepo, PropertyListFilters } from "../ports/PropertyRepo";
+import type { ContractListItemDTO, Page } from "../dto/ContractDTO";
+import type { ContractRepo, ContractListFilters } from "../ports/ContractRepo";
 import type { AuthService } from "../ports/AuthService";
 
-export class ListPropertiesForSelector {
+export class ListContracts {
   private readonly deps: {
-    propertyRepo: PropertyRepo;
+    contractRepo: ContractRepo;
     authService: AuthService;
   };
 
   constructor(deps: {
-    propertyRepo: PropertyRepo;
+    contractRepo: ContractRepo;
     authService: AuthService;
   }) {
     this.deps = deps;
   }
 
-  async execute(filters: Omit<PropertyListFilters, "orgId" | "userId">): Promise<Result<Page<PropertySummaryDTO>>> {
+  async execute(filters: Omit<ContractListFilters, "orgId" | "userId">): Promise<Result<Page<ContractListItemDTO>>> {
     // 1. Obtener contexto de autenticación
     const authResult = await this.deps.authService.getCurrent();
     if (authResult.isErr()) {
@@ -26,8 +26,8 @@ export class ListPropertiesForSelector {
 
     const { orgId, userId } = authResult.value;
 
-    // 2. Listar propiedades del org (si tiene) o del usuario (si no tiene org)
-    const result = await this.deps.propertyRepo.listForSelector({
+    // 2. Listar contratos del org (si tiene) o del usuario (si no tiene org)
+    const result = await this.deps.contractRepo.listContracts({
       ...filters,
       orgId: orgId || null,
       userId,

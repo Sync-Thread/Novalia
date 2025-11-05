@@ -5,11 +5,13 @@ import { supabase } from "../../core/supabase/client";
 // Use Cases
 import { ListPropertiesForSelector } from "./application/use-cases/ListPropertiesForSelector";
 import { ListClientsForSelector } from "./application/use-cases/ListClientsForSelector";
+import { ListContracts } from "./application/use-cases/ListContracts";
 
 // Infrastructure
 import { SupabaseAuthService } from "./infrastructure/adapters/SupabaseAuthService";
 import { SupabasePropertyRepo } from "./infrastructure/repositories/SupabasePropertyRepo";
 import { SupabaseClientRepo } from "./infrastructure/repositories/SupabaseClientRepo";
+import { SupabaseContractRepo } from "./infrastructure/repositories/SupabaseContractRepo";
 
 export interface ContractsContainerDeps {
   client?: SupabaseClient;
@@ -18,6 +20,7 @@ export interface ContractsContainerDeps {
 export interface ContractsUseCases {
   listPropertiesForSelector: ListPropertiesForSelector;
   listClientsForSelector: ListClientsForSelector;
+  listContracts: ListContracts;
 }
 
 export interface ContractsContainer {
@@ -33,6 +36,7 @@ export function createContractsContainer(
   const authService = new SupabaseAuthService(client);
   const propertyRepo = new SupabasePropertyRepo(client);
   const clientRepo = new SupabaseClientRepo(client);
+  const contractRepo = new SupabaseContractRepo(client);
 
   return {
     useCases: {
@@ -42,6 +46,10 @@ export function createContractsContainer(
       }),
       listClientsForSelector: new ListClientsForSelector({
         clientRepo,
+      }),
+      listContracts: new ListContracts({
+        contractRepo,
+        authService,
       }),
     },
   };
