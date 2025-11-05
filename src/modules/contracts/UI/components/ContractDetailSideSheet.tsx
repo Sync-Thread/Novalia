@@ -10,6 +10,7 @@ import {
   FileIcon,
   SendIcon,
 } from "lucide-react";
+import { useContractsActions } from "../hooks/useContractsActions";
 
 interface DetailSheetProps {
   contract: IContract | null;
@@ -21,6 +22,7 @@ const ContractDetailSideSheet: React.FC<DetailSheetProps> = ({
   onClose,
 }) => {
   const navigate = useNavigate();
+  const { downloadContract, loading } = useContractsActions();
 
   if (!contract) return null;
 
@@ -210,15 +212,23 @@ const ContractDetailSideSheet: React.FC<DetailSheetProps> = ({
                   className="btn btn-secondary"
                   aria-label="Descargar PDF"
                   style={{ flex: 1, gap: "8px" }}
+                  onClick={() => {
+                    if (contract.s3Key) {
+                      // Usar fileName del metadata si existe, sino usar nombre por defecto
+                      const fileName =
+                        contract.metadata?.fileName ||
+                        `contrato-${contract.id}.pdf`;
+                      downloadContract(contract.s3Key, fileName);
+                    } else {
+                      console.warn(
+                        "No hay documento disponible para descargar"
+                      );
+                    }
+                  }}
+                  disabled={!contract.s3Key || loading.download}
                 >
-                  <DownloadIcon size={18} /> Descargar
-                </button>
-                <button
-                  className="btn btn-secondary"
-                  aria-label="Enviar por email"
-                  style={{ flex: 1, gap: "8px" }}
-                >
-                  <SendIcon size={18} /> Enviar
+                  <DownloadIcon size={18} />
+                  {loading.download ? "Descargando..." : "Descargar"}
                 </button>
               </div>
             </div>

@@ -18,6 +18,8 @@ function mapDtoToContract(dto: ContractListItemDTO): IContract {
     propiedadId: dto.propertyId || "",
     propiedadNombre: dto.propertyName || "Sin propiedad",
     propiedadImagenUrl: dto.propertyCoverImageS3Key || "",
+    s3Key: dto.s3Key || undefined,
+    metadata: dto.metadata || undefined,
     tipoContrato:
       dto.contractType === "intermediacion"
         ? "Intermediacion"

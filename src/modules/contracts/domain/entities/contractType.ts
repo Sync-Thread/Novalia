@@ -17,6 +17,13 @@ export interface IContract {
   // Nuevos campos
   moneda?: string;
   fechaCreacion?: string;
+  s3Key?: string; // s3Key del documento del contrato para descarga
+  metadata?: {
+    fileName?: string;
+    size?: number;
+    contentType?: string;
+    uploadedAt?: string;
+  };
   checklist?: Array<{
     id: number;
     tarea: string;

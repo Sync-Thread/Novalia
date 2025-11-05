@@ -14,6 +14,12 @@ interface ContractRow {
   issued_on: string;
   due_on: string | null;
   s3_key: string | null;
+  metadata: {
+    fileName?: string;
+    size?: number;
+    contentType?: string;
+    uploadedAt?: string;
+  } | null;
   created_at: string;
   properties: {
     title: string | null;
@@ -59,6 +65,7 @@ export class SupabaseContractRepo implements ContractRepo {
             issued_on,
             due_on,
             s3_key,
+            metadata,
             created_at,
             properties:contracts_property_id_fkey (
               title,
@@ -158,6 +165,7 @@ export class SupabaseContractRepo implements ContractRepo {
         issuedOn: row.issued_on,
         dueOn: row.due_on,
         s3Key: row.s3_key,
+        metadata: row.metadata || null,
         createdAt: row.created_at,
       }));
 

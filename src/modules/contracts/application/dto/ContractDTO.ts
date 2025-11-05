@@ -13,6 +13,12 @@ export interface ContractListItemDTO {
   issuedOn: string;
   dueOn: string | null;
   s3Key: string | null;
+  metadata: {
+    fileName?: string;
+    size?: number;
+    contentType?: string;
+    uploadedAt?: string;
+  } | null;
   createdAt: string;
 }
 

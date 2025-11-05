@@ -227,4 +227,48 @@ export class SupabaseDocumentStorage {
       );
     }
   }
+
+  /**
+   * Obtiene presigned URL para descargar un documento desde S3
+   * Usa el mismo worker de Cloudflare que MediaStorage
+   */
+  async getDownloadUrl(s3Key: string): Promise<Result<string>> {
+    try {
+      const WORKER_BASE = 'https://s3-proxy.novaliaprops.workers.dev';
+
+      if (!s3Key) {
+        return Result.fail(
+          documentError("VALIDATION", "No s3Key provided")
+        );
+      }
+
+      // Obtener presigned URL del worker (mismo endpoint que MediaStorage)
+      const response = await fetch(`${WORKER_BASE}/generate-presigned-download`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: s3Key })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => '');
+        return Result.fail(
+          documentError("UNKNOWN", `Failed to get presigned URL: ${errorText}`)
+        );
+      }
+
+      const { url } = await response.json();
+      
+      if (!url) {
+        return Result.fail(
+          documentError("UNKNOWN", "No presigned URL returned from worker")
+        );
+      }
+
+      return Result.ok(url);
+    } catch (error) {
+      return Result.fail(
+        documentError("UNKNOWN", "Unexpected error getting download URL", error)
+      );
+    }
+  }
 }

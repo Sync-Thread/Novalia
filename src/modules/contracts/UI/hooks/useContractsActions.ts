@@ -4,19 +4,28 @@ import { createContractsContainer } from "../../contracts.container";
 import type { PropertySummaryDTO, Page } from "../../application/dto/PropertyDTO";
 import type { ClientSummaryDTO } from "../../application/dto/ClientDTO";
 import type { ContractListItemDTO } from "../../application/dto/ContractDTO";
+import { SupabaseDocumentStorage } from "../../../properties/infrastructure/adapters/SupabaseDocumentStorage";
+import { SupabaseAuthService } from "../../../properties/infrastructure/adapters/SupabaseAuthService";
+import { supabase } from "../../../../core/supabase/client";
 
 const container = createContractsContainer();
+
+// Instanciar servicios para descarga de documentos
+const authService = new SupabaseAuthService({ client: supabase });
+const documentStorage = new SupabaseDocumentStorage({ supabase, authService });
 
 interface UseContractsActionsState {
   loading: {
     properties: boolean;
     clients: boolean;
     contracts: boolean;
+    download: boolean;
   };
   errors: {
     properties: string | null;
     clients: string | null;
     contracts: string | null;
+    download: string | null;
   };
   listPropertiesForSelector: (params?: {
     search?: string;
@@ -33,6 +42,7 @@ interface UseContractsActionsState {
     page?: number;
     pageSize?: number;
   }) => Promise<Page<ContractListItemDTO> | null>;
+  downloadContract: (s3Key: string, fileName: string) => Promise<void>;
 }
 
 export function useContractsActions(): UseContractsActionsState {
@@ -40,16 +50,19 @@ export function useContractsActions(): UseContractsActionsState {
     properties: false,
     clients: false,
     contracts: false,
+    download: false,
   });
 
   const [errors, setErrors] = useState<{
     properties: string | null;
     clients: string | null;
     contracts: string | null;
+    download: string | null;
   }>({
     properties: null,
     clients: null,
     contracts: null,
+    download: null,
   });
 
   const listPropertiesForSelector = useCallback(
@@ -174,6 +187,65 @@ export function useContractsActions(): UseContractsActionsState {
         setLoading((prev) => ({ ...prev, contracts: false }));
       }
     },
+    [],
+  );
+
+  const downloadContract = useCallback(
+    async (s3Key: string, fileName: string): Promise<void> => {
+      if (!s3Key) {
+        console.error("No s3Key provided for download");
+        return;
+      }
+
+      setLoading((prev) => ({ ...prev, download: true }));
+      setErrors((prev) => ({ ...prev, download: null }));
+
+      try {
+        // 1. Obtener presigned URL
+        const urlResult = await documentStorage.getDownloadUrl(s3Key);
+
+        if (urlResult.isErr()) {
+          const error = urlResult.error as any;
+          const errorMessage = error?.message || "Error al obtener URL de descarga";
+          setErrors((prev) => ({ ...prev, download: errorMessage }));
+          console.error("Error getting download URL:", urlResult.error);
+          return;
+        }
+
+        const presignedUrl = urlResult.value;
+
+        // 2. Descargar el archivo desde S3
+        const response = await fetch(presignedUrl);
+        
+        if (!response.ok) {
+          throw new Error(`Failed to download file: ${response.statusText}`);
+        }
+
+        const blob = await response.blob();
+
+        // 3. Crear enlace de descarga y hacer click automático
+        const blobUrl = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        // 4. Limpiar blob URL después de un tiempo
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
+
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error
+            ? error.message
+            : "Error inesperado al descargar contrato";
+        setErrors((prev) => ({ ...prev, download: errorMessage }));
+        console.error("Unexpected error downloading contract:", error);
+      } finally {
+        setLoading((prev) => ({ ...prev, download: false }));
+      }
+    },
     []
   );
 
@@ -183,5 +255,6 @@ export function useContractsActions(): UseContractsActionsState {
     listPropertiesForSelector,
     listClientsForSelector,
     listContracts,
+    downloadContract,
   };
 }
