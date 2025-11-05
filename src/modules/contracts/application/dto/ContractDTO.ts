@@ -8,8 +8,10 @@ export interface ContractListItemDTO {
   propertyName: string | null;
   propertyInternalId: string | null;
   propertyCoverImageS3Key: string | null;
-  clientContactId: string | null;
-  clientName: string | null;
+  clientContactId: string | null; // ID desde lead_contacts (puede ser null)
+  clientProfileId: string | null; // ID desde profiles (puede ser null) - NUEVO
+  clientName: string | null; // Nombre del cliente (de cualquiera de las dos tablas)
+  clientType: "lead_contact" | "profile" | null; // Tipo de cliente - NUEVO
   issuedOn: string;
   dueOn: string | null;
   s3Key: string | null;

@@ -47,12 +47,14 @@ interface ClientOption {
   fullName: string;
   email?: string;
   phone?: string;
+  type: "profile" | "lead_contact"; // Tipo de cliente: usuario autenticado o lead
 }
 
 interface FormData {
   documentType: string;
   propertyId: string;
   clientId: string;
+  clientType: "profile" | "lead_contact" | ""; // Tipo del cliente seleccionado
   title: string;
   description: string;
   issuedDate: string;
@@ -94,6 +96,7 @@ export default function NewDocumentQuickView({
     documentType: "",
     propertyId: "",
     clientId: "",
+    clientType: "",
     title: "",
     description: "",
     issuedDate: today,
@@ -206,6 +209,7 @@ export default function NewDocumentQuickView({
         fullName: client.fullName || "Sin nombre",
         email: client.email || undefined,
         phone: client.phone || undefined,
+        type: client.type || "lead_contact", // Tipo desde el DTO
       }));
 
       console.log("✅ Clientes mapeados:", mappedClients.length);
@@ -237,7 +241,7 @@ export default function NewDocumentQuickView({
     if (open && formData.propertyId) {
       loadAllClients();
       // Limpiar cliente seleccionado al cambiar de propiedad
-      setFormData((prev) => ({ ...prev, clientId: "" }));
+      setFormData((prev) => ({ ...prev, clientId: "", clientType: "" }));
       setClientSearch("");
     }
   }, [formData.propertyId, open, loadAllClients]);
@@ -372,7 +376,11 @@ export default function NewDocumentQuickView({
             org_id: orgId, // Puede ser null para usuarios sin org
             user_id: user.id, // Usuario creador del contrato
             property_id: formData.propertyId || null,
-            client_contact_id: formData.clientId || null,
+            // Usar la columna correcta según el tipo de cliente
+            client_contact_id:
+              formData.clientType === "lead_contact" ? formData.clientId : null,
+            client_profile_id:
+              formData.clientType === "profile" ? formData.clientId : null,
             contract_type: formData.documentType, // 'intermediacion' | 'oferta' | 'promesa'
             status: "draft",
             is_template: false, // Es un contrato real, no una plantilla
@@ -408,6 +416,7 @@ export default function NewDocumentQuickView({
           documentType: "",
           propertyId: "",
           clientId: "",
+          clientType: "",
           title: "",
           description: "",
           issuedDate: today,
@@ -998,6 +1007,7 @@ export default function NewDocumentQuickView({
                             setFormData((prev) => ({
                               ...prev,
                               clientId: client.id,
+                              clientType: client.type,
                             }));
                             setClientSearch(client.fullName);
                             setShowClientDropdown(false);

@@ -13,6 +13,13 @@ import { SearchIcon, X, PlusIcon } from "lucide-react";
 
 // Función helper para mapear DTO a IContract (mock interface)
 function mapDtoToContract(dto: ContractListItemDTO): IContract {
+  console.log(`📋 Mapeo contrato ${dto.id}:`, {
+    clientContactId: dto.clientContactId,
+    clientProfileId: dto.clientProfileId,
+    clientName: dto.clientName,
+    clientType: dto.clientType,
+  });
+
   return {
     id: dto.id,
     propiedadId: dto.propertyId || "",

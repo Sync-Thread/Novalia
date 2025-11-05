@@ -26,6 +26,10 @@ export class SupabaseClientRepo implements ClientRepo {
 
       console.log("🔍 SupabaseClientRepo.listForSelector - filters:", filters);
 
+      // Obtener el usuario actual para excluirlo de los resultados
+      const { data: { user: currentUser } } = await this.client.auth.getUser();
+      const currentUserId = currentUser?.id;
+
       // Si se proporciona propertyId, filtrar por usuarios que han interactuado con esa propiedad
       if (filters.propertyId) {
         console.log("✅ Filtrando por propertyId:", filters.propertyId);
@@ -45,16 +49,25 @@ export class SupabaseClientRepo implements ClientRepo {
           });
         }
 
-        // Si hay búsqueda, filtrar en cliente (ya que RPC no soporta parámetros adicionales)
-        let filteredData = data || [];
-        if (filters.search && filters.search.trim()) {
-          const term = filters.search.trim().toLowerCase();
-          filteredData = filteredData.filter((row: ClientRow) => 
-            row.full_name?.toLowerCase().includes(term) ||
-            row.email?.toLowerCase().includes(term) ||
-            row.phone?.includes(term)
-          );
-        }
+        // Filtrar: excluir usuario actual + búsqueda opcional
+        let filteredData = (data || []).filter((row: ClientRow) => {
+          // Excluir el usuario actual (no puede ser su propio cliente)
+          if (currentUserId && row.id === currentUserId) {
+            return false;
+          }
+          
+          // Aplicar filtro de búsqueda si existe
+          if (filters.search && filters.search.trim()) {
+            const term = filters.search.trim().toLowerCase();
+            return (
+              row.full_name?.toLowerCase().includes(term) ||
+              row.email?.toLowerCase().includes(term) ||
+              row.phone?.includes(term)
+            );
+          }
+          
+          return true;
+        });
 
         // Limitar resultados
         filteredData = filteredData.slice(0, pageSize);
@@ -66,6 +79,7 @@ export class SupabaseClientRepo implements ClientRepo {
             fullName: row.full_name || "Sin nombre",
             email: row.email,
             phone: row.phone,
+            type: "profile" as const, // Son profiles (usuarios autenticados)
           })
         );
 
@@ -105,6 +119,7 @@ export class SupabaseClientRepo implements ClientRepo {
           fullName: row.full_name || "Sin nombre",
           email: row.email,
           phone: row.phone,
+          type: "lead_contact" as const, // Son lead_contacts
         })
       );
 
