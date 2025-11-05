@@ -139,7 +139,7 @@ export function PropertyCard({
           </span>
           <span className={styles.chip}>
             <Bath size={14} />
-            {property.bathrooms ?? 0} banos
+            {property.bathrooms ?? 0} baños
           </span>
           <span className={styles.chip}>
             <Car size={14} />

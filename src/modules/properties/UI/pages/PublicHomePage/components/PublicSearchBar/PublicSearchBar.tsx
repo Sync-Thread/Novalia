@@ -103,7 +103,7 @@ export const PublicSearchBar = forwardRef<
   const showCity = Boolean(value.state);
 
   const typeOptions = useMemo<SelectOption[]>(
-    () => [{ value: "", label: "Todos" }, ...PROPERTY_TYPE_OPTIONS],
+    () => [{ value: "", label: "Todos los tipos" }, ...PROPERTY_TYPE_OPTIONS],
     []
   );
 
@@ -118,7 +118,7 @@ export const PublicSearchBar = forwardRef<
 
   const cityOptions = useMemo<SelectOption[]>(
     () => [
-      { value: "", label: "Todas" },
+      { value: "", label: "Todas las ciudades" },
       ...cities.map((city) => ({ value: city.value, label: city.label })),
     ],
     [cities]
@@ -376,7 +376,10 @@ export const PublicSearchBar = forwardRef<
         <div className={styles.selectShell}>
           <CustomSelect
             value={value.state}
-            options={[{ value: "", label: "Todos" }, ...stateOptions]}
+            options={[
+              { value: "", label: "Todos los estados" },
+              ...stateOptions,
+            ]}
             onChange={(next) =>
               applyChange({ state: next, city: "" }, { apply: true })
             }
@@ -537,7 +540,7 @@ export const PublicSearchBar = forwardRef<
                 />
               </label>
               <label className={styles.popoverLabel}>
-                Banos
+                Baños
                 <input
                   type="number"
                   min={0}
