@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import type { IContract } from "../../domain/entities/contractType";
 import { getPresignedUrlForDisplay } from "../../../properties/infrastructure/adapters/MediaStorage";
@@ -7,17 +7,21 @@ import {
   Building2,
   CheckCircle2,
   Clock,
+  Copy,
   Download,
   FileText,
+  Loader2,
   MapPin,
   PenTool,
   Plus,
+  Save,
   Trash2,
   Upload,
   User,
   X,
 } from "lucide-react";
 import { useContractsActions } from "../hooks/useContractsActions";
+import { supabase } from "../../../../core/supabase/client";
 import styles from "./ContractDetailSideSheet.module.css";
 
 interface DetailSheetProps {
@@ -25,13 +29,31 @@ interface DetailSheetProps {
   onClose: () => void;
 }
 
+interface ClientOption {
+  id: string;
+  fullName: string;
+  email?: string;
+  phone?: string;
+  type: "profile" | "lead_contact";
+}
+
 const ContractDetailSideSheet: React.FC<DetailSheetProps> = ({
   contract,
   onClose,
 }) => {
   const navigate = useNavigate();
-  const { downloadContract, loading } = useContractsActions();
+  const { downloadContract, loading, listClientsForSelector } =
+    useContractsActions();
   const [propertyPreview, setPropertyPreview] = useState<string | null>(null);
+  const [isEditingClient, setIsEditingClient] = useState(false);
+  const [clientSearch, setClientSearch] = useState("");
+  const [clientOptions, setClientOptions] = useState<ClientOption[]>([]);
+  const [showClientDropdown, setShowClientDropdown] = useState(false);
+  const [selectedClient, setSelectedClient] = useState<ClientOption | null>(
+    null
+  );
+  const [isSavingClient, setIsSavingClient] = useState(false);
+  const clientSearchRef = useRef<HTMLInputElement>(null);
 
   // Cargar preview de la propiedad desde S3
   useEffect(() => {
@@ -78,6 +100,68 @@ const ContractDetailSideSheet: React.FC<DetailSheetProps> = ({
       }
     };
   }, [propertyPreview]);
+
+  // Cargar clientes disponibles
+  const loadClients = useCallback(async () => {
+    if (!contract) return;
+
+    const result = await listClientsForSelector({
+      pageSize: 200,
+      propertyId: contract.propiedadId || undefined,
+    });
+
+    if (result) {
+      const mappedClients: ClientOption[] = result.map((client) => ({
+        id: client.id,
+        fullName: client.fullName || "Sin nombre",
+        email: client.email || undefined,
+        phone: client.phone || undefined,
+        type: client.type || "lead_contact",
+      }));
+
+      setClientOptions(mappedClients);
+    }
+  }, [listClientsForSelector, contract?.propiedadId, contract]);
+
+  // Cargar clientes cuando se active el modo edición
+  useEffect(() => {
+    if (isEditingClient && contract && !contract.contraparte) {
+      loadClients();
+    }
+  }, [isEditingClient, loadClients, contract]);
+
+  // Guardar cliente asociado
+  const handleSaveClient = useCallback(async () => {
+    if (!selectedClient || !contract) return;
+
+    setIsSavingClient(true);
+    try {
+      const updateData: any = {};
+
+      if (selectedClient.type === "profile") {
+        updateData.client_profile_id = selectedClient.id;
+        updateData.client_contact_id = null;
+      } else {
+        updateData.client_contact_id = selectedClient.id;
+        updateData.client_profile_id = null;
+      }
+
+      const { error } = await supabase
+        .from("contracts")
+        .update(updateData)
+        .eq("id", contract.id);
+
+      if (error) throw error;
+
+      // Recargar la página o notificar el éxito
+      window.location.reload();
+    } catch (error) {
+      console.error("Error al guardar cliente:", error);
+      alert("Error al asociar el cliente. Intenta nuevamente.");
+    } finally {
+      setIsSavingClient(false);
+    }
+  }, [selectedClient, contract]);
 
   if (!contract) return null;
 
@@ -137,13 +221,22 @@ const ContractDetailSideSheet: React.FC<DetailSheetProps> = ({
 
   const hasFile = Boolean(contract.s3Key);
   const isChecklistComplete = contract.porcentajeCompletado === 100;
-  const canSign =
-    hasFile &&
-    isChecklistComplete &&
-    contract.estadoFirma === "PendienteDeFirma";
+  // Checklist ya no bloquea la firma - solo necesitas tener el archivo PDF
+  const canSign = hasFile && contract.estadoFirma === "PendienteDeFirma";
   const canDelete = ["PendienteDeFirma", "draft"].includes(
     contract.estadoFirma || ""
   );
+
+  // Verificar estado del KYC del cliente desde el checklist
+  const hasClient = Boolean(contract.contraparte);
+  const kycCompleted =
+    hasClient &&
+    contract.checklist?.some(
+      (item) =>
+        item.tarea.toLowerCase().includes("kyc") &&
+        item.tarea.toLowerCase().includes("cliente") &&
+        item.completada
+    );
 
   const handleDownload = () => {
     if (contract.s3Key) {
@@ -157,6 +250,15 @@ const ContractDetailSideSheet: React.FC<DetailSheetProps> = ({
     navigate(`/contracts/${contract.id}/sign`);
     onClose();
   };
+
+  // Filtrar clientes localmente
+  const filteredClients = clientOptions.filter(
+    (c) =>
+      !clientSearch.trim() ||
+      c.fullName.toLowerCase().includes(clientSearch.toLowerCase()) ||
+      c.email?.toLowerCase().includes(clientSearch.toLowerCase()) ||
+      c.phone?.includes(clientSearch.trim())
+  );
 
   return (
     <div className={styles.overlay} role="presentation">
@@ -223,15 +325,15 @@ const ContractDetailSideSheet: React.FC<DetailSheetProps> = ({
                   <button
                     className={styles.btnPrimary}
                     onClick={handleSign}
-                    // disabled={!canSign}
+                    disabled={!canSign}
                     aria-label={
                       canSign
                         ? "Firmar"
-                        : "Completa el checklist para habilitar la firma"
+                        : "Sube un archivo PDF para habilitar la firma"
                     }
                     title={
-                      !canSign && !isChecklistComplete
-                        ? "Completa el checklist para habilitar la firma"
+                      !canSign && !hasFile
+                        ? "Sube un archivo PDF para habilitar la firma"
                         : undefined
                     }
                   >
@@ -250,116 +352,6 @@ const ContractDetailSideSheet: React.FC<DetailSheetProps> = ({
                 </button>
               </>
             )}
-            {hasFile && !isChecklistComplete && (
-              <div className={styles.alert}>
-                <AlertCircle size={16} />
-                <span>Completa el checklist para habilitar la firma</span>
-              </div>
-            )}
-          </section>
-
-          {/* Entidades vinculadas */}
-          <section className={styles.section}>
-            <h3 className={styles.sectionTitle}>Entidades Vinculadas</h3>
-
-            {/* Propiedad */}
-            {contract.propiedadId ? (
-              <div className={styles.entityCardHorizontal}>
-                {propertyPreview ? (
-                  <img
-                    src={propertyPreview}
-                    alt={contract.propiedadNombre}
-                    className={styles.entityThumbnail}
-                  />
-                ) : contract.propiedadImagenUrl?.startsWith("http") ? (
-                  <img
-                    src={contract.propiedadImagenUrl}
-                    alt={contract.propiedadNombre}
-                    className={styles.entityThumbnail}
-                  />
-                ) : (
-                  <div className={styles.entityThumbnailPlaceholder}>
-                    <Building2 size={16} />
-                  </div>
-                )}
-                <div className={styles.entityCardInfo}>
-                  <div className={styles.entityCardName}>
-                    {contract.propiedadNombre}
-                  </div>
-                  <div className={styles.entityCardMeta}>Propiedad</div>
-                </div>
-              </div>
-            ) : (
-              <div className={styles.entityCardEmpty}>
-                <MapPin size={18} />
-                <span>Sin propiedad asignada</span>
-                <button className={styles.btnLink}>Asignar</button>
-              </div>
-            )}
-
-            {/* Cliente/Contraparte */}
-            {contract.contraparte ? (
-              <div className={styles.entityCardHorizontal}>
-                <div className={styles.entityAvatar}>
-                  {contract.contraparte.charAt(0).toUpperCase()}
-                </div>
-                <div className={styles.entityCardInfo}>
-                  <div className={styles.entityCardName}>
-                    {contract.contraparte}
-                  </div>
-                  <div className={styles.entityCardMeta}>Cliente</div>
-                </div>
-              </div>
-            ) : (
-              <div className={styles.entityCardEmpty}>
-                <User size={18} />
-                <span>Sin cliente asignado</span>
-                <button className={styles.btnLink}>Asignar</button>
-              </div>
-            )}
-          </section>
-
-          {/* Checklist */}
-          <section className={styles.section}>
-            <h3 className={styles.sectionTitle}>Checklist Previo a Firma</h3>
-            <div className={styles.progressContainer}>
-              <div className={styles.progressBar}>
-                <div
-                  className={styles.progressFill}
-                  style={{ width: `${contract.porcentajeCompletado}%` }}
-                  role="progressbar"
-                  aria-valuenow={contract.porcentajeCompletado}
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                />
-              </div>
-              <span className={styles.progressText}>
-                {contract.porcentajeCompletado}% completado
-              </span>
-            </div>
-            <ul className={styles.checklist}>
-              {contract.checklist && contract.checklist.length > 0 ? (
-                contract.checklist.map((item) => (
-                  <li key={item.id} className={styles.checklistItem}>
-                    <div className={styles.checklistIcon}>
-                      {item.completada ? (
-                        <CheckCircle2
-                          size={18}
-                          className={styles.iconSuccess}
-                        />
-                      ) : (
-                        <Clock size={18} className={styles.iconPending} />
-                      )}
-                    </div>
-                    <span className={styles.checklistLabel}>{item.tarea}</span>
-                  </li>
-                ))
-              ) : (
-                <li className={styles.emptyState}>
-                  No hay tareas registradas en el checklist
-                </li>
-              )}
-            </ul>
           </section>
 
           {/* Expediente Digital */}
@@ -370,10 +362,10 @@ const ContractDetailSideSheet: React.FC<DetailSheetProps> = ({
                 className={styles.btnLink}
                 disabled
                 title="Función disponible próximamente"
-                aria-label="Agregar documento o anexo (próximamente)"
+                aria-label="Agregar anexos (próximamente)"
               >
                 <Plus size={14} />
-                Agregar documento
+                Agregar Anexos
               </button>
             </div>
             <div className={styles.documentsList}>
@@ -442,6 +434,224 @@ const ContractDetailSideSheet: React.FC<DetailSheetProps> = ({
             </div>
           </section>
 
+          {/* Entidades vinculadas */}
+          <section className={styles.section}>
+            <h3 className={styles.sectionTitle}>Entidades Vinculadas</h3>
+
+            {/* Propiedad */}
+            {contract.propiedadId ? (
+              <div className={styles.entityCardHorizontal}>
+                {propertyPreview ? (
+                  <img
+                    src={propertyPreview}
+                    alt={contract.propiedadNombre}
+                    className={styles.entityThumbnail}
+                  />
+                ) : contract.propiedadImagenUrl?.startsWith("http") ? (
+                  <img
+                    src={contract.propiedadImagenUrl}
+                    alt={contract.propiedadNombre}
+                    className={styles.entityThumbnail}
+                  />
+                ) : (
+                  <div className={styles.entityThumbnailPlaceholder}>
+                    <Building2 size={16} />
+                  </div>
+                )}
+                <div className={styles.entityCardInfo}>
+                  <div className={styles.entityCardName}>
+                    {contract.propiedadNombre}
+                  </div>
+                  <div className={styles.entityCardMeta}>Propiedad</div>
+                </div>
+              </div>
+            ) : (
+              <div className={styles.entityCardEmpty}>
+                <MapPin size={18} />
+                <span>Sin propiedad asignada</span>
+                <button className={styles.btnLink}>Asignar</button>
+              </div>
+            )}
+
+            {/* Cliente/Contraparte */}
+            {contract.contraparte ? (
+              <div className={styles.entityCardHorizontal}>
+                <div className={styles.entityAvatar}>
+                  {contract.contraparte.charAt(0).toUpperCase()}
+                </div>
+                <div className={styles.entityCardInfo}>
+                  <div className={styles.entityCardName}>
+                    {contract.contraparte}
+                  </div>
+                  <div className={styles.entityCardMeta}>Cliente</div>
+                </div>
+              </div>
+            ) : isEditingClient ? (
+              <div className={styles.clientSelector}>
+                <div style={{ position: "relative" }}>
+                  <User
+                    size={18}
+                    style={{
+                      position: "absolute",
+                      left: "12px",
+                      top: "50%",
+                      transform: "translateY(-50%)",
+                      color: "#9ca3af",
+                      pointerEvents: "none",
+                      zIndex: 1,
+                    }}
+                  />
+                  <input
+                    ref={clientSearchRef}
+                    type="text"
+                    placeholder="Buscar cliente por nombre, email o teléfono..."
+                    value={clientSearch}
+                    onChange={(e) => setClientSearch(e.target.value)}
+                    onFocus={() => setShowClientDropdown(true)}
+                    className={styles.clientSearchInput}
+                    onBlur={() => {
+                      setTimeout(() => setShowClientDropdown(false), 200);
+                    }}
+                  />
+
+                  {/* Dropdown de clientes */}
+                  {showClientDropdown && (
+                    <div className={styles.clientDropdown}>
+                      {clientOptions.length === 0 ? (
+                        <div className={styles.clientDropdownEmpty}>
+                          {contract.propiedadId
+                            ? "Sin clientes interesados en esta propiedad"
+                            : "No se encontraron clientes"}
+                        </div>
+                      ) : filteredClients.length === 0 ? (
+                        <div className={styles.clientDropdownEmpty}>
+                          No se encontraron resultados
+                        </div>
+                      ) : (
+                        filteredClients.map((client) => (
+                          <button
+                            key={client.id}
+                            type="button"
+                            onClick={() => {
+                              setSelectedClient(client);
+                              setClientSearch(client.fullName);
+                              setShowClientDropdown(false);
+                            }}
+                            className={styles.clientDropdownItem}
+                          >
+                            <div className={styles.clientAvatar}>
+                              {client.fullName.charAt(0).toUpperCase()}
+                            </div>
+                            <div className={styles.clientDropdownInfo}>
+                              <div className={styles.clientDropdownName}>
+                                {client.fullName}
+                              </div>
+                              <div className={styles.clientDropdownMeta}>
+                                {client.email || client.phone || "Sin contacto"}
+                              </div>
+                            </div>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <div className={styles.clientSelectorActions}>
+                  <button
+                    className={styles.btnSecondary}
+                    onClick={() => {
+                      setIsEditingClient(false);
+                      setClientSearch("");
+                      setSelectedClient(null);
+                    }}
+                    disabled={isSavingClient}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    className={styles.btnPrimary}
+                    onClick={handleSaveClient}
+                    disabled={!selectedClient || isSavingClient}
+                  >
+                    {isSavingClient ? (
+                      <>
+                        <Loader2 size={16} className="animate-spin" />
+                        Guardando...
+                      </>
+                    ) : (
+                      <>
+                        <Save size={16} />
+                        Guardar
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className={styles.entityCardEmpty}>
+                <User size={18} />
+                <span>Sin cliente asignado</span>
+                <button
+                  className={styles.btnLink}
+                  onClick={() => setIsEditingClient(true)}
+                >
+                  Asignar
+                </button>
+              </div>
+            )}
+          </section>
+
+          {/* Checklist */}
+          <section className={styles.section}>
+            <h3 className={styles.sectionTitle}>Checklist de Requisitos</h3>
+            <div className={styles.progressContainer}>
+              <div className={styles.progressBar}>
+                <div
+                  className={styles.progressFill}
+                  style={{ width: `${contract.porcentajeCompletado}%` }}
+                  role="progressbar"
+                  aria-valuenow={contract.porcentajeCompletado}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                />
+              </div>
+              <span className={styles.progressText}>
+                {contract.porcentajeCompletado}% completado
+              </span>
+            </div>
+            <ul className={styles.checklist}>
+              <li className={styles.checklistItem}>
+                <div className={styles.checklistIcon}>
+                  {kycCompleted ? (
+                    <CheckCircle2 size={18} className={styles.iconSuccess} />
+                  ) : (
+                    <Clock size={18} className={styles.iconPending} />
+                  )}
+                </div>
+                <span className={styles.checklistLabel}>
+                  KYC del cliente asociado
+                </span>
+              </li>
+              <li className={styles.checklistItem}>
+                <div className={styles.checklistIcon}>
+                  <Clock size={18} className={styles.iconPending} />
+                </div>
+                <span className={styles.checklistLabel}>
+                  Firma por parte del agente o inmobiliaria
+                </span>
+              </li>
+              <li className={styles.checklistItem}>
+                <div className={styles.checklistIcon}>
+                  <Clock size={18} className={styles.iconPending} />
+                </div>
+                <span className={styles.checklistLabel}>
+                  Firma por parte del cliente
+                </span>
+              </li>
+            </ul>
+          </section>
+
           {/* Información del Contrato */}
           <section className={styles.section}>
             <h3 className={styles.sectionTitle}>Información del Contrato</h3>
@@ -489,6 +699,26 @@ const ContractDetailSideSheet: React.FC<DetailSheetProps> = ({
               <h3 className={`${styles.sectionTitle} ${styles.dangerTitle}`}>
                 Zona de Riesgo
               </h3>
+
+              {/* Duplicar contrato */}
+              <div className={styles.actionZone}>
+                <div>
+                  <p className={styles.actionLabel}>Duplicar contrato</p>
+                  <p className={styles.actionText}>
+                    Crea una copia de este contrato con la misma información.
+                  </p>
+                </div>
+                <button
+                  className={styles.btnSecondary}
+                  disabled
+                  title="Función disponible próximamente"
+                >
+                  <Copy size={16} />
+                  Duplicar
+                </button>
+              </div>
+
+              {/* Eliminar contrato */}
               <div className={styles.dangerZone}>
                 <div>
                   <p className={styles.dangerLabel}>Eliminar contrato</p>
