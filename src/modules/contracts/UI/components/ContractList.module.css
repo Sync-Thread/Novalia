@@ -1,9 +1,9 @@
+/* Contenedor principal de la tabla */
 .tableContainer {
-  background-color: white;
+  background: #ffffff;
   border-radius: 12px;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
-  margin-top: 20px;
   border: 1px solid #e5e7eb;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
   overflow: hidden;
   width: 100%;
 }
@@ -14,252 +14,374 @@
   border-collapse: collapse;
 }
 
+/* Sticky header con sombra sutil */
+.contractTable thead {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: #f9fafb;
+  box-shadow: 0 1px 0 #e5e7eb;
+}
+
 .contractTable thead th {
-  text-align: center;
-  padding: 12px 16px;
+  padding: 14px 16px;
   font-size: 12px;
-  color: #4b5563;
+  color: #6b7280;
   font-weight: 600;
-  border-bottom: 1px solid #e5e7eb;
+  text-align: left;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  background-color: #f9fafb;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  background: #f9fafb;
 }
 
 .contractTable thead th:first-child {
-  text-align: center;
+  padding-left: 20px;
 }
 
+.contractTable thead th:last-child {
+  padding-right: 20px;
+}
+
+/* Filas con zebra y hover mejorado */
 .rowItem {
   cursor: pointer;
-  border-bottom: 1px solid #e5e7eb;
-  transition: all 0.2s ease;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  background: #ffffff;
+}
+
+.rowItem:nth-child(even) {
+  background: #fafbfc;
 }
 
 .rowItem:hover {
-  background-color: #f8fafc;
+  background: #f3f4f6;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transform: scale(1.001);
 }
 
-.rowItem:last-child {
+.rowItem:last-child td {
   border-bottom: none;
 }
 
-.tdProperty,
+/* Celdas del cuerpo */
 .rowItem td {
-  padding: 16px;
+  padding: 14px 16px;
   font-size: 14px;
-  color: #1f2937;
+  color: #374151;
   vertical-align: middle;
-  line-height: 1.5;
-  height: auto;
-  overflow-wrap: break-word;
-  word-wrap: break-word;
-  word-break: break-word;
-  min-height: 72px; /* Altura mínima para consistencia */
+  border-bottom: 1px solid #f3f4f6;
+  line-height: 1.4;
 }
 
-/* Columna de Propiedad */
+.rowItem td:first-child {
+  padding-left: 20px;
+}
+
+.rowItem td:last-child {
+  padding-right: 20px;
+}
+
+/* Columna de Propiedad con thumbnail y truncado */
 .tdProperty {
   display: flex;
   align-items: center;
   gap: 12px;
-  cursor: pointer;
   text-align: left;
+  min-width: 0;
 }
 
 .propertyThumb {
-  width: 56px;
-  height: 42px;
+  width: 40px;
+  height: 40px;
   object-fit: cover;
-  border-radius: 6px;
+  border-radius: 8px;
   border: 1px solid #e5e7eb;
+  flex-shrink: 0;
+  background: #f9fafb;
+}
+
+.propertyInfo {
+  min-width: 0;
+  flex: 1;
 }
 
 .propertyTitle {
   font-weight: 500;
   color: #111827;
   margin-bottom: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
 }
 
 .propertyId {
   font-size: 12px;
-  color: #6b7280;
+  color: #9ca3af;
   font-weight: 400;
 }
 
-/* Estilos de Pills (Badges) */
+/* Pills/Badges de estado (mejorados) */
 .pill {
-  padding: 4px 10px;
+  padding: 5px 12px;
   border-radius: 9999px;
   font-size: 12px;
   font-weight: 500;
   display: inline-flex;
   align-items: center;
   white-space: nowrap;
-  line-height: 1.25;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 1.2;
+  max-width: fit-content;
 }
 
-/* Estados de Firma */
+/* Estados de Firma con colores del DS */
 .pillSigned {
-  background-color: #f0fdf4;
-  color: #16a34a;
-  border: 1px solid #bbf7d0;
+  background: #f0fdf4;
+  color: #15803d;
+  border: 1px solid #86efac;
 }
 
 .pillPending {
-  background-color: #fefce8;
-  color: #ca8a04;
-  border: 1px solid #fef08a;
+  background: #fef9c3;
+  color: #a16207;
+  border: 1px solid #fde047;
 }
 
 .pillVigente {
-  background-color: #dbeafe;
-  color: #2563eb;
+  background: #dbeafe;
+  color: #1e40af;
   border: 1px solid #93c5fd;
 }
 
 .pillRejected {
-  background-color: #fef2f2;
-  color: #dc2626;
-  border: 1px solid #fecaca;
+  background: #fee2e2;
+  color: #b91c1c;
+  border: 1px solid #fca5a5;
 }
 
 .pillArchived {
-  background-color: #f3f4f6;
-  color: #4b5563;
-  border: 1px solid #e5e7eb;
+  background: #f3f4f6;
+  color: #6b7280;
+  border: 1px solid #d1d5db;
 }
 
-/* Ajustes de columnas y accesibilidad */
+/* Alineación de columnas específicas */
 .thProperty {
-  width: 30%;
   text-align: left;
 }
 
 .thTipo {
-  width: 18%;
+  text-align: left;
 }
 
 .thClient {
-  width: 15%;
-}
-
-.thMonto {
-  width: 12%;
+  text-align: left;
 }
 
 .thStatus {
-  width: 15%;
-}
-
-.thVigencia {
-  width: 12%;
-}
-
-.thActions {
-  width: 10%;
   text-align: center;
 }
 
-/* ancho por <col> para table-layout: fixed */
+.thFechas {
+  text-align: left;
+}
+
+/* Anchos de columna con table-layout: fixed */
 .colProperty {
-  width: 28.85%;
+  width: 30%;
 }
 
 .colTipo {
-  width: 17.31%;
+  width: 22%;
 }
 
 .colClient {
-  width: 14.42%;
-}
-
-.colMonto {
-  width: 11.54%;
+  width: 22%;
 }
 
 .colStatus {
-  width: 14.42%;
+  width: 13%;
 }
 
-.colVigencia {
-  width: 6.78%;
-} /* Reducir Vigencia ligeramente */
-
-.colActions {
-  width: 6.68%;
-  min-width: 80px;
+.colFechas {
+  width: 13%;
 }
 
-/* Estilos para las celdas del cuerpo */
-.rowItem td {
-  padding: 12px;
-  vertical-align: middle;
-  line-height: 1.25;
-  max-width: 100%;
-  word-break: break-word;
-  overflow-wrap: break-word;
-}
-
-/* Asegura que el contenido se muestre en múltiples líneas cuando sea necesario */
-.rowItem td:not(.tdProperty):not(.tdActions) {
-  white-space: normal;
-  overflow-wrap: break-word;
-  word-wrap: break-word;
-  hyphens: auto;
-}
-
-/* Column-specific body cell helpers (for additional styling if needed) */
+/* Alineación de celdas del cuerpo */
 .tdTipo {
-  white-space: normal;
-  text-align: center;
+  text-align: left;
+}
+
+.tipoLabel {
+  font-weight: 500;
+  color: #111827;
+  margin-bottom: 4px;
+  line-height: 1.3;
+}
+
+.tipoMonto {
+  font-size: 13px;
+  color: #6b7280;
+  font-variant-numeric: tabular-nums;
 }
 
 .tdClient {
-  white-space: normal;
-  text-align: center;
+  text-align: left;
 }
 
-.tdMonto {
-  text-align: center;
+.clientName {
+  font-weight: 500;
+  color: #111827;
+  margin-bottom: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.progressWrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.progressBar {
+  flex: 1;
+  height: 6px;
+  background: #e5e7eb;
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  background: linear-gradient(90deg, #295dff 0%, #3b82f6 100%);
+  border-radius: 9999px;
+  transition: width 0.3s ease;
+}
+
+.progressText {
+  font-size: 11px;
+  font-weight: 600;
+  color: #6b7280;
+  min-width: 32px;
+  text-align: right;
 }
 
 .tdStatus {
-  white-space: normal;
   text-align: center;
 }
 
-.tdVigencia {
-  text-align: center;
+.tdFechas {
+  text-align: left;
 }
 
-.tdActions {
-  text-align: center;
-  min-width: 48px;
+.fechasWrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
+.fechaItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.fechaLabel {
+  color: #9ca3af;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  font-weight: 600;
+}
+
+.fechaValue {
+  color: #374151;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Estado de foco accesible */
 .rowItem:focus {
   outline: none;
-  background-color: #f8fafc;
   position: relative;
 }
 
 .rowItem:focus::after {
   content: '';
   position: absolute;
-  left: 0;
-  right: 0;
-  top: 0;
-  bottom: 0;
-  border: 2px solid #d1d0d0;
-  border-radius: 6px;
+  inset: 0;
+  border: 2px solid #295dff;
+  border-radius: 4px;
   pointer-events: none;
+}
+
+/* Skeleton loading states */
+.rowSkeleton {
+  background: #ffffff;
+  pointer-events: none;
+}
+
+.rowSkeleton:nth-child(even) {
+  background: #fafbfc;
+}
+
+.rowSkeleton td {
+  padding: 14px 16px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.skeletonThumb {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background: linear-gradient(90deg, #f3f4f6 0%, #e5e7eb 50%, #f3f4f6 100%);
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.5s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+.skeletonText {
+  height: 12px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, #f3f4f6 0%, #e5e7eb 50%, #f3f4f6 100%);
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.5s ease-in-out infinite;
+}
+
+.skeletonBar {
+  height: 6px;
+  width: 100%;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, #f3f4f6 0%, #e5e7eb 50%, #f3f4f6 100%);
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.5s ease-in-out infinite;
+}
+
+.skeletonPill {
+  height: 24px;
+  width: 80px;
+  border-radius: 9999px;
+  margin: 0 auto;
+  background: linear-gradient(90deg, #f3f4f6 0%, #e5e7eb 50%, #f3f4f6 100%);
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes skeletonShimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Tooltip para barra de progreso */
+.progressWrapper {
+  cursor: help;
 }
 
 /* Screen reader only */
@@ -288,8 +410,8 @@
   border: 0;
 }
 
-/* Responsive: convert to stacked rows on narrow screens to avoid horizontal scroll and keep content readable. */
-@media (max-width: 760px) {
+/* Responsive: convert to cards on narrow screens */
+@media (max-width: 900px) {
   .contractTable,
   .contractTable thead,
   .contractTable tbody,
@@ -298,35 +420,90 @@
   .contractTable tr {
     display: block;
   }
+  
   .contractTable thead {
     display: none;
   }
+  
   .rowItem {
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    border-bottom: 1px solid #e5e7eb;
-    padding: 12px 16px;
+    gap: 12px;
+    border-bottom: 2px solid #e5e7eb;
+    padding: 16px;
     min-height: auto;
+    margin-bottom: 2px;
   }
+  
+  .rowItem:hover {
+    transform: none;
+  }
+  
   .tdProperty {
     display: flex;
     gap: 12px;
     align-items: center;
+    padding: 0;
+    border-bottom: 1px solid #f3f4f6;
+    padding-bottom: 12px;
   }
+  
   .tdTipo,
   .tdClient,
-  .tdMonto,
   .tdStatus,
-  .tdVigencia {
+  .tdFechas {
     display: block;
     text-align: left;
-    padding-left: 8px;
+    padding: 0;
+    border-bottom: none;
   }
-  .tdMonto {
-    text-align: left;
+  
+  .tdTipo {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
   }
-  .tdActions {
-    align-self: flex-end;
+  
+  .tipoLabel {
+    flex: 1;
+  }
+  
+  .tipoMonto {
+    font-size: 14px;
+    font-weight: 600;
+    color: #111827;
+  }
+  
+  .tdClient {
+    padding-bottom: 8px;
+  }
+  
+  .tdStatus {
+    display: flex;
+    justify-content: flex-start;
+  }
+  
+  .pill {
+    padding: 6px 14px;
+    font-size: 13px;
+  }
+  
+  .fechasWrapper {
+    flex-direction: row;
+    gap: 16px;
+  }
+  
+  .fechaItem {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+  }
+  
+  .fechaLabel {
+    font-size: 10px;
+  }
+  
+  .fechaValue {
+    font-size: 12px;
   }
 }

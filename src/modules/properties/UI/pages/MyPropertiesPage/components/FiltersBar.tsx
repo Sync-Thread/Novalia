@@ -24,7 +24,7 @@ export interface FiltersBarProps {
 }
 
 const STATUS_OPTIONS: SelectOption[] = [
-  { value: "all", label: "Todos" },
+  { value: "all", label: "Todos (Estatus)" },
   { value: "draft", label: "Borradores" },
   { value: "published", label: "Publicadas" },
   { value: "sold", label: "Vendidas" },

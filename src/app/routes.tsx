@@ -1,10 +1,11 @@
-import ContractsPage from "../modules/contracts/UI/pages/ContractsPage"; //esta madre luego la quito
 // src/app/routes.tsx
+import ContractsPage from "../modules/contracts/UI/pages/ContractsPage";
+import { SignContractPage } from "../modules/contracts/UI/pages/SignContractPage";
 import { createBrowserRouter, Navigate } from "react-router-dom";
 import Dashboard from "../pages/Dashboard";
 import MyPropertiesPage from "../modules/properties/UI/pages/MyPropertiesPage";
 import PublishWizardPage from "../modules/properties/UI/pages/PublishWizardPage";
-import TransactionsAndContracts from "../modules/properties/UI/pages/TransactionsAndContracts";
+import PropertiesDashboard from "../modules/properties/UI/pages/PropertiesDashboard";
 import PublicHomePage from "../modules/properties/UI/pages/PublicHomePage/PublicHomePage";
 import PropertyDetailPage from "../modules/properties/UI/pages/PropertyDetailPage";
 import AuthGuard from "./guards/AuthGuard";
@@ -32,16 +33,17 @@ export const router = createBrowserRouter([
       </AuthGuard>
     ),
     children: [
-      {path: "/transactions", element: <TransactionsAndContracts /> },
+      { path: "/transactions", element: <PropertiesDashboard /> },
       { path: "/dashboard", element: <Dashboard /> },
       { path: "/properties", element: <MyPropertiesPage /> },
       { path: "/properties/new", element: <PublishWizardPage /> },
       { path: "/properties/:id/edit", element: <PublishWizardPage /> },
+      { path: "/contracts", element: <ContractsPage /> },
+      { path: "/contracts/:contractId/sign", element: <SignContractPage /> },
       { path: "/kyc", element: <VerifyINEPage /> },
       { path: "/verify-rpp", element: <VerifyRPPPage /> },
     ],
   },
-  { path: "/contracts", element: <ContractsPage /> },//esta madre luego la quito
   { path: "/auth/login", element: <Login /> },
   { path: "/auth/register", element: <Register /> },
   { path: "/auth/forgot-password", element: <ForgotPassword /> },

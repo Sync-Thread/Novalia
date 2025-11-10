@@ -1,0 +1,319 @@
+// Repositorio: Contratos usando Supabase
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { Result } from "../../../properties/application/_shared/result";
+import type { ContractRepo, ContractListFilters } from "../../application/ports/ContractRepo";
+import type { ContractListItemDTO, Page } from "../../application/dto/ContractDTO";
+
+interface ContractRow {
+  id: string;
+  title: string | null;
+  contract_type: string;
+  status: string;
+  property_id: string | null;
+  client_contact_id: string | null;
+  client_profile_id: string | null;
+  issued_on: string;
+  due_on: string | null;
+  s3_key: string | null;
+  metadata: {
+    fileName?: string;
+    size?: number;
+    contentType?: string;
+    uploadedAt?: string;
+  } | null;
+  created_at: string;
+  properties: {
+    title: string | null;
+    internal_id: string | null;
+  } | null;
+}
+
+interface MediaRow {
+  property_id: string;
+  s3_key: string;
+}
+
+export class SupabaseContractRepo implements ContractRepo {
+  private readonly client: SupabaseClient;
+
+  constructor(client: SupabaseClient) {
+    this.client = client;
+  }
+
+  async listContracts(
+    filters: ContractListFilters
+  ): Promise<Result<Page<ContractListItemDTO>>> {
+    try {
+      const page = Math.max(filters.page ?? 1, 1);
+      const pageSize = Math.max(filters.pageSize ?? 50, 1);
+      const from = (page - 1) * pageSize;
+      const to = from + pageSize - 1;
+
+      // Query base: contratos (sin filtro inicial) - SIN joins de clientes
+      let query = this.client
+        .from("contracts")
+        .select(
+          `
+            id,
+            title,
+            contract_type,
+            status,
+            property_id,
+            client_contact_id,
+            client_profile_id,
+            issued_on,
+            due_on,
+            s3_key,
+            metadata,
+            created_at,
+            properties!contracts_property_id_fkey (
+              title,
+              internal_id
+            )
+          `,
+          { count: "exact" }
+        );
+
+      // Filtro por org O por usuario creador
+      if (filters.orgId) {
+        query = query.eq("org_id", filters.orgId);
+      } else {
+        query = query
+          .is("org_id", null)
+          .eq("user_id", filters.userId);
+      }
+
+      // Filtro por status (opcional)
+      if (filters.status && filters.status !== "Todos") {
+        if (filters.status === "PendienteDeFirma") {
+          query = query.eq("status", "draft");
+        } else if (filters.status === "Vigente") {
+          query = query.eq("status", "active");
+        } else if (filters.status === "Cerrados/Archivados") {
+          query = query.in("status", ["cancelled", "expired"]);
+        }
+      }
+
+      // Búsqueda opcional (solo por título de contrato)
+      // Nota: La búsqueda por cliente y propiedad se hace localmente en el frontend
+      if (filters.search && filters.search.trim()) {
+        const term = filters.search.trim().replace(/[%_]/g, "\\$&");
+        query = query.ilike("title", `%${term}%`);
+      }
+
+      // Ordenar y paginar
+      const { data, error, count } = await query
+        .order("created_at", { ascending: false })
+        .range(from, to);
+
+      if (error) {
+        console.error("Error listing contracts:", error);
+        return Result.fail({
+          code: "DATABASE_ERROR",
+          message: error.message,
+        });
+      }
+
+      const contractRows = data as unknown as ContractRow[];
+
+      // console.log("🔍 Contratos raw desde DB:", contractRows.length);
+
+      // Recolectar IDs de clientes para hacer queries separadas
+      const contactIds = contractRows
+        .map((c) => c.client_contact_id)
+        .filter((id): id is string => id !== null);
+      
+      const profileIds = contractRows
+        .map((c) => c.client_profile_id)
+        .filter((id): id is string => id !== null);
+
+      // console.log("📋 IDs a buscar:", {
+      //   contactIds: contactIds.length,
+      //   profileIds: profileIds.length,
+      // });
+
+      // Usar función RPC para obtener nombres (bypass RLS)
+      const clientNamesMap = new Map<string, string>();
+      
+      if (contactIds.length > 0 || profileIds.length > 0) {
+        // console.log("🔍 Llamando get_client_names RPC...");
+        
+        const { data: clientsData, error: clientsError } = await this.client
+          .rpc('get_client_names', {
+            p_contact_ids: contactIds,
+            p_profile_ids: profileIds,
+          });
+
+        // console.log("📊 Respuesta de get_client_names:", {
+        //   error: clientsError,
+        //   data: clientsData,
+        //   cantidad: clientsData?.length || 0,
+        // });
+
+        if (clientsError) {
+          console.error("❌ Error loading client names:", clientsError);
+        } 
+        else if (clientsData) {
+          clientsData.forEach((client: { id: string; full_name: string; source: string }) => {
+            // console.log(`👤 Cliente encontrado:`, {
+            //   id: client.id,
+            //   full_name: client.full_name,
+            //   source: client.source,
+            // });
+            clientNamesMap.set(client.id, client.full_name);
+          });
+          // console.log("✅ Clientes cargados:", clientNamesMap.size);
+          // console.log("📋 Map de clientes:", Array.from(clientNamesMap.entries()));
+        }
+      }
+
+      // Obtener property_ids para buscar imágenes de portada
+      const propertyIds = contractRows
+        .map((c) => c.property_id)
+        .filter((id): id is string => id !== null);
+
+      // Obtener imágenes de portada
+      let coverMap = new Map<string, string>();
+      if (propertyIds.length > 0) {
+        const { data: mediaData, error: mediaError } = await this.client
+          .from("media_assets")
+          .select("property_id, s3_key, metadata")
+          .in("property_id", propertyIds)
+          .eq("metadata->>isCover", "true");
+
+        if (mediaError) {
+          // Las imágenes son opcionales - solo log en dev
+          if (import.meta.env.DEV) {
+            console.info(
+              "No se pudieron cargar algunas imágenes de portada:",
+              mediaError.code
+            );
+          }
+        } else if (mediaData) {
+          coverMap = new Map(
+            mediaData.map((m: MediaRow) => [m.property_id, m.s3_key])
+          );
+        }
+      }
+
+      // Mapear a DTOs
+      const items: ContractListItemDTO[] = contractRows.map((row) => {
+        // Determinar el nombre y tipo del cliente usando el Map unificado
+        let clientName: string | null = null;
+        let clientType: "lead_contact" | "profile" | null = null;
+        
+        if (row.client_contact_id) {
+          clientName = clientNamesMap.get(row.client_contact_id) || null;
+          clientType = "lead_contact";
+          // console.log(`🔎 Contrato ${row.id.substring(0, 8)}: Buscando lead_contact ${row.client_contact_id}:`, {
+          //   encontrado: clientName,
+          //   enMap: clientNamesMap.has(row.client_contact_id),
+          // });
+        } else if (row.client_profile_id) {
+          clientName = clientNamesMap.get(row.client_profile_id) || null;
+          clientType = "profile";
+          // console.log(`🔎 Contrato ${row.id.substring(0, 8)}: Buscando profile ${row.client_profile_id}:`, {
+          //   encontrado: clientName,
+          //   enMap: clientNamesMap.has(row.client_profile_id),
+          //   mapSize: clientNamesMap.size,
+          //   mapKeys: Array.from(clientNamesMap.keys()),
+          // });
+        }
+
+        return {
+          id: row.id,
+          title: row.title || "Sin título",
+          contractType: row.contract_type as "intermediacion" | "oferta" | "promesa",
+          status: row.status as "draft" | "pending_signature" | "signed" | "active" | "expired" | "cancelled",
+          propertyId: row.property_id,
+          propertyName: row.properties?.title || null,
+          propertyInternalId: row.properties?.internal_id || null,
+          propertyCoverImageS3Key: row.property_id ? coverMap.get(row.property_id) || null : null,
+          clientContactId: row.client_contact_id, // ID desde lead_contacts
+          clientProfileId: row.client_profile_id, // ID desde profiles
+          clientName: clientName, // Nombre del cliente (de cualquiera de las dos tablas)
+          clientType: clientType, // Tipo de cliente
+          issuedOn: row.issued_on,
+          dueOn: row.due_on,
+          s3Key: row.s3_key,
+          metadata: row.metadata || null,
+          createdAt: row.created_at,
+        };
+      });
+
+      return Result.ok({
+        items,
+        total: count ?? items.length,
+        page,
+        pageSize,
+      });
+    } catch (error) {
+      console.error("Unexpected error listing contracts:", error);
+      return Result.fail({
+        code: "UNKNOWN",
+        message: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }
+
+  async getById(contractId: string): Promise<Result<{ id: string; s3Key: string | null }>> {
+    try {
+      const { data, error } = await this.client
+        .from("contracts")
+        .select("id, s3_key")
+        .eq("id", contractId)
+        .single();
+
+      if (error) {
+        console.error("Error getting contract:", error);
+        return Result.fail({
+          code: "DATABASE_ERROR",
+          message: error.message,
+        });
+      }
+
+      if (!data) {
+        return Result.fail({
+          code: "NOT_FOUND",
+          message: "Contract not found",
+        });
+      }
+
+      return Result.ok({
+        id: data.id,
+        s3Key: data.s3_key,
+      });
+    } catch (error) {
+      console.error("Unexpected error getting contract:", error);
+      return Result.fail({
+        code: "UNKNOWN",
+        message: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }
+
+  async delete(contractId: string): Promise<Result<void>> {
+    try {
+      const { error } = await this.client
+        .from("contracts")
+        .delete()
+        .eq("id", contractId);
+
+      if (error) {
+        console.error("Error deleting contract:", error);
+        return Result.fail({
+          code: "DATABASE_ERROR",
+          message: error.message,
+        });
+      }
+
+      return Result.ok(undefined);
+    } catch (error) {
+      console.error("Unexpected error deleting contract:", error);
+      return Result.fail({
+        code: "UNKNOWN",
+        message: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }
+}

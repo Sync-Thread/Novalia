@@ -76,6 +76,8 @@ export class SupabaseAuthService implements AuthService {
         .select("org_id, full_name, email, phone, role_hint")
         .eq("id", user.id)
         .maybeSingle();
+        console.log('data: ', data);
+        
 
       profileError = error ?? null;
       profile = (data as {
