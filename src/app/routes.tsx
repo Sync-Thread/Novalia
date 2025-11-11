@@ -8,6 +8,7 @@ import PublishWizardPage from "../modules/properties/UI/pages/PublishWizardPage"
 import PropertiesDashboard from "../modules/properties/UI/pages/PropertiesDashboard";
 import PublicHomePage from "../modules/properties/UI/pages/PublicHomePage/PublicHomePage";
 import PropertyDetailPage from "../modules/properties/UI/pages/PropertyDetailPage";
+import ChatsPage from "../modules/comunication/UI/pages/ChatsPage";
 import AuthGuard from "./guards/AuthGuard";
 import Login from "../modules/auth/UI/pages/Login";
 import Register from "../modules/auth/UI/pages/Register";
@@ -42,6 +43,7 @@ export const router = createBrowserRouter([
       { path: "/contracts/:contractId/sign", element: <SignContractPage /> },
       { path: "/kyc", element: <VerifyINEPage /> },
       { path: "/verify-rpp", element: <VerifyRPPPage /> },
+      { path: "/chats", element: <ChatsPage /> },
     ],
   },
   { path: "/auth/login", element: <Login /> },
