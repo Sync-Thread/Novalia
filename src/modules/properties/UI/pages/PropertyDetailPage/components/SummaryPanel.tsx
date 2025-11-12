@@ -22,13 +22,14 @@ import styles from "./SummaryPanel.module.css";
 
 export interface SummaryPanelProps {
   property: PropertyDTO;
+  onContact?: () => void;
 }
 
 /**
  * Panel resumen sticky con precio, tipo, stats, dirección y CTA.
  * Placeholder para acciones (Guardar/Compartir/Contactar).
  */
-export function SummaryPanel({ property }: SummaryPanelProps) {
+export function SummaryPanel({ property, onContact }: SummaryPanelProps) {
   const {
     price,
     propertyType,
@@ -60,8 +61,11 @@ export function SummaryPanel({ property }: SummaryPanelProps) {
   };
 
   const handleContact = () => {
-    // TODO: implementar contactar
-    console.log("Contactar");
+    if (onContact) {
+      onContact();
+    } else {
+      console.log("Contactar");
+    }
   };
 
   return (

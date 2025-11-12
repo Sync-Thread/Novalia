@@ -10,6 +10,7 @@ import { toDomainThread } from "../../mappers/chatThread.mapper";
 import { toDomainMessage, fromDomainMessage } from "../../mappers/chatMessage.mapper";
 import { sendMessageSchema } from "../../validators/message.schema";
 import type { SenderType } from "../../../domain/enums";
+import { UniqueEntityID } from "../../../domain/value-objects";
 
 export class SendMessage {
   constructor(
@@ -39,12 +40,16 @@ export class SendMessage {
     }
 
     const domainThread = toDomainThread(threadResult.value);
-    const isUser = domainThread.participants.some(
-      participant => participant.type === "user" && participant.id.toString() === auth.userId,
-    );
-    const isContact = domainThread.participants.some(
-      participant => participant.type === "contact" && participant.id.toString() === (auth.contactId ?? ""),
-    );
+
+    const isUser = domainThread.participants.some(participant => {
+      if (participant.type !== "user") return false;
+      return participant.id.value === auth.userId;
+    });
+
+    const isContact = domainThread.participants.some(participant => {
+      if (participant.type !== "contact") return false;
+      return participant.id.value === auth.contactId;
+    });
 
     if (!isUser && !isContact) {
       return Result.fail({ scope: "chat", code: "ACCESS_DENIED", message: "No puedes enviar mensajes en este chat" });

@@ -1,28 +1,43 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import type { ThreadRealtimeHandlers } from "../../application/ports/RealtimeService";
 import { useChatModule } from "../contexts/ChatProvider";
 
 export function useChatRealtime(threadId: string | null, handlers: ThreadRealtimeHandlers) {
   const { realtime } = useChatModule();
+  const handlersRef = useRef(handlers);
+
+  // Actualizar ref cuando cambian los handlers
+  useEffect(() => {
+    handlersRef.current = handlers;
+  }, [handlers]);
 
   useEffect(() => {
     if (!threadId) {
       return;
     }
 
+    console.log('📡 Suscribiéndose a thread:', threadId);
     let active = true;
-    realtime.subscribeToThread(threadId, handlers).then(result => {
+
+    // Usar handlers desde ref para evitar re-suscripciones
+    const stableHandlers: ThreadRealtimeHandlers = {
+      onMessage: (msg) => handlersRef.current.onMessage?.(msg),
+      onTyping: (userId) => handlersRef.current.onTyping?.(userId),
+      onDelivered: () => handlersRef.current.onDelivered?.(),
+    };
+
+    realtime.subscribeToThread(threadId, stableHandlers).then(result => {
       if (result.isErr && result.isErr() && !import.meta.env.PROD) {
-        // eslint-disable-next-line no-console
         console.error("Failed to subscribe to chat realtime channel", result.error);
       }
     });
 
     return () => {
       if (active) {
+        console.log('🔌 Desuscribiéndose de thread:', threadId);
         void realtime.unsubscribe(threadId);
         active = false;
       }
     };
-  }, [threadId, handlers.onMessage, handlers.onTyping, handlers.onDelivered]);
+  }, [threadId, realtime]); // Solo threadId y realtime como dependencias
 }

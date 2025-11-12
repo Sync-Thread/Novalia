@@ -10,7 +10,7 @@ import { threadFiltersSchema } from "../../validators/threadFilters.schema";
 export class ListClientInbox {
   constructor(private readonly deps: { repo: ChatThreadRepo; auth: AuthService }) {}
 
-  async execute(rawFilters: Partial<ThreadFiltersDTO> = {}): Promise<Result<ClientInboxDTO>> {
+  async execute(rawFilters: Partial<ThreadFiltersDTO> = {}): Promise<Result<ClientInboxDTO[]>> {
     const filtersResult = parseWith(threadFiltersSchema, rawFilters);
     if (filtersResult.isErr()) {
       return Result.fail(filtersResult.error);
@@ -22,34 +22,54 @@ export class ListClientInbox {
     }
     const auth = authResult.value;
     const filters = filtersResult.value;
+    
+    // ✅ FIX: Aceptar userId (usuarios autenticados) O contactId (leads)
+    // Prioridad: filtro explícito > contactId de auth > userId de auth
     const contactId = filters.contactId ?? auth.contactId ?? null;
+    const userId = auth.userId ?? null;
 
-    if (!contactId) {
+    // Debe tener al menos uno de los dos
+    if (!contactId && !userId) {
       return Result.fail({
         scope: "chat",
-        code: "CONTACT_REQUIRED",
-        message: "No se pudo determinar el contacto del cliente",
+        code: "USER_REQUIRED",
+        message: "No se pudo determinar el identificador del usuario o contacto",
       });
     }
+    
+    console.log('🔍 ListClientInbox filtering:', { contactId, userId, hasContact: !!contactId, hasUser: !!userId });
 
-    const repoResult = await this.deps.repo.listForContact({
-      ...filters,
-      contactId,
-      orgId: auth.orgId,
-      page: filters.page ?? 1,
-      pageSize: filters.pageSize ?? DEFAULT_PAGE_SIZE,
-    });
+    // ✅ FIX: Si es usuario autenticado (no lead), usar listForLister
+    // Si es lead (contactId), usar listForContact
+    // En ambos casos, retornar TODOS los threads (no solo uno)
+    const repoResult = contactId 
+      ? await this.deps.repo.listForContact({
+          ...filters,
+          contactId,
+          orgId: auth.orgId,
+          page: filters.page ?? 1,
+          pageSize: filters.pageSize ?? 100, // Aumentar para mostrar todos
+        })
+      : await this.deps.repo.listForLister({
+          ...filters,
+          userId: userId!,
+          orgId: auth.orgId,
+          page: filters.page ?? 1,
+          pageSize: filters.pageSize ?? 100, // Aumentar para mostrar todos
+        });
 
     if (repoResult.isErr()) {
       return Result.fail(repoResult.error);
     }
 
-    const thread = repoResult.value.items[0] ?? null;
-
-    return Result.ok({
-      property: thread?.property ?? null,
-      unreadCount: thread?.unreadCount ?? 0,
+    // ✅ Retornar TODOS los threads como array de ClientInboxDTO
+    const threads = repoResult.value.items;
+    const inboxes = threads.map(thread => ({
+      property: thread.property ?? null,
+      unreadCount: thread.unreadCount ?? 0,
       thread,
-    });
+    }));
+
+    return Result.ok(inboxes);
   }
 }
