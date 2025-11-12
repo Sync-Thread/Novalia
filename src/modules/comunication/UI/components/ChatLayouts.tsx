@@ -182,17 +182,7 @@ export function SellerChatLayout({
   }, [filteredGroups, expandedPropertyId]);
 
   return (
-    <>
-      <header className={styles.contextRow}>
-        <div>
-          <h1 style={{ fontSize: 28, margin: 0, color: "#0f172a" }}>Chats por propiedad</h1>
-          <p style={{ margin: "6px 0 0", color: "#64748b" }}>
-            Agrupa tus conversaciones por publicación, responde rápido y mantén el contexto.
-          </p>
-        </div>
-      </header>
-
-      <div className={styles.panels}>
+    <div className={styles.panels}>
         <section className={styles.propertyColumn}>
           <div className={styles.propertyColumnHeader}>
             <div>
@@ -249,8 +239,7 @@ export function SellerChatLayout({
           sending={sending}
           sendError={sendError}
         />
-      </div>
-    </>
+    </div>
   );
 }
 

@@ -8,7 +8,7 @@
   background-color: rgba(0, 0, 0, 0.3);
   display: flex;
   justify-content: flex-end;
-  z-index: 1000;
+  z-index: 4000;
   animation: fadeIn 0.2s ease-out;
 }
 
@@ -201,17 +201,24 @@
   padding: 1rem;
   border-top: 1px solid #e5e7eb;
   background-color: #f9fafb;
+  align-items: center;
 }
 
 .input {
   flex: 1;
-  padding: 0.75rem;
+  padding: 0.55rem 0.75rem;
   border: 1px solid #d1d5db;
   border-radius: 8px;
   font-size: 0.9375rem;
   resize: none;
   font-family: inherit;
   transition: border-color 0.2s;
+  min-height: 44px;
+  max-height: 120px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-y: auto;
 }
 
 .input:focus {
