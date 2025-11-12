@@ -65,6 +65,167 @@
   gap: 8px;
 }
 
+.propertyColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-height: 100%;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.propertyColumnHeader {
+  background: #fff;
+  border-radius: 18px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.propertyColumnLabel {
+  margin: 0;
+  font-size: 14px;
+  color: #475569;
+}
+
+.propertyList {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.propertyBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.propertyCard {
+  width: 100%;
+  background: #fff;
+  border-radius: 18px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 26px 45px rgba(15, 23, 42, 0.08);
+  padding: 14px 16px;
+  display: block;
+  cursor: pointer;
+  text-align: left;
+}
+
+.propertyCardExpanded {
+  border-color: rgba(37, 99, 235, 0.4);
+  box-shadow: 0 30px 60px rgba(37, 99, 235, 0.14);
+}
+
+.propertyPreview {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+
+.propertyImage {
+  width: 78px;
+  height: 78px;
+  border-radius: 16px;
+  object-fit: cover;
+  background: #eef2ff;
+}
+
+.propertyInfo {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.propertyTitleRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.propertyTitleRow h3 {
+  margin: 0;
+  font-size: 18px;
+  color: #0f172a;
+}
+
+.propertyStats {
+  display: flex;
+  gap: 14px;
+  font-size: 11px;
+  color: #475569;
+}
+
+.propertyStats span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+
+.propertyArrow {
+  color: #2563eb;
+  margin-left: auto;
+  transition: transform 120ms ease;
+}
+
+.propertyArrowOpen {
+  transform: rotate(180deg);
+}
+
+.propertyThreads {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px 4px 24px;
+  border-left: 2px solid rgba(37, 99, 235, 0.25);
+  margin-left: 20px;
+}
+
+.threadRow {
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 14px;
+  padding: 12px 14px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  text-align: left;
+  cursor: pointer;
+  background: rgba(248, 250, 255, 0.8);
+}
+
+.threadRowActive {
+  border-color: rgba(37, 99, 235, 0.8);
+  background: #fff;
+  box-shadow: 0 18px 36px rgba(37, 99, 235, 0.15);
+}
+
+.threadRowTitle {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.threadRowSubtitle {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: #475569;
+}
+
+.threadRowMeta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  font-size: 12px;
+  color: #94a3b8;
+}
+
 .threadButton {
   display: flex;
   flex-direction: column;
