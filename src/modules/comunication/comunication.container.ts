@@ -5,6 +5,7 @@ import { systemClock } from "./domain/clock";
 import {
   ListListerInbox,
   ListClientInbox,
+  FindOrCreateThread,
   ListMessages,
   SendMessage,
   MarkThreadAsRead,
@@ -22,6 +23,7 @@ export interface CommunicationContainerDeps {
 export interface CommunicationUseCases {
   listListerInbox: ListListerInbox;
   listClientInbox: ListClientInbox;
+  findOrCreateThread: FindOrCreateThread;
   listMessages: ListMessages;
   sendMessage: SendMessage;
   markThreadAsRead: MarkThreadAsRead;
@@ -51,6 +53,7 @@ export function createCommunicationContainer(deps: CommunicationContainerDeps = 
     useCases: {
       listListerInbox: new ListListerInbox({ repo: threadRepo, auth }),
       listClientInbox: new ListClientInbox({ repo: threadRepo, auth }),
+      findOrCreateThread: new FindOrCreateThread({ threadRepo, auth }),
       listMessages: new ListMessages({ messageRepo, threadRepo, auth }),
       sendMessage: new SendMessage({ messageRepo, threadRepo, auth, clock }),
       markThreadAsRead: new MarkThreadAsRead({ messageRepo, threadRepo, auth }),

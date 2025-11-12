@@ -8,4 +8,11 @@ export interface ChatThreadRepo {
   listForContact(filters: ThreadFiltersDTO & { contactId: string; orgId: string | null }): Promise<Result<Page<ChatThreadDTO>>>;
   getById(id: string): Promise<Result<ChatThreadDTO>>;
   touchLastMessageAt(id: string, timestamp: string): Promise<Result<void>>;
+  findByPropertyAndUser(input: { propertyId: string; userId: string }): Promise<Result<ChatThreadDTO | null>>;
+  create(input: {
+    orgId: string | null;
+    propertyId: string;
+    createdBy: string;
+    participantUserIds: string[];
+  }): Promise<Result<ChatThreadDTO>>;
 }

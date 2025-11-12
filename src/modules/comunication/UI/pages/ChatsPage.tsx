@@ -1,10 +1,12 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ChatThreadDTO } from "../../application/dto/ChatThreadDTO";
-import type { ChatMessageDTO } from "../../application/dto/ChatMessageDTO";
-import type { ListerInboxDTO, ListerThreadGroupDTO, ClientInboxDTO } from "../../application/dto/InboxDTO";
+import type { ListerThreadGroupDTO } from "../../application/dto/InboxDTO";
 import styles from "../components/ChatsPage.module.css";
-import { ChatProvider, useChatModule } from "../contexts/ChatProvider";
-import { useChatRealtime } from "../hooks/useChatRealtime";
+import { ChatProvider } from "../contexts/ChatProvider";
+import { useInbox } from "../hooks/useInbox";
+import { useMessages } from "../hooks/useMessages";
+import { useSendMessage } from "../hooks/useSendMessage";
+import { MessageList } from "../components/MessageList";
 import { supabase } from "../../../../core/supabase/client";
 
 export default function ChatsPage() {
@@ -15,89 +17,57 @@ export default function ChatsPage() {
   );
 }
 
-type ViewMode = "lister" | "client";
+type ViewMode = "seller" | "buyer";
 
 function ChatExperience() {
-  const { useCases } = useChatModule();
-  const [view, setView] = useState<ViewMode>("lister");
+  const [view, setView] = useState<ViewMode>("seller");
   const [viewResolving, setViewResolving] = useState(true);
-  const [listerInbox, setListerInbox] = useState<ListerInboxDTO | null>(null);
-  const [clientInbox, setClientInbox] = useState<ClientInboxDTO | null>(null);
-  const [loadingInbox, setLoadingInbox] = useState(true);
   const [selectedThread, setSelectedThread] = useState<ChatThreadDTO | null>(null);
-  const [messages, setMessages] = useState<ChatMessageDTO[]>([]);
-  const [messagesLoading, setMessagesLoading] = useState(false);
-  const [composer, setComposer] = useState("");
-  const [sending, setSending] = useState(false);
   const [search, setSearch] = useState("");
-  const applyMockConversation = useCallback(
-    (mode: ViewMode) => {
-      const mock = buildMockConversation();
-      setSelectedThread(mock.thread);
-      setMessages(mock.messages);
-      setMessagesLoading(false);
-      setLoadingInbox(false);
-      if (mode === "lister") {
-        setListerInbox(mock.listerInbox);
-      } else {
-        setClientInbox(mock.clientInbox);
-      }
-    },
-    [],
-  );
+  const [filter, setFilter] = useState<"all" | "unread" | "responded">("all");
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
 
-  const loadMessages = useCallback(
-    async (thread: ChatThreadDTO) => {
-      setMessagesLoading(true);
-      const result = await useCases.listMessages.execute({ threadId: thread.id, page: 1, pageSize: 50 });
-      if (result.isErr()) {
-        setMessages([]);
-      } else {
-        setMessages(result.value.items);
-      }
-      setMessagesLoading(false);
-      void useCases.markThreadAsRead.execute(thread.id);
-    },
-    [useCases.listMessages, useCases.markThreadAsRead],
-  );
+  // ✅ Hook para inbox (reemplaza ~80 líneas de código)
+  const { 
+    threads, 
+    groups, 
+    loading: loadingInbox, 
+    error: inboxError,
+    totalUnread,
+    refresh: refreshInbox 
+  } = useInbox({ 
+    role: view,
+    search 
+  });
 
-  const loadInbox = useCallback(async () => {
-    setLoadingInbox(true);
-    if (view === "lister") {
-      const result = await useCases.listListerInbox.execute();
-      if (result.isErr()) {
-        applyMockConversation("lister");
-        return;
-      } else {
-        setListerInbox(result.value);
-        const candidate = result.value.groups[0]?.threads[0] ?? null;
-        if (candidate) {
-          setSelectedThread(candidate);
-          void loadMessages(candidate);
-        } else {
-          applyMockConversation("lister");
-          return;
-        }
-      }
-    } else {
-      const result = await useCases.listClientInbox.execute();
-      if (result.isErr()) {
-        applyMockConversation("client");
-        return;
-      } else {
-        setClientInbox(result.value);
-        if (result.value.thread) {
-          setSelectedThread(result.value.thread);
-          void loadMessages(result.value.thread);
-        } else {
-          applyMockConversation("client");
-          return;
-        }
-      }
+  // ✅ Hook para mensajes (reemplaza ~60 líneas de código)
+  const { 
+    messages, 
+    loading: messagesLoading, 
+    error: messagesError,
+    isTyping
+  } = useMessages({ 
+    threadId: selectedThread?.id || null,
+    pageSize: 50,
+    autoScroll: true
+  });
+
+  // ✅ Hook para enviar mensajes (reemplaza ~40 líneas de código)
+  const { 
+    sendMessage, 
+    sending,
+    error: sendError
+  } = useSendMessage({ 
+    threadId: selectedThread?.id || null,
+    onSuccess: () => {
+      refreshInbox(); // Actualizar contador de no leídos
+    },
+    onError: (error) => {
+      console.error('Error al enviar mensaje:', error);
     }
-    setLoadingInbox(false);
-  }, [useCases.listListerInbox, useCases.listClientInbox, view, loadMessages, applyMockConversation]);
+  });
 
+  // Resolver rol del usuario (seller vs buyer)
   useEffect(() => {
     let active = true;
     const resolveView = async () => {
@@ -117,74 +87,49 @@ function ChatExperience() {
     };
   }, []);
 
+  // Auto-seleccionar primer thread cuando carga inbox
   useEffect(() => {
-    if (viewResolving) return;
-    void loadInbox();
-  }, [viewResolving, loadInbox]);
+    if (!viewResolving && threads.length > 0 && !selectedThread) {
+      setSelectedThread(threads[0]);
+    }
+  }, [viewResolving, threads, selectedThread]);
 
-  const handleRealtimeMessage = useCallback(
-    (message: ChatMessageDTO) => {
-      if (!selectedThread || message.threadId !== selectedThread.id) {
-        void loadInbox();
-        return;
+  // Filtrar grupos por búsqueda (ya manejado por useInbox, pero mantenemos lógica de agrupación)
+  const displayGroups = useMemo(() => {
+    return groups || [];
+  }, [groups]);
+
+  // Manejar selección de thread
+  const handleSelectThread = (thread: ChatThreadDTO) => {
+    setSelectedThread(thread);
+  };
+
+  // Toggle collapse de grupo
+  const toggleGroup = (propertyId: string) => {
+    setCollapsedGroups(prev => {
+      const next = new Set(prev);
+      if (next.has(propertyId)) {
+        next.delete(propertyId);
+      } else {
+        next.add(propertyId);
       }
-      setMessages(prev => {
-        if (prev.some(item => item.id === message.id)) {
-          return prev;
-        }
-        return [...prev, message];
-      });
-    },
-    [selectedThread, loadInbox],
-  );
+      return next;
+    });
+  };
 
-  useChatRealtime(selectedThread?.id ?? null, { onMessage: handleRealtimeMessage });
-
-  const groups = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    const source = view === "lister" ? listerInbox?.groups ?? [] : clientInbox ? clientToGroup(clientInbox) : [];
-    if (!term) return source;
-    return source
-      .map(group => ({
-        ...group,
-        threads: group.threads.filter(thread => matchesSearch(thread, term)),
-      }))
-      .filter(group => group.threads.length > 0);
-  }, [listerInbox, clientInbox, view, search]);
-
-  const totalUnread =
-    view === "lister"
-      ? listerInbox?.totalUnread ?? 0
-      : clientInbox?.unreadCount ?? (selectedThread?.unreadCount ?? 0);
-
-  const handleSelectThread = useCallback(
-    (thread: ChatThreadDTO) => {
-      setSelectedThread(thread);
-      void loadMessages(thread);
-    },
-    [loadMessages],
-  );
-
-  const handleSendMessage = useCallback(
-    async (event?: React.FormEvent) => {
-      event?.preventDefault();
-      if (!selectedThread || !composer.trim()) return;
-      setSending(true);
-      const result = await useCases.sendMessage.execute({
-        threadId: selectedThread.id,
-        body: composer.trim(),
-      });
-      if (result.isErr()) {
-        setSending(false);
-        return;
-      }
-      setComposer("");
-      setMessages(prev => [...prev, result.value]);
-      setSending(false);
-      void useCases.markThreadAsRead.execute(selectedThread.id);
-    },
-    [composer, selectedThread, useCases.sendMessage, useCases.markThreadAsRead],
-  );
+  // Manejar envío de mensaje
+  const handleSendMessage = async (event?: React.FormEvent) => {
+    event?.preventDefault();
+    const input = event?.currentTarget?.querySelector('input') as HTMLInputElement;
+    const text = input?.value?.trim();
+    
+    if (!text) return;
+    
+    const success = await sendMessage(text);
+    if (success && input) {
+      input.value = '';
+    }
+  };
 
   const isLoadingInbox = viewResolving || loadingInbox;
 
@@ -202,13 +147,59 @@ function ChatExperience() {
       <div className={styles.panels}>
         <aside className={styles.sidebar}>
           <div className={styles.sidebarHeader}>
-            <p style={{ margin: "0 0 8px", fontSize: 14, color: "#475569" }}>
-              {isLoadingInbox
-                ? "Cargando conversaciones..."
-                : totalUnread > 0
-                  ? `${totalUnread} mensajes sin leer`
-                  : "Al día con tus conversaciones"}
-            </p>
+            {/* Filtros en pestañas */}
+            <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+              <button
+                onClick={() => setFilter("all")}
+                style={{
+                  flex: 1,
+                  padding: "8px 12px",
+                  border: "none",
+                  borderRadius: 6,
+                  background: filter === "all" ? "#3b82f6" : "#f1f5f9",
+                  color: filter === "all" ? "#fff" : "#64748b",
+                  fontSize: 13,
+                  fontWeight: 500,
+                  cursor: "pointer",
+                }}
+              >
+                Todos ({threads.length})
+              </button>
+              <button
+                onClick={() => setFilter("unread")}
+                style={{
+                  flex: 1,
+                  padding: "8px 12px",
+                  border: "none",
+                  borderRadius: 6,
+                  background: filter === "unread" ? "#3b82f6" : "#f1f5f9",
+                  color: filter === "unread" ? "#fff" : "#64748b",
+                  fontSize: 13,
+                  fontWeight: 500,
+                  cursor: "pointer",
+                }}
+              >
+                No leídos ({totalUnread})
+              </button>
+              <button
+                onClick={() => setFilter("responded")}
+                style={{
+                  flex: 1,
+                  padding: "8px 12px",
+                  border: "none",
+                  borderRadius: 6,
+                  background: filter === "responded" ? "#3b82f6" : "#f1f5f9",
+                  color: filter === "responded" ? "#fff" : "#64748b",
+                  fontSize: 13,
+                  fontWeight: 500,
+                  cursor: "pointer",
+                }}
+              >
+                Respondidos
+              </button>
+            </div>
+            
+            {/* Buscador */}
             <input
               className={styles.searchInput}
               placeholder="Buscar por contacto, propiedad..."
@@ -216,43 +207,127 @@ function ChatExperience() {
               onChange={event => setSearch(event.target.value)}
             />
           </div>
-          <div style={{ overflowY: "auto" }}>
-            {groups.length === 0 && (
+          
+          <div style={{ overflowY: "auto", flex: 1 }}>
+            {inboxError && (
+              <p style={{ padding: 24, color: "#ef4444", fontSize: 14 }}>
+                Error: {inboxError}
+              </p>
+            )}
+            {!inboxError && displayGroups.length === 0 && (
               <p style={{ padding: 24, color: "#94a3b8", fontSize: 14 }}>
                 {isLoadingInbox ? "Cargando..." : "No hay conversaciones disponibles"}
               </p>
             )}
-            {groups.map(group => (
-              <div key={group.property?.id ?? "none"} className={styles.group}>
-                <div className={styles.groupTitle}>
-                  {group.property?.title ?? "Sin propiedad asignada"}
-                </div>
-                <div className={styles.threadList}>
-                  {group.threads.map(thread => {
-                    const contactName =
-                      thread.participants.find(participant => participant.type === "contact")?.displayName ??
-                      "Contacto sin nombre";
-                    const subtitle = thread.lastMessage?.body ?? "Sin mensajes";
-                    const isActive = selectedThread?.id === thread.id;
-                    return (
-                      <button
-                        key={thread.id}
-                        type="button"
-                        className={`${styles.threadButton} ${isActive ? styles.threadActive : ""}`}
-                        onClick={() => handleSelectThread(thread)}
-                      >
-                        <div className={styles.threadTitle}>{contactName}</div>
-                        <div className={styles.threadSubtitle}>{subtitle}</div>
-                        <div className={styles.threadMeta}>
-                          <span>{formatRelativeTime(thread.lastMessageAt ?? thread.createdAt)}</span>
-                          {thread.unreadCount > 0 && <span className={styles.badge}>{thread.unreadCount}</span>}
+            {displayGroups.map((group: ListerThreadGroupDTO) => {
+              const propertyId = group.property?.id ?? "none";
+              const isCollapsed = collapsedGroups.has(propertyId);
+              const groupUnread = group.threads.reduce((sum, t) => sum + t.unreadCount, 0);
+              
+              return (
+                <div key={propertyId} className={styles.group}>
+                  {/* Header de grupo con toggle */}
+                  <button
+                    onClick={() => toggleGroup(propertyId)}
+                    style={{
+                      width: "100%",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      padding: "12px 16px",
+                      background: "#f8fafc",
+                      border: "none",
+                      borderBottom: "1px solid #e2e8f0",
+                      cursor: "pointer",
+                      textAlign: "left",
+                    }}
+                  >
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: "#0f172a", marginBottom: 4 }}>
+                        {group.property?.title ?? "Sin propiedad asignada"}
+                      </div>
+                      {group.property && (
+                        <div style={{ fontSize: 12, color: "#64748b" }}>
+                          {group.property.price
+                            ? new Intl.NumberFormat("es-MX", {
+                                style: "currency",
+                                currency: group.property.currency ?? "MXN",
+                              }).format(group.property.price)
+                            : "Precio no disponible"}{" "}
+                          · {group.threads.length} {group.threads.length === 1 ? "contacto" : "contactos"}
                         </div>
-                      </button>
-                    );
-                  })}
+                      )}
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      {groupUnread > 0 && (
+                        <span style={{
+                          background: "#3b82f6",
+                          color: "#fff",
+                          fontSize: 11,
+                          fontWeight: 600,
+                          padding: "2px 8px",
+                          borderRadius: 12,
+                        }}>
+                          {groupUnread}
+                        </span>
+                      )}
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 16 16"
+                        fill="none"
+                        style={{
+                          transform: isCollapsed ? "rotate(0deg)" : "rotate(180deg)",
+                          transition: "transform 0.2s",
+                        }}
+                      >
+                        <path
+                          d="M4 6L8 10L12 6"
+                          stroke="#64748b"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    </div>
+                  </button>
+                  
+                  {/* Lista de threads (colapsable) */}
+                  {!isCollapsed && (
+                    <div className={styles.threadList}>
+                      {group.threads.map((thread: ChatThreadDTO) => {
+                        const contactName =
+                          thread.participants.find(participant => participant.type === "contact")?.displayName ??
+                          "Contacto sin nombre";
+                        const subtitle = thread.lastMessage?.body ?? "Sin mensajes";
+                        const isActive = selectedThread?.id === thread.id;
+                        return (
+                          <button
+                            key={thread.id}
+                            type="button"
+                            className={`${styles.threadButton} ${isActive ? styles.threadActive : ""}`}
+                            onClick={() => handleSelectThread(thread)}
+                          >
+                            <div style={{ flex: 1 }}>
+                              <div className={styles.threadTitle}>{contactName}</div>
+                              <div className={styles.threadSubtitle}>{subtitle}</div>
+                            </div>
+                            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+                              <span style={{ fontSize: 11, color: "#94a3b8" }}>
+                                {formatRelativeTime(thread.lastMessageAt ?? thread.createdAt)}
+                              </span>
+                              {thread.unreadCount > 0 && (
+                                <span className={styles.badge}>{thread.unreadCount}</span>
+                              )}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </aside>
 
@@ -266,52 +341,37 @@ function ChatExperience() {
                     ? new Intl.NumberFormat("es-MX", {
                         style: "currency",
                         currency: selectedThread.property.currency ?? "MXN",
-                      }).format(selectedThread.property.price)
+                      }).format(selectedThread.property?.price)
                     : "Precio no disponible"}{" "}
                   · {selectedThread.property?.city ?? "Sin ciudad"}
                 </div>
               </div>
 
-              <div className={styles.messagesBody}>
-                {messagesLoading && <p style={{ color: "#94a3b8" }}>Cargando historial...</p>}
-                {!messagesLoading && messages.length === 0 && (
-                  <div className={styles.emptyState}>Inicia la conversación enviando el primer mensaje.</div>
-                )}
-                {messages.map(message => {
-                  const isSelf = isOwnMessage(message, selectedThread);
-                  return (
-                    <article
-                      key={message.id}
-                      className={`${styles.message} ${isSelf ? styles.messageFromSelf : styles.messageFromContact}`}
-                    >
-                      {message.body}
-                      <div className={styles.messageMeta}>
-                        <span>{formatRelativeTime(message.createdAt)}</span>
-                        <span>
-                          {message.status === "read"
-                            ? "Leído"
-                            : message.status === "delivered"
-                              ? "Entregado"
-                              : "Enviado"}
-                        </span>
-                      </div>
-                    </article>
-                  );
-                })}
+              <div className={styles.messagesBody} data-messages-container>
+                <MessageList
+                  messages={messages}
+                  currentThread={selectedThread}
+                  loading={messagesLoading}
+                  error={messagesError}
+                  isTyping={isTyping}
+                />
               </div>
 
               <form className={styles.composer} onSubmit={handleSendMessage}>
                 <input
                   className={styles.composerInput}
                   placeholder="Escribe un mensaje..."
-                  value={composer}
-                  onChange={event => setComposer(event.target.value)}
                   disabled={sending}
                 />
-                <button className={styles.composerButton} type="submit" disabled={sending || !composer.trim()}>
+                <button className={styles.composerButton} type="submit" disabled={sending}>
                   {sending ? "Enviando..." : "Enviar"}
                 </button>
               </form>
+              {sendError && (
+                <div style={{ padding: '8px 24px', color: '#ef4444', fontSize: 13 }}>
+                  Error: {sendError}
+                </div>
+              )}
             </>
           ) : (
             <div className={styles.emptyState}>Selecciona una conversación para comenzar.</div>
@@ -320,24 +380,6 @@ function ChatExperience() {
       </div>
     </section>
   );
-}
-
-function matchesSearch(thread: ChatThreadDTO, term: string): boolean {
-  const contact = thread.participants.find(participant => participant.type === "contact")?.displayName ?? "";
-  const property = thread.property?.title ?? "";
-  return contact.toLowerCase().includes(term) || property.toLowerCase().includes(term);
-}
-
-function clientToGroup(inbox: ClientInboxDTO): ListerThreadGroupDTO[] {
-  if (!inbox.thread) return [];
-  return [
-    {
-      property: inbox.property ?? inbox.thread.property,
-      threadCount: 1,
-      unreadCount: inbox.unreadCount,
-      threads: [inbox.thread],
-    },
-  ];
 }
 
 function formatRelativeTime(value: string): string {
@@ -355,157 +397,14 @@ function formatRelativeTime(value: string): string {
   return formatter.format(deltaDays, "day");
 }
 
-function isOwnMessage(message: ChatMessageDTO, thread: ChatThreadDTO): boolean {
-  const agentId = thread.participants.find(participant => participant.type === "user")?.id ?? null;
-  return agentId !== null && message.senderId === agentId;
-}
-
 const SELLER_ROLES = new Set(["agent", "agent_org", "org_admin", "owner", "seller", "agency", "broker", "lister"]);
-
-function buildMockConversation() {
-  const now = new Date();
-  const minusMinutes = (minutes: number) => new Date(now.getTime() - minutes * 60 * 1000).toISOString();
-
-  const mockProperty = {
-    id: "prop-mock-1",
-    title: "Casa moderna en Polanco",
-    price: 2850000,
-    currency: "MXN",
-    city: "CDMX",
-    state: "Ciudad de México",
-    coverImageUrl: null,
-    operationType: "sale",
-    status: "published",
-  };
-
-  const thread: ChatThreadDTO = {
-    id: "thread-mock-1",
-    orgId: "org-mock-1",
-    property: mockProperty,
-    contactId: "contact-mock-1",
-    createdBy: "user-mock-agent",
-    createdAt: minusMinutes(45),
-    lastMessageAt: minusMinutes(2),
-    unreadCount: 0,
-    status: "open",
-    participants: [
-      {
-        id: "user-mock-agent",
-        type: "user",
-        displayName: "Ana Vázquez",
-        avatarUrl: null,
-        email: "ana@novalia.mx",
-        phone: "+52 55 0000 0000",
-        lastSeenAt: minusMinutes(1),
-      },
-      {
-        id: "contact-mock-1",
-        type: "contact",
-        displayName: "María López",
-        avatarUrl: null,
-        email: "maria@example.com",
-        phone: "+52 55 1111 2222",
-        lastSeenAt: minusMinutes(3),
-      },
-    ],
-    lastMessage: null,
-  };
-
-  const messages: ChatMessageDTO[] = [
-    {
-      id: "msg-mock-1",
-      threadId: thread.id,
-      senderType: "contact",
-      senderId: "contact-mock-1",
-      body: "Hola, ¿la propiedad aún está disponible?",
-      payload: null,
-      createdAt: minusMinutes(30),
-      deliveredAt: minusMinutes(30),
-      readAt: minusMinutes(29),
-      status: "read",
-    },
-    {
-      id: "msg-mock-2",
-      threadId: thread.id,
-      senderType: "user",
-      senderId: "user-mock-agent",
-      body: "Hola María, sí, sigue disponible. ¿Te gustaría agendar una visita?",
-      payload: null,
-      createdAt: minusMinutes(28),
-      deliveredAt: minusMinutes(28),
-      readAt: minusMinutes(27),
-      status: "read",
-    },
-    {
-      id: "msg-mock-3",
-      threadId: thread.id,
-      senderType: "contact",
-      senderId: "contact-mock-1",
-      body: "Sí, ¿tienen disponibilidad este sábado por la mañana?",
-      payload: null,
-      createdAt: minusMinutes(25),
-      deliveredAt: minusMinutes(25),
-      readAt: minusMinutes(24),
-      status: "read",
-    },
-    {
-      id: "msg-mock-4",
-      threadId: thread.id,
-      senderType: "user",
-      senderId: "user-mock-agent",
-      body: "Podemos a las 10:30 am. Te envío la ubicación para que confirmes.",
-      payload: null,
-      createdAt: minusMinutes(20),
-      deliveredAt: minusMinutes(20),
-      readAt: minusMinutes(19),
-      status: "read",
-    },
-    {
-      id: "msg-mock-5",
-      threadId: thread.id,
-      senderType: "contact",
-      senderId: "contact-mock-1",
-      body: "Perfecto, confirmado. ¡Gracias!",
-      payload: null,
-      createdAt: minusMinutes(2),
-      deliveredAt: minusMinutes(2),
-      readAt: minusMinutes(1),
-      status: "read",
-    },
-  ];
-
-  const latestMessage = messages[messages.length - 1];
-  thread.lastMessage = latestMessage;
-  thread.lastMessageAt = latestMessage.createdAt;
-
-  const listerInbox: ListerInboxDTO = {
-    groups: [
-      {
-        property: mockProperty,
-        threadCount: 1,
-        unreadCount: 0,
-        threads: [thread],
-      },
-    ],
-    totalUnread: 0,
-    totalThreads: 1,
-  };
-
-  const clientInbox: ClientInboxDTO = {
-    property: mockProperty,
-    thread,
-    unreadCount: 0,
-  };
-
-  return { thread, messages, listerInbox, clientInbox };
-}
 
 async function resolveViewFromSession(): Promise<ViewMode> {
   try {
     const { data } = await supabase.auth.getSession();
     const user = data.session?.user ?? null;
     if (!user) {
-      return "lister";
+      return "seller";
     }
 
     const { data: profile } = await supabase
@@ -520,9 +419,9 @@ async function resolveViewFromSession(): Promise<ViewMode> {
       (user.app_metadata?.role as string | null | undefined) ??
       null;
 
-    return SELLER_ROLES.has(normalizeRole(roleHint)) ? "lister" : "client";
+    return SELLER_ROLES.has(normalizeRole(roleHint)) ? "seller" : "buyer";
   } catch {
-    return "lister";
+    return "seller";
   }
 }
 

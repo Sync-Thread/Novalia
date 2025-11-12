@@ -49,22 +49,9 @@ const THREAD_SELECT = `
   ),
   participants:chat_participants(
     user_id,
-    contact_id,
-    profiles:profiles(
-      id,
-      full_name,
-      avatar_url,
-      email,
-      phone
-    ),
-    lead_contacts:lead_contacts(
-      id,
-      full_name,
-      email,
-      phone
-    )
+    contact_id
   ),
-  last_message:chat_messages(order=created_at.desc,limit=1)(
+  last_message:chat_messages!left(
     id,
     thread_id,
     sender_type,
@@ -75,7 +62,7 @@ const THREAD_SELECT = `
     created_at,
     delivered_at,
     read_at
-  )
+  ).order(created_at.desc).limit(1)
 `;
 
 function infraError(code: ThreadInfraErrorCode, message: string, cause?: unknown): ThreadInfraError {
@@ -115,11 +102,15 @@ export class SupabaseChatThreadRepo implements ChatThreadRepo {
     }
 
     const row = data as ThreadRowWithRelations;
-    const unreadCounts = await this.computeUnreadCounts([row.id], "user");
+    
+    // Obtener perfiles de participantes
+    const enrichedRow = await this.enrichParticipants(row);
+    
+    const unreadCounts = await this.computeUnreadCounts([enrichedRow.id], "user");
     if (unreadCounts.isErr()) {
       return Result.fail(unreadCounts.error);
     }
-    const dto = mapThreadRow(row, unreadCounts.value);
+    const dto = mapThreadRow(enrichedRow, unreadCounts.value);
     return Result.ok(dto);
   }
 
@@ -134,6 +125,92 @@ export class SupabaseChatThreadRepo implements ChatThreadRepo {
     }
 
     return Result.ok(undefined);
+  }
+
+  async findByPropertyAndUser(input: { propertyId: string; userId: string }): Promise<Result<ChatThreadDTO | null>> {
+    // Find thread where property_id matches and userId is in participants
+    const { data, error } = await this.client
+      .from("chat_threads")
+      .select(THREAD_SELECT)
+      .eq("property_id", input.propertyId)
+      .limit(1);
+
+    if (error) {
+      return Result.fail(mapPostgrestError("THREAD_QUERY_FAILED", error));
+    }
+
+    if (!data || data.length === 0) {
+      return Result.ok(null);
+    }
+
+    const rows = data as ThreadRowWithRelations[];
+    
+    // Filter threads where userId is a participant
+    const enrichedRows = await Promise.all(
+      rows.map(row => this.enrichParticipants(row))
+    );
+
+    const matchingThread = enrichedRows.find(row => 
+      row.participants?.some(p => p.user_id === input.userId)
+    );
+
+    if (!matchingThread) {
+      return Result.ok(null);
+    }
+
+    const unreadCounts = await this.computeUnreadCounts([matchingThread.id], "user");
+    if (unreadCounts.isErr()) {
+      return Result.fail(unreadCounts.error);
+    }
+
+    const dto = mapThreadRow(matchingThread, unreadCounts.value);
+    return Result.ok(dto);
+  }
+
+  async create(input: {
+    orgId: string | null;
+    propertyId: string;
+    createdBy: string;
+    participantUserIds: string[];
+  }): Promise<Result<ChatThreadDTO>> {
+    // Insert thread
+    const { data: threadData, error: threadError } = await this.client
+      .from("chat_threads")
+      .insert({
+        org_id: input.orgId,
+        property_id: input.propertyId,
+        created_by: input.createdBy,
+        created_at: new Date().toISOString(),
+        last_message_at: null,
+      })
+      .select()
+      .single();
+
+    if (threadError) {
+      return Result.fail(mapPostgrestError("THREAD_QUERY_FAILED", threadError));
+    }
+
+    const threadRow = threadData as ChatThreadRow;
+
+    // Insert participants
+    const participantsToInsert = input.participantUserIds.map(userId => ({
+      thread_id: threadRow.id,
+      user_id: userId,
+      contact_id: null,
+    }));
+
+    const { error: participantsError } = await this.client
+      .from("chat_participants")
+      .insert(participantsToInsert);
+
+    if (participantsError) {
+      // Rollback: delete the thread if participants failed
+      await this.client.from("chat_threads").delete().eq("id", threadRow.id);
+      return Result.fail(mapPostgrestError("THREAD_QUERY_FAILED", participantsError));
+    }
+
+    // Fetch the complete thread with all relations
+    return this.getById(threadRow.id);
   }
 
   private async fetchThreads(
@@ -167,20 +244,69 @@ export class SupabaseChatThreadRepo implements ChatThreadRepo {
     }
 
     const rows = (data ?? []) as ThreadRowWithRelations[];
+    
+    // Enriquecer participantes con sus perfiles
+    const enrichedRows = await Promise.all(
+      rows.map(row => this.enrichParticipants(row))
+    );
+    
     const unreadCounts = await this.computeUnreadCounts(
-      rows.map(row => row.id),
+      enrichedRows.map(row => row.id),
       scope.readerType,
     );
     if (unreadCounts.isErr()) {
       return Result.fail(unreadCounts.error);
     }
 
-    const mapped = rows
+    const mapped = enrichedRows
       .map(row => mapThreadRow(row, unreadCounts.value))
       .filter(thread => applySearchFilter(thread, filters.search))
       .filter(thread => (filters.unreadOnly ? thread.unreadCount > 0 : true));
 
     return Result.ok(buildPage(mapped, count ?? mapped.length, page, pageSize));
+  }
+
+  private async enrichParticipants(row: ThreadRowWithRelations): Promise<ThreadRowWithRelations> {
+    if (!row.participants || row.participants.length === 0) {
+      return row;
+    }
+
+    const userIds = row.participants.filter(p => p.user_id).map(p => p.user_id!);
+    const contactIds = row.participants.filter(p => p.contact_id).map(p => p.contact_id!);
+
+    // Obtener perfiles de usuarios
+    const profilesMap = new Map();
+    if (userIds.length > 0) {
+      const { data } = await this.client
+        .from("profiles")
+        .select("id, full_name, avatar_url, email, phone")
+        .in("id", userIds);
+      
+      data?.forEach(profile => profilesMap.set(profile.id, profile));
+    }
+
+    // Obtener contactos
+    const contactsMap = new Map();
+    if (contactIds.length > 0) {
+      const { data } = await this.client
+        .from("lead_contacts")
+        .select("id, full_name, email, phone")
+        .in("id", contactIds);
+      
+      data?.forEach(contact => contactsMap.set(contact.id, contact));
+    }
+
+    // Enriquecer participants
+    const enrichedParticipants = row.participants.map(p => ({
+      ...p,
+      user_profiles: p.user_id ? profilesMap.get(p.user_id) : null,
+      contacts: p.contact_id ? contactsMap.get(p.contact_id) : null,
+    }));
+
+    return {
+      ...row,
+      participants: enrichedParticipants,
+    };
   }
 
   private async computeUnreadCounts(
@@ -250,10 +376,10 @@ function mapParticipants(rows: ChatParticipantRow[]): ParticipantDTO[] {
         return {
           id: row.user_id,
           type: "user" as const,
-          displayName: row.profiles?.full_name ?? null,
-          avatarUrl: row.profiles?.avatar_url ?? null,
-          email: row.profiles?.email ?? null,
-          phone: row.profiles?.phone ?? null,
+          displayName: row.user_profiles?.full_name ?? null,
+          avatarUrl: row.user_profiles?.avatar_url ?? null,
+          email: row.user_profiles?.email ?? null,
+          phone: row.user_profiles?.phone ?? null,
           lastSeenAt: null,
         };
       }
@@ -261,10 +387,10 @@ function mapParticipants(rows: ChatParticipantRow[]): ParticipantDTO[] {
         return {
           id: row.contact_id,
           type: "contact" as const,
-          displayName: row.lead_contacts?.full_name ?? null,
+          displayName: row.contacts?.full_name ?? null,
           avatarUrl: null,
-          email: row.lead_contacts?.email ?? null,
-          phone: row.lead_contacts?.phone ?? null,
+          email: row.contacts?.email ?? null,
+          phone: row.contacts?.phone ?? null,
           lastSeenAt: null,
         };
       }
