@@ -1,5 +1,5 @@
 // PropertyDetailPage: página de detalle público de una propiedad
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
@@ -21,6 +21,7 @@ import PropertyMap from "./components/PropertyMap";
 import { PublicHomeFooter } from "../PublicHomePage/components/Footer/Footer";
 import { PropertyPublicCard } from "../PublicHomePage/components/PropertyPublicCard/PropertyPublicCard";
 import { ChatWidget } from "../../../../comunication/UI/components/ChatWidget";
+import { supabase } from "../../../../../core/supabase/client";
 import { formatNumber } from "../../utils/formatters";
 import { getAmenityLabel } from "../../utils/amenityLabels";
 import { buildMapsUrl } from "../../utils/mapsUrl";
@@ -40,6 +41,7 @@ export default function PropertyDetailPage() {
   const { items: similarProperties, loading: loadingSimilar } =
     useSimilarProperties(data?.property || null, 3);
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   // Registrar vista de la propiedad cuando se carga
   useEffect(() => {
@@ -64,8 +66,26 @@ export default function PropertyDetailPage() {
   };
 
   const handleContact = () => {
+    if (isOwner) return;
     setIsChatOpen(true);
   };
+
+  useEffect(() => {
+    const loadSession = async () => {
+      const { data } = await supabase.auth.getSession();
+      setCurrentUserId(data.session?.user?.id ?? null);
+    };
+    void loadSession();
+  }, []);
+
+  const property = data?.property ?? null;
+  const coverUrl = data?.coverUrl ?? null;
+  const galleryUrls = data?.galleryUrls ?? [];
+
+  const isOwner = useMemo(() => {
+    if (!property || !currentUserId) return false;
+    return property.listerUserId === currentUserId;
+  }, [property, currentUserId]);
 
   if (loading) {
     return (
@@ -79,7 +99,7 @@ export default function PropertyDetailPage() {
     );
   }
 
-  if (error || !data) {
+  if (error || !data || !property) {
     return (
       <div className={styles.page}>
         <div className={styles.container}>
@@ -100,8 +120,6 @@ export default function PropertyDetailPage() {
       </div>
     );
   }
-
-  const { property, coverUrl, galleryUrls } = data;
 
   return (
     <div className={styles.page}>
@@ -361,6 +379,7 @@ export default function PropertyDetailPage() {
           type="button"
           className={styles.mobileCtaButton}
           onClick={handleContact}
+          disabled={isOwner}
           aria-label="Contactar sobre esta propiedad"
         >
           <MessageCircle aria-hidden="true" />
@@ -369,7 +388,7 @@ export default function PropertyDetailPage() {
       </div>
 
       {/* Chat Widget */}
-      {id && data?.property && (
+      {id && data?.property && !isOwner && (
         <ChatWidget
           propertyId={id}
           propertyTitle={property.title}

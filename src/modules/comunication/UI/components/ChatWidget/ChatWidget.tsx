@@ -34,6 +34,14 @@ export function ChatWidget({
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    const fetchSession = async () => {
+      const { data } = await supabase.auth.getSession();
+      setCurrentUserId(data.session?.user?.id ?? null);
+    };
+    void fetchSession();
+  }, []);
+
   // ✅ Handler para mensajes en tiempo real
   const handleNewMessage = useCallback((newMessage: ChatMessageDTO) => {
     setMessages(prev => {
@@ -304,10 +312,3 @@ function isOwnMessage(
 
   return false;
 }
-  useEffect(() => {
-    const fetchSession = async () => {
-      const { data } = await supabase.auth.getSession();
-      setCurrentUserId(data.session?.user?.id ?? null);
-    };
-    void fetchSession();
-  }, []);
