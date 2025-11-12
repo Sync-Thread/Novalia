@@ -119,10 +119,9 @@ const navItemsByRole: Record<HeaderRole, NavItem[]> = {
     {
       key: "chats",
       label: "Chats",
-      to: "/dashboard?view=chats",
+      to: "/chats",
       icon: <MailIcon />,
-      match: ({ pathname, searchParams }) =>
-        pathname === "/dashboard" && searchParams.get("view") === "chats",
+      match: ({ pathname }) => pathname === "/chats",
     },
   ],
   agent_org: [
@@ -160,10 +159,9 @@ const navItemsByRole: Record<HeaderRole, NavItem[]> = {
     {
       key: "chats",
       label: "Chats",
-      to: "/dashboard?view=chats",
+      to: "/chats",
       icon: <MailIcon />,
-      match: ({ pathname, searchParams }) =>
-        pathname === "/dashboard" && searchParams.get("view") === "chats",
+      match: ({ pathname }) => pathname === "/chats",
     },
   ],
 };
@@ -539,7 +537,7 @@ export default function HeaderUpbarNovalia({
       return [
         { key: "profile", label: "Mi perfil", to: "/dashboard?view=perfil" },
         { key: "saved", label: "Mis guardados", to: "/dashboard?view=saved" },
-        { key: "chats", label: "Mis chats", to: "/dashboard?view=chats" },
+        { key: "chats", label: "Mis chats", to: "/chats" },
         { key: "divider", label: "" },
         {
           key: "logout",

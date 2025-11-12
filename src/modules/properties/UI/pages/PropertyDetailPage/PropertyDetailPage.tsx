@@ -1,5 +1,5 @@
 // PropertyDetailPage: página de detalle público de una propiedad
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
@@ -20,6 +20,7 @@ import { SummaryPanel } from "./components/SummaryPanel";
 import PropertyMap from "./components/PropertyMap";
 import { PublicHomeFooter } from "../PublicHomePage/components/Footer/Footer";
 import { PropertyPublicCard } from "../PublicHomePage/components/PropertyPublicCard/PropertyPublicCard";
+import { ChatWidget } from "../../../../comunication/UI/components/ChatWidget";
 import { formatNumber } from "../../utils/formatters";
 import { getAmenityLabel } from "../../utils/amenityLabels";
 import { buildMapsUrl } from "../../utils/mapsUrl";
@@ -38,6 +39,7 @@ export default function PropertyDetailPage() {
   const { data, loading, error } = usePropertyDetail(id);
   const { items: similarProperties, loading: loadingSimilar } =
     useSimilarProperties(data?.property || null, 3);
+  const [isChatOpen, setIsChatOpen] = useState(false);
 
   // Registrar vista de la propiedad cuando se carga
   useEffect(() => {
@@ -62,8 +64,7 @@ export default function PropertyDetailPage() {
   };
 
   const handleContact = () => {
-    // TODO: implementar contactar
-    console.log("Contactar desde mobile CTA");
+    setIsChatOpen(true);
   };
 
   if (loading) {
@@ -129,7 +130,7 @@ export default function PropertyDetailPage() {
             galleryUrls={galleryUrls}
             title={property.title}
           />
-          <SummaryPanel property={property} />
+          <SummaryPanel property={property} onContact={handleContact} />
         </section>
 
         {/* Block 2: Descripción + Amenidades + Características (2 columnas) */}
@@ -366,6 +367,18 @@ export default function PropertyDetailPage() {
           Contactar
         </button>
       </div>
+
+      {/* Chat Widget */}
+      {id && data?.property && (
+        <ChatWidget
+          propertyId={id}
+          propertyTitle={property.title}
+          orgId={property.orgId}
+          listerUserId={property.listerUserId}
+          isOpen={isChatOpen}
+          onClose={() => setIsChatOpen(false)}
+        />
+      )}
 
       {/* Footer */}
       <PublicHomeFooter />
