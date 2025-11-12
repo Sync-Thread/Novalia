@@ -47,7 +47,6 @@ export function MessageList({
       const { data } = await supabase.auth.getSession();
       const userId = data.session?.user?.id ?? null;
       setCurrentUserId(userId);
-      console.log('👤 Usuario actual ID:', userId);
     };
     void getCurrentUser();
   }, []);
@@ -125,7 +124,12 @@ export function MessageList({
   }
 
   return (
-    <div className={styles.messageList} ref={scrollRef} onScroll={handleScroll}>
+    <div
+      className={styles.messageList}
+      ref={scrollRef}
+      onScroll={handleScroll}
+      data-messages-container
+    >
       <div className={styles.scrollContainer}>
         {hasMore && (
           <button
@@ -198,18 +202,10 @@ function isOwnMessage(
 ): boolean {
   if (!thread || !currentUserId) return false;
   
-  console.log('🔍 Verificando mensaje:', {
-    messageId: message.id.substring(0, 8),
-    senderId: message.senderId?.substring(0, 8),
-    senderType: message.senderType,
-    currentUserId: currentUserId.substring(0, 8),
-  });
-  
   // El mensaje es mío si:
   // 1. El sender_type es 'user' Y el senderId coincide con mi userId actual
   if (message.senderType === 'user') {
     const isMine = message.senderId === currentUserId;
-    console.log(`  -> Mensaje de tipo 'user': ${isMine ? 'MÍO' : 'DE OTRO'}`);
     return isMine;
   }
   
@@ -220,11 +216,9 @@ function isOwnMessage(
   
   if (message.senderType === 'contact' && !amIAUser) {
     // Soy un comprador (contact) viendo mis propios mensajes
-    console.log(`  -> Mensaje de tipo 'contact' y soy comprador: MÍO`);
     return true;
   }
   
-  console.log(`  -> Mensaje de tipo '${message.senderType}': DE OTRO`);
   return false;
 }
 

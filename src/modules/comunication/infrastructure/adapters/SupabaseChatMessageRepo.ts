@@ -36,8 +36,6 @@ export class SupabaseChatMessageRepo implements ChatMessageRepo {
     const pageSize = Math.min(Math.max(1, input.pageSize), 100);
     const offset = (page - 1) * pageSize;
 
-    console.log('📥 Cargando mensajes:', { threadId: input.threadId, page, pageSize, offset });
-
     const { data, error, count } = await this.client
       .from("chat_messages")
       .select(
@@ -55,13 +53,6 @@ export class SupabaseChatMessageRepo implements ChatMessageRepo {
 
     const rows = (data ?? []) as ChatMessageRow[];
     const mapped = rows.map(mapMessageRow);
-    console.log(`✅ Mensajes cargados: ${mapped.length} de ${count ?? 0} total`);
-    console.log('  Primeros mensajes:', mapped.slice(0, 3).map(m => ({ 
-      id: m.id.substring(0, 8), 
-      body: m.body?.substring(0, 30),
-      senderType: m.senderType,
-      createdAt: m.createdAt
-    })));
     
     return Result.ok(buildPage(mapped, count ?? mapped.length, page, pageSize));
   }

@@ -16,7 +16,6 @@ export function useChatRealtime(threadId: string | null, handlers: ThreadRealtim
       return;
     }
 
-    console.log('📡 Suscribiéndose a thread:', threadId);
     let active = true;
 
     // Usar handlers desde ref para evitar re-suscripciones
@@ -34,7 +33,6 @@ export function useChatRealtime(threadId: string | null, handlers: ThreadRealtim
 
     return () => {
       if (active) {
-        console.log('🔌 Desuscribiéndose de thread:', threadId);
         void realtime.unsubscribe(threadId);
         active = false;
       }

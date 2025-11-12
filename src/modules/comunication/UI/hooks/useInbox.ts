@@ -149,11 +149,9 @@ export function useInbox({ role, search }: UseInboxOptions): UseInboxReturn {
   // ✅ Suscribirse a cambios en tiempo real para auto-refresh
   useInboxRealtime({
     onNewMessage: () => {
-      console.log('🔔 Nuevo mensaje detectado, refrescando inbox...');
       void loadInbox();
     },
     onThreadUpdate: () => {
-      console.log('🔔 Thread actualizado, refrescando inbox...');
       void loadInbox();
     },
     enabled: true,

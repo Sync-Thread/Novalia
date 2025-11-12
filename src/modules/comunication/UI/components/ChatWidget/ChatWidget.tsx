@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+﻿import { useState, useEffect, useRef, useCallback } from "react";
 import { X, Send, Loader2 } from "lucide-react";
 import { useChatModule } from "../../contexts/ChatProvider";
 import { useChatRealtime } from "../../hooks/useChatRealtime";
@@ -32,24 +32,20 @@ export function ChatWidget({
   const [error, setError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // ✅ Handler para mensajes en tiempo real
+  // âœ… Handler para mensajes en tiempo real
   const handleNewMessage = useCallback((newMessage: ChatMessageDTO) => {
-    console.log("📨 Nuevo mensaje recibido vía realtime:", newMessage.id);
     setMessages(prev => {
       // Evitar duplicados
       if (prev.some(m => m.id === newMessage.id)) {
-        console.log("⚠️ Mensaje duplicado, ignorando");
         return prev;
       }
       return [...prev, newMessage];
     });
   }, []);
 
-  // ✅ Integrar realtime
+  // âœ… Integrar realtime
   useChatRealtime(thread?.id ?? null, {
     onMessage: handleNewMessage,
-    onTyping: () => console.log("✍️ Usuario está escribiendo..."),
-    onDelivered: () => console.log("✅ Mensaje entregado"),
   });
 
   // Auto-scroll to bottom when messages change
@@ -69,44 +65,36 @@ export function ChatWidget({
     }
 
     async function initThread() {
-      console.log("🚀 Iniciando chat widget...");
-      console.log("📦 Datos:", { propertyId, orgId, listerUserId });
       
       setLoading(true);
       setError(null);
 
       try {
         // Find or create thread
-        console.log("🔍 Buscando o creando thread...");
         const threadResult = await useCases.findOrCreateThread.execute({
           propertyId,
           orgId,
           listerUserId,
         });
 
-        console.log("📬 Resultado thread:", threadResult);
 
         if (threadResult.isErr()) {
           const errorMsg = typeof threadResult.error === 'object' && threadResult.error !== null && 'message' in threadResult.error
             ? (threadResult.error as { message: string }).message
             : 'Error al iniciar el chat';
-          console.error("❌ Error creando thread:", threadResult.error);
+          console.error("âŒ Error creando thread:", threadResult.error);
           setError(errorMsg);
           setLoading(false);
           return;
         }
 
         const newThread = threadResult.value;
-        console.log("✅ Thread creado/encontrado:", newThread.id);
         setThread(newThread);
         try {
-          console.log("👥 Participantes:", JSON.stringify(newThread.participants, null, 2));
         } catch (e) {
-          console.log("👥 Participantes (raw):", newThread.participants);
         }
 
-        // ✅ FIX: Siempre intentar cargar mensajes, no solo si lastMessage existe
-        console.log("📨 Cargando mensajes...");
+        // âœ… FIX: Siempre intentar cargar mensajes, no solo si lastMessage existe
         const messagesResult = await useCases.listMessages.execute({
           threadId: newThread.id,
           page: 1,
@@ -115,19 +103,17 @@ export function ChatWidget({
 
         if (messagesResult.isOk()) {
           const messageCount = messagesResult.value.items.length;
-          console.log("✅ Mensajes cargados:", messageCount);
           setMessages(messagesResult.value.items);
           
           if (messageCount === 0) {
-            console.log("📭 Thread sin mensajes previos");
           }
         } else {
-          console.error("❌ Error cargando mensajes:", messagesResult.error);
+          console.error("âŒ Error cargando mensajes:", messagesResult.error);
         }
 
         setLoading(false);
       } catch (err) {
-        console.error("💥 Error inesperado:", err);
+        console.error("ðŸ’¥ Error inesperado:", err);
         setError("Error inesperado al iniciar el chat");
         setLoading(false);
       }
@@ -139,11 +125,8 @@ export function ChatWidget({
   const handleSendMessage = async () => {
     if (!thread || !messageBody.trim() || sending) return;
 
-    console.log("📤 Enviando mensaje...", { threadId: thread.id, body: messageBody.trim() });
     try {
-      console.log("🔐 Participantes antes de enviar:", JSON.stringify(thread.participants?.map(p => ({ id: p.id, type: p.type })), null, 2));
     } catch (e) {
-      console.log("🔐 Participantes (raw):", thread.participants?.map(p => ({ id: p.id, type: p.type })));
     }
     
     setSending(true);
@@ -155,29 +138,27 @@ export function ChatWidget({
         body: messageBody.trim(),
       });
 
-      console.log("📬 Resultado envío:", result);
 
       if (result.isErr()) {
         const errorMsg = typeof result.error === 'object' && result.error !== null && 'message' in result.error
           ? (result.error as { message: string }).message
           : 'Error al enviar el mensaje';
-        console.error("❌ Error enviando mensaje:", result.error);
+        console.error("âŒ Error enviando mensaje:", result.error);
         setError(errorMsg);
         setSending(false);
         return;
       }
 
-      console.log("✅ Mensaje enviado:", result.value.id);
 
-      // ✅ NO agregamos el mensaje manualmente - realtime se encarga
-      // El mensaje llegará vía handleNewMessage
+      // âœ… NO agregamos el mensaje manualmente - realtime se encarga
+      // El mensaje llegarÃ¡ vÃ­a handleNewMessage
       setMessageBody("");
       setSending(false);
 
       // Mark as read
       void useCases.markThreadAsRead.execute(thread.id);
     } catch (err) {
-      console.error("💥 Error inesperado enviando mensaje:", err);
+      console.error("ðŸ’¥ Error inesperado enviando mensaje:", err);
       setError("Error inesperado al enviar el mensaje");
       setSending(false);
     }
@@ -192,7 +173,6 @@ export function ChatWidget({
 
   if (!isOpen) return null;
 
-  console.log("🎨 Renderizando ChatWidget:", { loading, thread: !!thread, messagesCount: messages.length, error });
 
   return (
     <div className={styles.overlay} onClick={onClose}>
@@ -234,7 +214,7 @@ export function ChatWidget({
               <div className={styles.messages}>
                 {messages.length === 0 && (
                   <div className={styles.emptyState}>
-                    <p>Envía un mensaje para iniciar la conversación</p>
+                    <p>EnvÃ­a un mensaje para iniciar la conversaciÃ³n</p>
                   </div>
                 )}
 

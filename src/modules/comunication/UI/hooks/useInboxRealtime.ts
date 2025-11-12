@@ -30,8 +30,6 @@ export function useInboxRealtime({
   useEffect(() => {
     if (!enabled) return;
 
-    console.log('📡 Suscribiéndose a cambios de inbox en tiempo real');
-
     // Debounce para evitar múltiples llamadas rápidas
     let messageTimeout: ReturnType<typeof setTimeout> | null = null;
     let threadTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -47,8 +45,6 @@ export function useInboxRealtime({
           table: 'chat_messages',
         },
         (payload) => {
-          console.log('📬 Nuevo mensaje detectado en inbox:', payload.new.id);
-          
           // Debounce de 500ms para evitar múltiples refrescos
           if (messageTimeout) clearTimeout(messageTimeout);
           messageTimeout = setTimeout(() => {
@@ -69,8 +65,6 @@ export function useInboxRealtime({
           table: 'chat_threads',
         },
         (payload) => {
-          console.log('🔄 Thread actualizado en inbox:', payload.new.id);
-          
           // Debounce de 500ms
           if (threadTimeout) clearTimeout(threadTimeout);
           threadTimeout = setTimeout(() => {
@@ -82,7 +76,6 @@ export function useInboxRealtime({
 
     // Cleanup
     return () => {
-      console.log('🔌 Desuscribiéndose de cambios de inbox');
       if (messageTimeout) clearTimeout(messageTimeout);
       if (threadTimeout) clearTimeout(threadTimeout);
       void supabase.removeChannel(messagesChannel);

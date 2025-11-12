@@ -12,10 +12,15 @@ type BaseLayoutProps = {
   onSelectThread: (thread: ChatThreadDTO) => void;
   messages: ChatMessageDTO[];
   messagesLoading: boolean;
+  messagesError: string | null;
+  hasMore: boolean;
+  onLoadMore: () => void;
+  isTyping: boolean;
   composer: string;
   onComposerChange: (value: string) => void;
   onSendMessage: () => void;
   sending: boolean;
+  sendError: string | null;
 };
 
 type BuyerChatLayoutProps = BaseLayoutProps & {
@@ -44,10 +49,15 @@ export function BuyerChatLayout({
   onSelectThread,
   messages,
   messagesLoading,
+  messagesError,
+  hasMore,
+  onLoadMore,
+  isTyping,
   composer,
   onComposerChange,
   onSendMessage,
   sending,
+  sendError,
 }: BuyerChatLayoutProps) {
   const filteredThreads = useMemo(() => filterThreads(threads, search), [threads, search]);
 
@@ -118,10 +128,15 @@ export function BuyerChatLayout({
           thread={selectedThread}
           messages={messages}
           isLoading={messagesLoading}
+          messagesError={messagesError}
+          hasMore={hasMore}
+          onLoadMore={onLoadMore}
+          isTyping={isTyping}
           composer={composer}
           onComposerChange={onComposerChange}
           onSendMessage={onSendMessage}
           sending={sending}
+          sendError={sendError}
         />
       </div>
     </>
@@ -138,10 +153,15 @@ export function SellerChatLayout({
   onSelectThread,
   messages,
   messagesLoading,
+  messagesError,
+  hasMore,
+  onLoadMore,
+  isTyping,
   composer,
   onComposerChange,
   onSendMessage,
   sending,
+  sendError,
 }: SellerChatLayoutProps) {
   const filteredGroups = useMemo(() => filterGroups(groups, search), [groups, search]);
   const [expandedPropertyId, setExpandedPropertyId] = useState<string | null>(null);
@@ -219,10 +239,15 @@ export function SellerChatLayout({
           thread={selectedThread}
           messages={messages}
           isLoading={messagesLoading}
+          messagesError={messagesError}
+          hasMore={hasMore}
+          onLoadMore={onLoadMore}
+          isTyping={isTyping}
           composer={composer}
           onComposerChange={onComposerChange}
           onSendMessage={onSendMessage}
           sending={sending}
+          sendError={sendError}
         />
       </div>
     </>

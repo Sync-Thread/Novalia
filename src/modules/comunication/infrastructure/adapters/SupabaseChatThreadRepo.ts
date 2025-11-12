@@ -145,8 +145,6 @@ export class SupabaseChatThreadRepo implements ChatThreadRepo {
   }
 
   async findByPropertyAndUser(input: { propertyId: string; userId: string }): Promise<Result<ChatThreadDTO | null>> {
-    console.log('🔍 findByPropertyAndUser:', input);
-    
     // Find ALL threads for this property (don't limit)
     const { data, error } = await this.client
       .from("chat_threads")
@@ -154,33 +152,24 @@ export class SupabaseChatThreadRepo implements ChatThreadRepo {
       .eq("property_id", input.propertyId);
 
     if (error) {
-      console.error('❌ findByPropertyAndUser error:', error);
       return Result.fail(mapPostgrestError("THREAD_QUERY_FAILED", error));
     }
 
     if (!data || data.length === 0) {
-      console.log('✅ No threads found for property:', input.propertyId);
       return Result.ok(null);
     }
 
-    console.log('📋 Found threads for property:', data.length);
     const rows = data as unknown as ThreadRowWithRelations[];
     
     // Find thread where user is participant
     const matchingThread = rows.find(row => {
       const hasUser = row.participants?.some(p => p.user_id === input.userId);
-      console.log(`  Thread ${row.id}: hasUser=${hasUser}, participants:`, 
-        row.participants?.map(p => ({ user_id: p.user_id, contact_id: p.contact_id }))
-      );
       return hasUser;
     });
 
     if (!matchingThread) {
-      console.log('✅ No thread found with user as participant');
       return Result.ok(null);
     }
-
-    console.log('✅ Found existing thread:', matchingThread.id);
 
     const unreadCounts = await this.computeUnreadCounts([matchingThread.id], "user");
     if (unreadCounts.isErr()) {
@@ -241,8 +230,6 @@ export class SupabaseChatThreadRepo implements ChatThreadRepo {
     filters: ThreadFiltersDTO & { page?: number; pageSize?: number; contactId?: string | null },
     scope: { readerType: SenderType; orgId: string | null; userId: string | null },
   ): Promise<Result<Page<ChatThreadDTO>>> {
-    console.log('📬 fetchThreads called with:', { filters, scope });
-    
     const page = Math.max(1, filters.page ?? 1);
     const pageSize = Math.min(Math.max(1, filters.pageSize ?? 20), 50);
     const offset = (page - 1) * pageSize;
@@ -264,7 +251,6 @@ export class SupabaseChatThreadRepo implements ChatThreadRepo {
       userId: scope.userId ?? scope.orgId ?? "",
     });
 
-    console.log('🔍 Executing query...');
     const { data, error, count } = await query;
     
     if (error) {
@@ -272,7 +258,6 @@ export class SupabaseChatThreadRepo implements ChatThreadRepo {
       return Result.fail(mapPostgrestError("THREAD_QUERY_FAILED", error));
     }
 
-    console.log('✅ Query returned:', { rowCount: data?.length, totalCount: count });
     const rows = (data ?? []) as unknown as ThreadRowWithRelations[];
     
     const unreadCounts = await this.computeUnreadCounts(
@@ -322,7 +307,6 @@ export class SupabaseChatThreadRepo implements ChatThreadRepo {
 }
 
 function mapThreadRow(row: ThreadRowWithRelations, unreadCounts: Map<string, number>): ChatThreadDTO {
-  console.log('🔍 mapThreadRow raw row:', JSON.stringify(row, null, 2));
   const lastMessageRow = Array.isArray(row.last_message) ? row.last_message[0] ?? null : null;
   return {
     id: row.id,
@@ -354,16 +338,14 @@ function mapProperty(row: PropertySummaryRow | null): ChatThreadDTO["property"] 
   };
 }
 
-function mapParticipants(rows: ThreadRowWithRelations['participants']): ParticipantDTO[] {
+function mapParticipants(rows: ThreadRowWithRelations["participants"]): ParticipantDTO[] {
   if (!rows) return [];
-  console.log('🔍 mapParticipants raw rows:', JSON.stringify(rows, null, 2));
-  
-  const mapped = rows
+
+  return rows
     .map(row => {
       if (row.user_id) {
-        // Supabase retorna las relaciones como objetos únicos (no arrays) cuando se usa !
         const profileData = (row as any).user_profiles;
-        const participant = {
+        return {
           id: row.user_id,
           type: "user" as const,
           displayName: profileData?.full_name ?? `Usuario ${row.user_id.substring(0, 8)}`,
@@ -371,18 +353,10 @@ function mapParticipants(rows: ThreadRowWithRelations['participants']): Particip
           phone: profileData?.phone ?? null,
           lastSeenAt: null,
         };
-        console.log('👤 User participant:', { 
-          id: participant.id, 
-          displayName: participant.displayName,
-          hasProfiles: !!profileData,
-          full_name: profileData?.full_name
-        });
-        return participant;
       }
       if (row.contact_id) {
-        // Supabase retorna las relaciones como objetos únicos (no arrays) cuando se usa !
         const contactData = (row as any).contacts;
-        const participant = {
+        return {
           id: row.contact_id,
           type: "contact" as const,
           displayName: contactData?.full_name ?? `Contacto ${row.contact_id.substring(0, 8)}`,
@@ -390,23 +364,12 @@ function mapParticipants(rows: ThreadRowWithRelations['participants']): Particip
           phone: contactData?.phone ?? null,
           lastSeenAt: null,
         };
-        console.log('👥 Contact participant:', { 
-          id: participant.id, 
-          displayName: participant.displayName,
-          hasContacts: !!contactData,
-          full_name: contactData?.full_name
-        });
-        return participant;
       }
-      console.warn('⚠️ Participant without user_id or contact_id:', row);
+      console.warn("Participant without user_id or contact_id", row);
       return null;
     })
     .filter((participant): participant is Exclude<typeof participant, null> => participant !== null);
-  
-  console.log('✅ Mapped participants:', mapped);
-  return mapped;
 }
-
 function mapMessageRow(row: ChatMessageRow) {
   return {
     id: row.id,

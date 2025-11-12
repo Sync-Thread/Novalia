@@ -91,8 +91,6 @@ export function useSendMessage({
       setError(null);
 
       try {
-        console.log('📤 Enviando mensaje:', { threadId, bodyLength: body.length });
-        
         const result = await useCases.sendMessage.execute({
           threadId,
           body: body.trim(),
@@ -108,9 +106,7 @@ export function useSendMessage({
           return false;
         }
 
-        // Mensaje enviado exitosamente
         const sentMessage = result.value;
-        console.log('✅ Mensaje enviado exitosamente:', sentMessage.id);
         setLastSentMessage(sentMessage);
         onSuccess?.(sentMessage);
         

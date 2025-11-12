@@ -1,26 +1,37 @@
 import type { ChatThreadDTO } from "../../application/dto/ChatThreadDTO";
 import type { ChatMessageDTO } from "../../application/dto/ChatMessageDTO";
 import styles from "./ChatsPage.module.css";
-import { formatRelativeTime } from "../../utils/formatRelativeTime";
+import { PropertyHeaderCard } from "./PropertyHeaderCard";
+import { MessageList } from "./MessageList";
 
 type ChatThreadPanelProps = {
   thread: ChatThreadDTO | null;
   messages: ChatMessageDTO[];
   isLoading: boolean;
+  messagesError: string | null;
+  hasMore: boolean;
+  onLoadMore: () => void;
+  isTyping: boolean;
   composer: string;
   onComposerChange: (value: string) => void;
   onSendMessage: () => void;
   sending: boolean;
+  sendError: string | null;
 };
 
 export function ChatThreadPanel({
   thread,
   messages,
   isLoading,
+  messagesError,
+  hasMore,
+  onLoadMore,
+  isTyping,
   composer,
   onComposerChange,
   onSendMessage,
   sending,
+  sendError,
 }: ChatThreadPanelProps) {
   if (!thread) {
     return (
@@ -32,51 +43,28 @@ export function ChatThreadPanel({
     );
   }
 
-  const propertyTitle = thread.property?.title ?? "Propiedad sin título";
-  const propertyPrice =
-    thread.property?.price != null
-      ? new Intl.NumberFormat("es-MX", {
-          style: "currency",
-          currency: thread.property?.currency ?? "MXN",
-        }).format(thread.property.price)
-      : "Precio no disponible";
-  const propertyLocation = thread.property?.city ?? "Sin ciudad";
+  const contactParticipant = thread.participants.find(participant => participant.type === "contact");
 
   return (
     <section className={styles.messagesPanel}>
       <div className={styles.messagesHeader}>
-        <div className={styles.propertyTitle}>{propertyTitle}</div>
-        <div className={styles.propertyMeta}>
-          {propertyPrice} · {propertyLocation}
-        </div>
+        <PropertyHeaderCard
+          property={thread.property ?? null}
+          contactName={contactParticipant?.displayName ?? null}
+          contactEmail={contactParticipant?.email ?? null}
+        />
       </div>
 
       <div className={styles.messagesBody}>
-        {isLoading && <p style={{ color: "#94a3b8" }}>Cargando historial...</p>}
-        {!isLoading && messages.length === 0 && (
-          <div className={styles.emptyState}>Inicia la conversación enviando el primer mensaje.</div>
-        )}
-        {messages.map(message => {
-          const isSelf = message.senderType === "user";
-          return (
-            <article
-              key={message.id}
-              className={`${styles.message} ${isSelf ? styles.messageFromSelf : styles.messageFromContact}`}
-            >
-              {message.body}
-              <div className={styles.messageMeta}>
-                <span>{formatRelativeTime(message.createdAt)}</span>
-                <span>
-                  {message.status === "read"
-                    ? "Leído"
-                    : message.status === "delivered"
-                      ? "Entregado"
-                      : "Enviado"}
-                </span>
-              </div>
-            </article>
-          );
-        })}
+        <MessageList
+          messages={messages}
+          currentThread={thread}
+          loading={isLoading}
+          error={messagesError}
+          hasMore={hasMore}
+          isTyping={isTyping}
+          onLoadMore={onLoadMore}
+        />
       </div>
 
       <form
@@ -87,6 +75,11 @@ export function ChatThreadPanel({
           onSendMessage();
         }}
       >
+        {sendError && (
+          <p className={styles.errorState} style={{ marginBottom: 8 }}>
+            {sendError}
+          </p>
+        )}
         <input
           className={styles.composerInput}
           placeholder="Escribe un mensaje..."

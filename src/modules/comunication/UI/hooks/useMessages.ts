@@ -135,16 +135,12 @@ export function useMessages({
   // Handlers para realtime
   const handleNewMessage = useCallback(
     (newMessage: ChatMessageDTO) => {
-      console.log('📨 Nuevo mensaje recibido vía realtime:', newMessage.id);
       setMessages(prev => {
         // Evitar duplicados verificando por ID
         const exists = prev.some(m => m.id === newMessage.id);
         if (exists) {
-          console.log('⚠️ Mensaje duplicado ignorado:', newMessage.id);
           return prev;
         }
-        // Agregar nuevo mensaje al final
-        console.log('✅ Agregando mensaje nuevo al estado');
         return [...prev, newMessage];
       });
 
@@ -173,7 +169,6 @@ export function useMessages({
   const handleDelivered = useCallback(() => {
     // Actualizar estado de entrega si es necesario
     // Por ahora solo lo registramos
-    console.log('Mensaje entregado');
   }, []);
 
   // Subscribirse a eventos realtime del thread

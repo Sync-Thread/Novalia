@@ -37,8 +37,6 @@ export class ListClientInbox {
       });
     }
     
-    console.log('🔍 ListClientInbox filtering:', { contactId, userId, hasContact: !!contactId, hasUser: !!userId });
-
     // ✅ FIX: Si es usuario autenticado (no lead), usar listForLister
     // Si es lead (contactId), usar listForContact
     // En ambos casos, retornar TODOS los threads (no solo uno)
