@@ -10,7 +10,7 @@ import { threadFiltersSchema } from "../../validators/threadFilters.schema";
 export class ListClientInbox {
   constructor(private readonly deps: { repo: ChatThreadRepo; auth: AuthService }) {}
 
-  async execute(rawFilters: Partial<ThreadFiltersDTO> = {}): Promise<Result<ClientInboxDTO>> {
+  async execute(rawFilters: Partial<ThreadFiltersDTO> = {}): Promise<Result<ClientInboxDTO[]>> {
     const filtersResult = parseWith(threadFiltersSchema, rawFilters);
     if (filtersResult.isErr()) {
       return Result.fail(filtersResult.error);
@@ -37,36 +37,37 @@ export class ListClientInbox {
       });
     }
     
-    console.log('🔍 ListClientInbox filtering:', { contactId, userId, hasContact: !!contactId, hasUser: !!userId });
-
-    // ✅ FIX: Si es usuario autenticado (no lead), usar listForLister con filtro
+    // ✅ FIX: Si es usuario autenticado (no lead), usar listForLister
     // Si es lead (contactId), usar listForContact
+    // En ambos casos, retornar TODOS los threads (no solo uno)
     const repoResult = contactId 
       ? await this.deps.repo.listForContact({
           ...filters,
           contactId,
           orgId: auth.orgId,
           page: filters.page ?? 1,
-          pageSize: filters.pageSize ?? DEFAULT_PAGE_SIZE,
+          pageSize: filters.pageSize ?? 100, // Aumentar para mostrar todos
         })
       : await this.deps.repo.listForLister({
           ...filters,
           userId: userId!,
           orgId: auth.orgId,
           page: filters.page ?? 1,
-          pageSize: filters.pageSize ?? DEFAULT_PAGE_SIZE,
+          pageSize: filters.pageSize ?? 100, // Aumentar para mostrar todos
         });
 
     if (repoResult.isErr()) {
       return Result.fail(repoResult.error);
     }
 
-    const thread = repoResult.value.items[0] ?? null;
-
-    return Result.ok({
-      property: thread?.property ?? null,
-      unreadCount: thread?.unreadCount ?? 0,
+    // ✅ Retornar TODOS los threads como array de ClientInboxDTO
+    const threads = repoResult.value.items;
+    const inboxes = threads.map(thread => ({
+      property: thread.property ?? null,
+      unreadCount: thread.unreadCount ?? 0,
       thread,
-    });
+    }));
+
+    return Result.ok(inboxes);
   }
 }

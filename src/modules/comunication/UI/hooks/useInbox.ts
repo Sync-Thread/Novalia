@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useChatModule } from '../contexts/ChatProvider';
 import type { ChatThreadDTO } from '../../application/dto/ChatThreadDTO';
 import type { ListerInboxDTO, ListerThreadGroupDTO, ClientInboxDTO } from '../../application/dto/InboxDTO';
+import { useInboxRealtime } from './useInboxRealtime';
 
 interface UseInboxOptions {
   role: 'buyer' | 'seller';
@@ -87,7 +88,7 @@ export function useInbox({ role, search }: UseInboxOptions): UseInboxReturn {
           setTotalUnread(inbox.totalUnread);
         }
       } else {
-        // Cargar inbox del comprador (lista plana)
+        // Cargar inbox del comprador (array de ClientInboxDTO)
         const result = await useCases.listClientInbox.execute();
 
         if (result.isErr()) {
@@ -99,24 +100,34 @@ export function useInbox({ role, search }: UseInboxOptions): UseInboxReturn {
           setGroups(null);
           setTotalUnread(0);
         } else {
-          // El resultado es un objeto ClientInboxDTO único (no array)
-          const inbox = result.value;
+          // El resultado es un array de ClientInboxDTO
+          const inboxes = result.value;
           
-          // Extraer thread del inbox del cliente
-          const allThreads = inbox.thread ? [inbox.thread] : [];
+          // Extraer todos los threads
+          const allThreads = inboxes
+            .map(inbox => inbox.thread)
+            .filter((thread): thread is Exclude<typeof thread, null> => thread !== null);
           
           // Aplicar filtro de búsqueda si existe
           const filteredThreads = search
             ? allThreads.filter(t => {
                 const propertyMatch = t.property?.title?.toLowerCase().includes(search.toLowerCase());
-                // Por ahora solo filtramos por propiedad
-                return propertyMatch;
+                const participantMatch = t.participants.some(p => 
+                  p.displayName?.toLowerCase().includes(search.toLowerCase())
+                );
+                return propertyMatch || participantMatch;
               })
             : allThreads;
 
           setThreads(filteredThreads);
-          setGroups(null);
-          setTotalUnread(inbox.unreadCount);
+          
+          // Convertir a grupos para mostrar en el sidebar
+          const buyerGroups = convertBuyerInboxToGroups(inboxes);
+          setGroups(buyerGroups);
+          
+          // Calcular total de no leídos
+          const totalUnreadCount = inboxes.reduce((sum, inbox) => sum + inbox.unreadCount, 0);
+          setTotalUnread(totalUnreadCount);
         }
       }
     } catch (err) {
@@ -135,6 +146,17 @@ export function useInbox({ role, search }: UseInboxOptions): UseInboxReturn {
     void loadInbox();
   }, [loadInbox]);
 
+  // ✅ Suscribirse a cambios en tiempo real para auto-refresh
+  useInboxRealtime({
+    onNewMessage: () => {
+      void loadInbox();
+    },
+    onThreadUpdate: () => {
+      void loadInbox();
+    },
+    enabled: true,
+  });
+
   return {
     threads,
     groups,
@@ -143,4 +165,18 @@ export function useInbox({ role, search }: UseInboxOptions): UseInboxReturn {
     totalUnread,
     refresh: loadInbox,
   };
+}
+
+/**
+ * Convierte el array de ClientInboxDTO a formato de grupos para el comprador
+ */
+function convertBuyerInboxToGroups(inboxes: ClientInboxDTO[]): ListerThreadGroupDTO[] {
+  return inboxes
+    .filter(inbox => inbox.thread !== null)
+    .map(inbox => ({
+      property: inbox.property,
+      threadCount: 1,
+      unreadCount: inbox.unreadCount,
+      threads: [inbox.thread!],
+    }));
 }

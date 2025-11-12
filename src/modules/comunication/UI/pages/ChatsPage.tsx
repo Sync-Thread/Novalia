@@ -1,13 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useCallback, useEffect, useState } from "react";
 import type { ChatThreadDTO } from "../../application/dto/ChatThreadDTO";
-import type { ListerThreadGroupDTO } from "../../application/dto/InboxDTO";
 import styles from "../components/ChatsPage.module.css";
 import { ChatProvider } from "../contexts/ChatProvider";
 import { useInbox } from "../hooks/useInbox";
 import { useMessages } from "../hooks/useMessages";
 import { useSendMessage } from "../hooks/useSendMessage";
-import { MessageList } from "../components/MessageList";
 import { supabase } from "../../../../core/supabase/client";
+import { BuyerChatLayout, SellerChatLayout } from "../components/ChatLayouts";
 
 export default function ChatsPage() {
   return (
@@ -23,58 +22,35 @@ function ChatExperience() {
   const [view, setView] = useState<ViewMode>("seller");
   const [viewResolving, setViewResolving] = useState(true);
   const [selectedThread, setSelectedThread] = useState<ChatThreadDTO | null>(null);
+  const [composer, setComposer] = useState("");
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<"all" | "unread" | "responded">("all");
-  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
 
-  // ✅ Hook para inbox (reemplaza ~80 líneas de código)
-  const { 
-    threads, 
-    groups, 
-    loading: loadingInbox, 
-    error: inboxError,
-    totalUnread,
-    refresh: refreshInbox 
-  } = useInbox({ 
+  const { threads, groups, loading: inboxLoading, error: inboxError, totalUnread, refresh: refreshInbox } = useInbox({
     role: view,
-    search 
   });
 
-  // ✅ Hook para mensajes (reemplaza ~60 líneas de código)
-  const { 
-    messages, 
-    loading: messagesLoading, 
+  const {
+    messages,
+    loading: messagesLoading,
     error: messagesError,
-    isTyping
-  } = useMessages({ 
-    threadId: selectedThread?.id || null,
-    pageSize: 50,
-    autoScroll: true
+    hasMore,
+    loadMore,
+    refresh: refreshMessages,
+    isTyping,
+  } = useMessages({ threadId: selectedThread?.id ?? null });
+
+  const { sendMessage, sending, error: sendError } = useSendMessage({
+    threadId: selectedThread?.id ?? null,
   });
 
-  // ✅ Hook para enviar mensajes (reemplaza ~40 líneas de código)
-  const { 
-    sendMessage, 
-    sending,
-    error: sendError
-  } = useSendMessage({ 
-    threadId: selectedThread?.id || null,
-    onSuccess: () => {
-      refreshInbox(); // Actualizar contador de no leídos
-    },
-    onError: (error) => {
-      console.error('Error al enviar mensaje:', error);
-    }
-  });
-
-  // Resolver rol del usuario (seller vs buyer)
   useEffect(() => {
     let active = true;
     const resolveView = async () => {
       try {
         const nextView = await resolveViewFromSession();
-        if (!active) return;
-        setView(nextView);
+        if (active) {
+          setView(nextView);
+        }
       } finally {
         if (active) {
           setViewResolving(false);
@@ -87,51 +63,38 @@ function ChatExperience() {
     };
   }, []);
 
-  // Auto-seleccionar primer thread cuando carga inbox
   useEffect(() => {
-    if (!viewResolving && threads.length > 0 && !selectedThread) {
-      setSelectedThread(threads[0]);
+    if (threads.length === 0) {
+      setSelectedThread(null);
+      return;
     }
-  }, [viewResolving, threads, selectedThread]);
-
-  // Filtrar grupos por búsqueda (ya manejado por useInbox, pero mantenemos lógica de agrupación)
-  const displayGroups = useMemo(() => {
-    return groups || [];
-  }, [groups]);
-
-  // Manejar selección de thread
-  const handleSelectThread = (thread: ChatThreadDTO) => {
-    setSelectedThread(thread);
-  };
-
-  // Toggle collapse de grupo
-  const toggleGroup = (propertyId: string) => {
-    setCollapsedGroups(prev => {
-      const next = new Set(prev);
-      if (next.has(propertyId)) {
-        next.delete(propertyId);
-      } else {
-        next.add(propertyId);
+    setSelectedThread(previous => {
+      if (previous && threads.some(thread => thread.id === previous.id)) {
+        return previous;
       }
-      return next;
+      return threads[0];
     });
-  };
+  }, [threads]);
 
-  // Manejar envío de mensaje
-  const handleSendMessage = async (event?: React.FormEvent) => {
-    event?.preventDefault();
-    const input = event?.currentTarget?.querySelector('input') as HTMLInputElement;
-    const text = input?.value?.trim();
-    
-    if (!text) return;
-    
-    const success = await sendMessage(text);
-    if (success && input) {
-      input.value = '';
+  useEffect(() => {
+    setComposer("");
+  }, [selectedThread?.id]);
+
+  const handleSelectThread = useCallback((thread: ChatThreadDTO) => {
+    setSelectedThread(thread);
+  }, []);
+
+  const handleSendMessage = useCallback(async () => {
+    if (!selectedThread || !composer.trim()) return;
+    const success = await sendMessage(composer);
+    if (success) {
+      setComposer("");
+      await Promise.all([refreshInbox(), refreshMessages()]);
     }
-  };
+  }, [composer, sendMessage, refreshInbox, refreshMessages, selectedThread]);
 
-  const isLoadingInbox = viewResolving || loadingInbox;
+  const isInboxLoading = viewResolving || inboxLoading;
+  const sellerGroups = groups ?? [];
 
   return (
     <section className={styles.page}>
@@ -144,260 +107,69 @@ function ChatExperience() {
         </div>
       </header>
 
-      <div className={styles.panels}>
-        <aside className={styles.sidebar}>
-          <div className={styles.sidebarHeader}>
-            {/* Filtros en pestañas */}
-            <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-              <button
-                onClick={() => setFilter("all")}
-                style={{
-                  flex: 1,
-                  padding: "8px 12px",
-                  border: "none",
-                  borderRadius: 6,
-                  background: filter === "all" ? "#3b82f6" : "#f1f5f9",
-                  color: filter === "all" ? "#fff" : "#64748b",
-                  fontSize: 13,
-                  fontWeight: 500,
-                  cursor: "pointer",
-                }}
-              >
-                Todos ({threads.length})
-              </button>
-              <button
-                onClick={() => setFilter("unread")}
-                style={{
-                  flex: 1,
-                  padding: "8px 12px",
-                  border: "none",
-                  borderRadius: 6,
-                  background: filter === "unread" ? "#3b82f6" : "#f1f5f9",
-                  color: filter === "unread" ? "#fff" : "#64748b",
-                  fontSize: 13,
-                  fontWeight: 500,
-                  cursor: "pointer",
-                }}
-              >
-                No leídos ({totalUnread})
-              </button>
-              <button
-                onClick={() => setFilter("responded")}
-                style={{
-                  flex: 1,
-                  padding: "8px 12px",
-                  border: "none",
-                  borderRadius: 6,
-                  background: filter === "responded" ? "#3b82f6" : "#f1f5f9",
-                  color: filter === "responded" ? "#fff" : "#64748b",
-                  fontSize: 13,
-                  fontWeight: 500,
-                  cursor: "pointer",
-                }}
-              >
-                Respondidos
-              </button>
-            </div>
-            
-            {/* Buscador */}
-            <input
-              className={styles.searchInput}
-              placeholder="Buscar por contacto, propiedad..."
-              value={search}
-              onChange={event => setSearch(event.target.value)}
-            />
-          </div>
-          
-          <div style={{ overflowY: "auto", flex: 1 }}>
-            {inboxError && (
-              <p style={{ padding: 24, color: "#ef4444", fontSize: 14 }}>
-                Error: {inboxError}
-              </p>
-            )}
-            {!inboxError && displayGroups.length === 0 && (
-              <p style={{ padding: 24, color: "#94a3b8", fontSize: 14 }}>
-                {isLoadingInbox ? "Cargando..." : "No hay conversaciones disponibles"}
-              </p>
-            )}
-            {displayGroups.map((group: ListerThreadGroupDTO) => {
-              const propertyId = group.property?.id ?? "none";
-              const isCollapsed = collapsedGroups.has(propertyId);
-              const groupUnread = group.threads.reduce((sum, t) => sum + t.unreadCount, 0);
-              
-              return (
-                <div key={propertyId} className={styles.group}>
-                  {/* Header de grupo con toggle */}
-                  <button
-                    onClick={() => toggleGroup(propertyId)}
-                    style={{
-                      width: "100%",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      padding: "12px 16px",
-                      background: "#f8fafc",
-                      border: "none",
-                      borderBottom: "1px solid #e2e8f0",
-                      cursor: "pointer",
-                      textAlign: "left",
-                    }}
-                  >
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 14, fontWeight: 600, color: "#0f172a", marginBottom: 4 }}>
-                        {group.property?.title ?? "Sin propiedad asignada"}
-                      </div>
-                      {group.property && (
-                        <div style={{ fontSize: 12, color: "#64748b" }}>
-                          {group.property.price
-                            ? new Intl.NumberFormat("es-MX", {
-                                style: "currency",
-                                currency: group.property.currency ?? "MXN",
-                              }).format(group.property.price)
-                            : "Precio no disponible"}{" "}
-                          · {group.threads.length} {group.threads.length === 1 ? "contacto" : "contactos"}
-                        </div>
-                      )}
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      {groupUnread > 0 && (
-                        <span style={{
-                          background: "#3b82f6",
-                          color: "#fff",
-                          fontSize: 11,
-                          fontWeight: 600,
-                          padding: "2px 8px",
-                          borderRadius: 12,
-                        }}>
-                          {groupUnread}
-                        </span>
-                      )}
-                      <svg
-                        width="16"
-                        height="16"
-                        viewBox="0 0 16 16"
-                        fill="none"
-                        style={{
-                          transform: isCollapsed ? "rotate(0deg)" : "rotate(180deg)",
-                          transition: "transform 0.2s",
-                        }}
-                      >
-                        <path
-                          d="M4 6L8 10L12 6"
-                          stroke="#64748b"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      </svg>
-                    </div>
-                  </button>
-                  
-                  {/* Lista de threads (colapsable) */}
-                  {!isCollapsed && (
-                    <div className={styles.threadList}>
-                      {group.threads.map((thread: ChatThreadDTO) => {
-                        const contactName =
-                          thread.participants.find(participant => participant.type === "contact")?.displayName ??
-                          "Contacto sin nombre";
-                        const subtitle = thread.lastMessage?.body ?? "Sin mensajes";
-                        const isActive = selectedThread?.id === thread.id;
-                        return (
-                          <button
-                            key={thread.id}
-                            type="button"
-                            className={`${styles.threadButton} ${isActive ? styles.threadActive : ""}`}
-                            onClick={() => handleSelectThread(thread)}
-                          >
-                            <div style={{ flex: 1 }}>
-                              <div className={styles.threadTitle}>{contactName}</div>
-                              <div className={styles.threadSubtitle}>{subtitle}</div>
-                            </div>
-                            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
-                              <span style={{ fontSize: 11, color: "#94a3b8" }}>
-                                {formatRelativeTime(thread.lastMessageAt ?? thread.createdAt)}
-                              </span>
-                              {thread.unreadCount > 0 && (
-                                <span className={styles.badge}>{thread.unreadCount}</span>
-                              )}
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </aside>
+      {inboxError && (
+        <div className={styles.errorState} style={{ marginBottom: 16 }}>
+          {inboxError}
+        </div>
+      )}
 
-        <section className={styles.messagesPanel}>
-          {selectedThread ? (
-            <>
-              <div className={styles.messagesHeader}>
-                <div className={styles.propertyTitle}>{selectedThread.property?.title ?? "Chat sin propiedad"}</div>
-                <div className={styles.propertyMeta}>
-                  {selectedThread.property?.price
-                    ? new Intl.NumberFormat("es-MX", {
-                        style: "currency",
-                        currency: selectedThread.property.currency ?? "MXN",
-                      }).format(selectedThread.property?.price)
-                    : "Precio no disponible"}{" "}
-                  · {selectedThread.property?.city ?? "Sin ciudad"}
-                </div>
-              </div>
-
-              <div className={styles.messagesBody} data-messages-container>
-                <MessageList
-                  messages={messages}
-                  currentThread={selectedThread}
-                  loading={messagesLoading}
-                  error={messagesError}
-                  isTyping={isTyping}
-                />
-              </div>
-
-              <form className={styles.composer} onSubmit={handleSendMessage}>
-                <input
-                  className={styles.composerInput}
-                  placeholder="Escribe un mensaje..."
-                  disabled={sending}
-                />
-                <button className={styles.composerButton} type="submit" disabled={sending}>
-                  {sending ? "Enviando..." : "Enviar"}
-                </button>
-              </form>
-              {sendError && (
-                <div style={{ padding: '8px 24px', color: '#ef4444', fontSize: 13 }}>
-                  Error: {sendError}
-                </div>
-              )}
-            </>
-          ) : (
-            <div className={styles.emptyState}>Selecciona una conversación para comenzar.</div>
-          )}
-        </section>
-      </div>
+      {view === "seller" ? (
+        <SellerChatLayout
+          groups={sellerGroups}
+          isLoading={isInboxLoading}
+          totalUnread={totalUnread}
+          search={search}
+          onSearchChange={value => setSearch(value)}
+          selectedThread={selectedThread}
+          onSelectThread={handleSelectThread}
+          messages={messages}
+          messagesLoading={messagesLoading}
+          messagesError={messagesError}
+          hasMore={hasMore}
+          onLoadMore={loadMore}
+          isTyping={isTyping}
+          composer={composer}
+          onComposerChange={value => setComposer(value)}
+          onSendMessage={handleSendMessage}
+          sending={sending}
+          sendError={sendError}
+        />
+      ) : (
+        <BuyerChatLayout
+          threads={threads}
+          isLoading={isInboxLoading}
+          totalUnread={totalUnread}
+          search={search}
+          onSearchChange={value => setSearch(value)}
+          selectedThread={selectedThread}
+          onSelectThread={handleSelectThread}
+          messages={messages}
+          messagesLoading={messagesLoading}
+          messagesError={messagesError}
+          hasMore={hasMore}
+          onLoadMore={loadMore}
+          isTyping={isTyping}
+          composer={composer}
+          onComposerChange={value => setComposer(value)}
+          onSendMessage={handleSendMessage}
+          sending={sending}
+          sendError={sendError}
+        />
+      )}
     </section>
   );
 }
 
-function formatRelativeTime(value: string): string {
-  const formatter = new Intl.RelativeTimeFormat("es", { numeric: "auto" });
-  const date = new Date(value);
-  const deltaMinutes = Math.round((date.getTime() - Date.now()) / 60000);
-  if (Math.abs(deltaMinutes) < 60) {
-    return formatter.format(deltaMinutes, "minute");
-  }
-  const deltaHours = Math.round(deltaMinutes / 60);
-  if (Math.abs(deltaHours) < 24) {
-    return formatter.format(deltaHours, "hour");
-  }
-  const deltaDays = Math.round(deltaHours / 24);
-  return formatter.format(deltaDays, "day");
-}
-
-const SELLER_ROLES = new Set(["agent", "agent_org", "org_admin", "owner", "seller", "agency", "broker", "lister"]);
+const SELLER_ROLES = new Set([
+  "agent",
+  "agent_org",
+  "org_admin",
+  "owner",
+  "seller",
+  "agency",
+  "broker",
+  "lister",
+]);
 
 async function resolveViewFromSession(): Promise<ViewMode> {
   try {

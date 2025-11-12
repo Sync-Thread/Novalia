@@ -100,14 +100,6 @@ const navItemsByRole: Record<HeaderRole, NavItem[]> = {
       icon: <HomeIcon />,
       match: ({ pathname }) => pathname === "/",
     },
-    //añadi esto para contratos
-    {
-      key: "contracts",
-      label: "Contratos",
-      to: "/contracts",
-      icon: <FileIcon />,
-      match: ({ pathname }) => pathname === "/contracts",
-    },
     {
       key: "saved",
       label: "Guardados",

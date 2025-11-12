@@ -47,11 +47,13 @@ export class SupabaseChatMessageRepo implements ChatMessageRepo {
       .range(offset, offset + pageSize - 1);
 
     if (error) {
+      console.error('❌ Error cargando mensajes:', error);
       return Result.fail(mapPostgrestError("MESSAGE_QUERY_FAILED", error));
     }
 
     const rows = (data ?? []) as ChatMessageRow[];
     const mapped = rows.map(mapMessageRow);
+    
     return Result.ok(buildPage(mapped, count ?? mapped.length, page, pageSize));
   }
 

@@ -100,12 +100,12 @@ export function useSendMessage({
           const errorMsg = typeof result.error === 'object' && result.error !== null && 'message' in result.error
             ? (result.error as { message: string }).message
             : 'Error al enviar el mensaje';
+          console.error('❌ Error al enviar:', errorMsg);
           setError(errorMsg);
           onError?.(errorMsg);
           return false;
         }
 
-        // Mensaje enviado exitosamente
         const sentMessage = result.value;
         setLastSentMessage(sentMessage);
         onSuccess?.(sentMessage);

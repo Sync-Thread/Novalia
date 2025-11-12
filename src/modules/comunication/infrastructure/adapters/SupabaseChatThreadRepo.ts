@@ -51,16 +51,16 @@ const THREAD_SELECT = `
     operation_type,
     status
   ),
-  participants:chat_participants!inner(
+  participants:chat_participants(
     user_id,
     contact_id,
-    profiles!chat_participants_user_id_fkey(
+    user_profiles:profiles(
       id,
       full_name,
       email,
       phone
     ),
-    lead_contacts!chat_participants_contact_id_fkey(
+    contacts:lead_contacts(
       id,
       full_name,
       email,
@@ -145,12 +145,11 @@ export class SupabaseChatThreadRepo implements ChatThreadRepo {
   }
 
   async findByPropertyAndUser(input: { propertyId: string; userId: string }): Promise<Result<ChatThreadDTO | null>> {
-    // Find thread where property_id matches and userId is in participants
+    // Find ALL threads for this property (don't limit)
     const { data, error } = await this.client
       .from("chat_threads")
       .select(THREAD_SELECT)
-      .eq("property_id", input.propertyId)
-      .limit(1);
+      .eq("property_id", input.propertyId);
 
     if (error) {
       return Result.fail(mapPostgrestError("THREAD_QUERY_FAILED", error));
@@ -162,9 +161,11 @@ export class SupabaseChatThreadRepo implements ChatThreadRepo {
 
     const rows = data as unknown as ThreadRowWithRelations[];
     
-    const matchingThread = rows.find(row => 
-      row.participants?.some(p => p.user_id === input.userId)
-    );
+    // Find thread where user is participant
+    const matchingThread = rows.find(row => {
+      const hasUser = row.participants?.some(p => p.user_id === input.userId);
+      return hasUser;
+    });
 
     if (!matchingThread) {
       return Result.ok(null);
@@ -229,8 +230,6 @@ export class SupabaseChatThreadRepo implements ChatThreadRepo {
     filters: ThreadFiltersDTO & { page?: number; pageSize?: number; contactId?: string | null },
     scope: { readerType: SenderType; orgId: string | null; userId: string | null },
   ): Promise<Result<Page<ChatThreadDTO>>> {
-    console.log('📬 fetchThreads called with:', { filters, scope });
-    
     const page = Math.max(1, filters.page ?? 1);
     const pageSize = Math.min(Math.max(1, filters.pageSize ?? 20), 50);
     const offset = (page - 1) * pageSize;
@@ -252,7 +251,6 @@ export class SupabaseChatThreadRepo implements ChatThreadRepo {
       userId: scope.userId ?? scope.orgId ?? "",
     });
 
-    console.log('🔍 Executing query...');
     const { data, error, count } = await query;
     
     if (error) {
@@ -260,7 +258,6 @@ export class SupabaseChatThreadRepo implements ChatThreadRepo {
       return Result.fail(mapPostgrestError("THREAD_QUERY_FAILED", error));
     }
 
-    console.log('✅ Query returned:', { rowCount: data?.length, totalCount: count });
     const rows = (data ?? []) as unknown as ThreadRowWithRelations[];
     
     const unreadCounts = await this.computeUnreadCounts(
@@ -310,7 +307,6 @@ export class SupabaseChatThreadRepo implements ChatThreadRepo {
 }
 
 function mapThreadRow(row: ThreadRowWithRelations, unreadCounts: Map<string, number>): ChatThreadDTO {
-  console.log('🔍 mapThreadRow raw row:', JSON.stringify(row, null, 2));
   const lastMessageRow = Array.isArray(row.last_message) ? row.last_message[0] ?? null : null;
   return {
     id: row.id,
@@ -342,61 +338,38 @@ function mapProperty(row: PropertySummaryRow | null): ChatThreadDTO["property"] 
   };
 }
 
-function mapParticipants(rows: ThreadRowWithRelations['participants']): ParticipantDTO[] {
+function mapParticipants(rows: ThreadRowWithRelations["participants"]): ParticipantDTO[] {
   if (!rows) return [];
-  console.log('🔍 mapParticipants raw rows:', JSON.stringify(rows, null, 2));
-  
-  const mapped = rows
+
+  return rows
     .map(row => {
       if (row.user_id) {
-        // Extraer el primer elemento del array de profiles
-        const profileArray = row.profiles || (row as any).user_profiles || null;
-        const profileData = Array.isArray(profileArray) && profileArray.length > 0 ? profileArray[0] : null;
-        const participant = {
+        const profileData = (row as any).user_profiles;
+        return {
           id: row.user_id,
           type: "user" as const,
-          displayName: profileData?.full_name ?? null,
+          displayName: profileData?.full_name ?? `Usuario ${row.user_id.substring(0, 8)}`,
           email: profileData?.email ?? null,
           phone: profileData?.phone ?? null,
           lastSeenAt: null,
         };
-        console.log('👤 User participant:', { 
-          id: participant.id, 
-          displayName: participant.displayName,
-          hasProfiles: !!profileData,
-          rawRow: row
-        });
-        return participant;
       }
       if (row.contact_id) {
-        // Extraer el primer elemento del array de lead_contacts
-        const contactArray = row.lead_contacts || (row as any).contacts || null;
-        const contactData = Array.isArray(contactArray) && contactArray.length > 0 ? contactArray[0] : null;
-        const participant = {
+        const contactData = (row as any).contacts;
+        return {
           id: row.contact_id,
           type: "contact" as const,
-          displayName: contactData?.full_name ?? null,
+          displayName: contactData?.full_name ?? `Contacto ${row.contact_id.substring(0, 8)}`,
           email: contactData?.email ?? null,
           phone: contactData?.phone ?? null,
           lastSeenAt: null,
         };
-        console.log('👥 Contact participant:', { 
-          id: participant.id, 
-          displayName: participant.displayName,
-          hasContacts: !!contactData,
-          rawRow: row
-        });
-        return participant;
       }
-      console.warn('⚠️ Participant without user_id or contact_id:', row);
+      console.warn("Participant without user_id or contact_id", row);
       return null;
     })
     .filter((participant): participant is Exclude<typeof participant, null> => participant !== null);
-  
-  console.log('✅ Mapped participants:', mapped);
-  return mapped;
 }
-
 function mapMessageRow(row: ChatMessageRow) {
   return {
     id: row.id,
