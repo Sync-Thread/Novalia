@@ -25,7 +25,11 @@ function mapPostgrestError(code: MessageInfraErrorCode, error: PostgrestError): 
 }
 
 export class SupabaseChatMessageRepo implements ChatMessageRepo {
-  constructor(private readonly client: SupabaseClient) {}
+  private readonly client: SupabaseClient;
+
+  constructor(client: SupabaseClient) {
+    this.client = client;
+  }
 
   async listByThread(input: { threadId: string; page: number; pageSize: number }): Promise<Result<Page<ChatMessageDTO>>> {
     const page = Math.max(1, input.page);
@@ -106,6 +110,6 @@ function mapMessageRow(row: ChatMessageRow): ChatMessageDTO {
     createdAt: row.created_at,
     deliveredAt: row.delivered_at,
     readAt: row.read_at,
-    status: row.read_at ? "read" : row.delivered_at ? "delivered" : "sent",
+    status: (row.read_at ? "read" : row.delivered_at ? "delivered" : "sent") as "read" | "delivered" | "sent",
   };
 }

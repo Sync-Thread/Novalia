@@ -22,23 +22,40 @@ export class ListClientInbox {
     }
     const auth = authResult.value;
     const filters = filtersResult.value;
+    
+    // ✅ FIX: Aceptar userId (usuarios autenticados) O contactId (leads)
+    // Prioridad: filtro explícito > contactId de auth > userId de auth
     const contactId = filters.contactId ?? auth.contactId ?? null;
+    const userId = auth.userId ?? null;
 
-    if (!contactId) {
+    // Debe tener al menos uno de los dos
+    if (!contactId && !userId) {
       return Result.fail({
         scope: "chat",
-        code: "CONTACT_REQUIRED",
-        message: "No se pudo determinar el contacto del cliente",
+        code: "USER_REQUIRED",
+        message: "No se pudo determinar el identificador del usuario o contacto",
       });
     }
+    
+    console.log('🔍 ListClientInbox filtering:', { contactId, userId, hasContact: !!contactId, hasUser: !!userId });
 
-    const repoResult = await this.deps.repo.listForContact({
-      ...filters,
-      contactId,
-      orgId: auth.orgId,
-      page: filters.page ?? 1,
-      pageSize: filters.pageSize ?? DEFAULT_PAGE_SIZE,
-    });
+    // ✅ FIX: Si es usuario autenticado (no lead), usar listForLister con filtro
+    // Si es lead (contactId), usar listForContact
+    const repoResult = contactId 
+      ? await this.deps.repo.listForContact({
+          ...filters,
+          contactId,
+          orgId: auth.orgId,
+          page: filters.page ?? 1,
+          pageSize: filters.pageSize ?? DEFAULT_PAGE_SIZE,
+        })
+      : await this.deps.repo.listForLister({
+          ...filters,
+          userId: userId!,
+          orgId: auth.orgId,
+          page: filters.page ?? 1,
+          pageSize: filters.pageSize ?? DEFAULT_PAGE_SIZE,
+        });
 
     if (repoResult.isErr()) {
       return Result.fail(repoResult.error);

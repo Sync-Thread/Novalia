@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { X, Send, Loader2 } from "lucide-react";
 import { useChatModule } from "../../contexts/ChatProvider";
+import { useChatRealtime } from "../../hooks/useChatRealtime";
 import type { ChatThreadDTO } from "../../../application/dto/ChatThreadDTO";
 import type { ChatMessageDTO } from "../../../application/dto/ChatMessageDTO";
 import styles from "./ChatWidget.module.css";
@@ -30,6 +31,26 @@ export function ChatWidget({
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // ✅ Handler para mensajes en tiempo real
+  const handleNewMessage = useCallback((newMessage: ChatMessageDTO) => {
+    console.log("📨 Nuevo mensaje recibido vía realtime:", newMessage.id);
+    setMessages(prev => {
+      // Evitar duplicados
+      if (prev.some(m => m.id === newMessage.id)) {
+        console.log("⚠️ Mensaje duplicado, ignorando");
+        return prev;
+      }
+      return [...prev, newMessage];
+    });
+  }, []);
+
+  // ✅ Integrar realtime
+  useChatRealtime(thread?.id ?? null, {
+    onMessage: handleNewMessage,
+    onTyping: () => console.log("✍️ Usuario está escribiendo..."),
+    onDelivered: () => console.log("✅ Mensaje entregado"),
+  });
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -84,21 +105,24 @@ export function ChatWidget({
           console.log("👥 Participantes (raw):", newThread.participants);
         }
 
-        // Load messages if thread has any
-        if (newThread.lastMessage) {
-          console.log("📨 Cargando mensajes...");
-          const messagesResult = await useCases.listMessages.execute({
-            threadId: newThread.id,
-            page: 1,
-            pageSize: 50,
-          });
+        // ✅ FIX: Siempre intentar cargar mensajes, no solo si lastMessage existe
+        console.log("📨 Cargando mensajes...");
+        const messagesResult = await useCases.listMessages.execute({
+          threadId: newThread.id,
+          page: 1,
+          pageSize: 50,
+        });
 
-          if (messagesResult.isOk()) {
-            console.log("✅ Mensajes cargados:", messagesResult.value.items.length);
-            setMessages(messagesResult.value.items);
+        if (messagesResult.isOk()) {
+          const messageCount = messagesResult.value.items.length;
+          console.log("✅ Mensajes cargados:", messageCount);
+          setMessages(messagesResult.value.items);
+          
+          if (messageCount === 0) {
+            console.log("📭 Thread sin mensajes previos");
           }
         } else {
-          console.log("📭 No hay mensajes previos");
+          console.error("❌ Error cargando mensajes:", messagesResult.error);
         }
 
         setLoading(false);
