@@ -284,15 +284,15 @@ function SellerPropertyCard({ group, expanded, onToggle, onSelectThread, selecte
             <div className={styles.propertyStats}>
               <span>
                 <MessageCircle size={14} />
-                {group.threadCount} chats
+                {group.threadCount}
               </span>
               <span>
                 <Users size={14} />
-                {group.threads.length} contactos
+                {group.threads.length}
               </span>
               <span>
                 <Eye size={14} />
-                {group.unreadCount} sin leer
+                {group.unreadCount}
               </span>
             </div>
           </div>
