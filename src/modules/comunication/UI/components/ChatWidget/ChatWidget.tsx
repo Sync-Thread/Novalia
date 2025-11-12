@@ -78,6 +78,11 @@ export function ChatWidget({
         const newThread = threadResult.value;
         console.log("✅ Thread creado/encontrado:", newThread.id);
         setThread(newThread);
+        try {
+          console.log("👥 Participantes:", JSON.stringify(newThread.participants, null, 2));
+        } catch (e) {
+          console.log("👥 Participantes (raw):", newThread.participants);
+        }
 
         // Load messages if thread has any
         if (newThread.lastMessage) {
@@ -111,6 +116,11 @@ export function ChatWidget({
     if (!thread || !messageBody.trim() || sending) return;
 
     console.log("📤 Enviando mensaje...", { threadId: thread.id, body: messageBody.trim() });
+    try {
+      console.log("🔐 Participantes antes de enviar:", JSON.stringify(thread.participants?.map(p => ({ id: p.id, type: p.type })), null, 2));
+    } catch (e) {
+      console.log("🔐 Participantes (raw):", thread.participants?.map(p => ({ id: p.id, type: p.type })));
+    }
     
     setSending(true);
     setError(null);

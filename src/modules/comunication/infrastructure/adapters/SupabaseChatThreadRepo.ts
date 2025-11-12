@@ -49,7 +49,19 @@ const THREAD_SELECT = `
   ),
   participants:chat_participants(
     user_id,
-    contact_id
+    contact_id,
+    user_profiles:profiles!chat_participants_user_id_fkey(
+      id,
+      full_name,
+      email,
+      phone
+    ),
+    contacts:lead_contacts!chat_participants_contact_id_fkey(
+      id,
+      full_name,
+      email,
+      phone
+    )
   ),
   last_message:chat_messages!left(
     id,
@@ -102,15 +114,12 @@ export class SupabaseChatThreadRepo implements ChatThreadRepo {
     }
 
     const row = data as ThreadRowWithRelations;
-    
-    // Obtener perfiles de participantes
-    const enrichedRow = await this.enrichParticipants(row);
-    
-    const unreadCounts = await this.computeUnreadCounts([enrichedRow.id], "user");
+
+    const unreadCounts = await this.computeUnreadCounts([row.id], "user");
     if (unreadCounts.isErr()) {
       return Result.fail(unreadCounts.error);
     }
-    const dto = mapThreadRow(enrichedRow, unreadCounts.value);
+    const dto = mapThreadRow(row, unreadCounts.value);
     return Result.ok(dto);
   }
 
@@ -145,12 +154,7 @@ export class SupabaseChatThreadRepo implements ChatThreadRepo {
 
     const rows = data as ThreadRowWithRelations[];
     
-    // Filter threads where userId is a participant
-    const enrichedRows = await Promise.all(
-      rows.map(row => this.enrichParticipants(row))
-    );
-
-    const matchingThread = enrichedRows.find(row => 
+    const matchingThread = rows.find(row => 
       row.participants?.some(p => p.user_id === input.userId)
     );
 
@@ -245,20 +249,15 @@ export class SupabaseChatThreadRepo implements ChatThreadRepo {
 
     const rows = (data ?? []) as ThreadRowWithRelations[];
     
-    // Enriquecer participantes con sus perfiles
-    const enrichedRows = await Promise.all(
-      rows.map(row => this.enrichParticipants(row))
-    );
-    
     const unreadCounts = await this.computeUnreadCounts(
-      enrichedRows.map(row => row.id),
+      rows.map(row => row.id),
       scope.readerType,
     );
     if (unreadCounts.isErr()) {
       return Result.fail(unreadCounts.error);
     }
 
-    const mapped = enrichedRows
+    const mapped = rows
       .map(row => mapThreadRow(row, unreadCounts.value))
       .filter(thread => applySearchFilter(thread, filters.search))
       .filter(thread => (filters.unreadOnly ? thread.unreadCount > 0 : true));
@@ -266,48 +265,7 @@ export class SupabaseChatThreadRepo implements ChatThreadRepo {
     return Result.ok(buildPage(mapped, count ?? mapped.length, page, pageSize));
   }
 
-  private async enrichParticipants(row: ThreadRowWithRelations): Promise<ThreadRowWithRelations> {
-    if (!row.participants || row.participants.length === 0) {
-      return row;
-    }
 
-    const userIds = row.participants.filter(p => p.user_id).map(p => p.user_id!);
-    const contactIds = row.participants.filter(p => p.contact_id).map(p => p.contact_id!);
-
-    // Obtener perfiles de usuarios
-    const profilesMap = new Map();
-    if (userIds.length > 0) {
-      const { data } = await this.client
-        .from("profiles")
-        .select("id, full_name, avatar_url, email, phone")
-        .in("id", userIds);
-      
-      data?.forEach(profile => profilesMap.set(profile.id, profile));
-    }
-
-    // Obtener contactos
-    const contactsMap = new Map();
-    if (contactIds.length > 0) {
-      const { data } = await this.client
-        .from("lead_contacts")
-        .select("id, full_name, email, phone")
-        .in("id", contactIds);
-      
-      data?.forEach(contact => contactsMap.set(contact.id, contact));
-    }
-
-    // Enriquecer participants
-    const enrichedParticipants = row.participants.map(p => ({
-      ...p,
-      user_profiles: p.user_id ? profilesMap.get(p.user_id) : null,
-      contacts: p.contact_id ? contactsMap.get(p.contact_id) : null,
-    }));
-
-    return {
-      ...row,
-      participants: enrichedParticipants,
-    };
-  }
 
   private async computeUnreadCounts(
     threadIds: string[],
@@ -377,7 +335,6 @@ function mapParticipants(rows: ChatParticipantRow[]): ParticipantDTO[] {
           id: row.user_id,
           type: "user" as const,
           displayName: row.user_profiles?.full_name ?? null,
-          avatarUrl: row.user_profiles?.avatar_url ?? null,
           email: row.user_profiles?.email ?? null,
           phone: row.user_profiles?.phone ?? null,
           lastSeenAt: null,
@@ -388,7 +345,6 @@ function mapParticipants(rows: ChatParticipantRow[]): ParticipantDTO[] {
           id: row.contact_id,
           type: "contact" as const,
           displayName: row.contacts?.full_name ?? null,
-          avatarUrl: null,
           email: row.contacts?.email ?? null,
           phone: row.contacts?.phone ?? null,
           lastSeenAt: null,

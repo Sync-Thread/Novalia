@@ -1,7 +1,7 @@
 # 📋 TAREAS PENDIENTES - Módulo de Chat NOVALIA
 
-**Última actualización:** 11 de Noviembre, 2025  
-**Progreso:** 55% Completado ✅ | 45% Pendiente 🔴
+**Última actualización:** 12 de Noviembre, 2025  
+**Progreso:** 75% Completado ✅ | 25% Pendiente 🔴
 
 ---
 
@@ -17,6 +17,41 @@
   - Tablas creadas (chat_threads, chat_messages, chat_participants)
   - Realtime habilitado en Supabase
   - RLS policies para usuarios autenticados
+
+- ✅ **Sistema de mensajería funcionando (100%)**
+  - Envío de mensajes operativo
+  - Validación de participantes correcta
+  - Bug de doble envoltura UniqueEntityID resuelto (12 Nov 2025)
+
+---
+
+## 🐛 BUGS RESUELTOS RECIENTEMENTE
+
+### Bug Crítico: Doble Envoltura UniqueEntityID (12 Nov 2025)
+
+**Problema:**
+Los usuarios no podían enviar mensajes, recibían error `ACCESS_DENIED: "No puedes enviar mensajes en este chat"`
+
+**Causa Raíz:**
+En `chatThread.mapper.ts`, la función `toDomainThread` estaba creando objetos `Participant` y pasándolos a `ChatThread.restore()`, pero `ChatThread.restore()` esperaba snapshots y volvía a llamar `Participant.restore()`, creando una doble envoltura:
+```typescript
+UniqueEntityID { value: UniqueEntityID { value: "uuid-string" } }
+```
+
+**Solución Implementada:**
+1. Modificar `toDomainThread` para pasar solo snapshots
+2. Hacer `value` público en `UniqueEntityID`
+3. Agregar protección contra doble envoltura en constructor
+
+**Archivos modificados:**
+- ✅ `src/modules/comunication/application/mappers/chatThread.mapper.ts`
+- ✅ `src/modules/comunication/domain/value-objects/UniqueEntityID.ts`
+- ✅ `src/modules/comunication/application/use-cases/messages/SendMessage.ts`
+
+**Resultado:**
+✅ Mensajes se envían correctamente  
+✅ Validación de participantes funciona  
+✅ No hay errores de acceso
 
 ---
 

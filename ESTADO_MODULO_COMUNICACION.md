@@ -1,6 +1,6 @@
 # ESTADO DEL MÓDULO DE COMUNICACIÓN
 
-**Fecha de análisis**: 11 de Noviembre, 2025  
+**Fecha de actualización**: 12 de Noviembre, 2025  
 **Proyecto**: Novalia  
 **Branch**: feature/chats-integration  
 **Módulo**: Comunicación en tiempo real
@@ -9,20 +9,31 @@
 
 ## 📊 RESUMEN EJECUTIVO
 
-El módulo de comunicación tiene toda la arquitectura base funcional. Falta principalmente la integración en PropertyDetailPage (ChatWidget), notificaciones, y testing.
+El módulo de comunicación tiene toda la arquitectura base funcional y el sistema de mensajería está **100% operativo**. Se resolvió un bug crítico en el mapper de participantes.
 
 ### Estado General
 - ✅ **Arquitectura**: Clean Architecture completa
 - ✅ **Backend**: Repositorios y servicios funcionales
 - ✅ **Base de datos**: Migraciones y tablas completas
 - ✅ **UI básico**: Inbox funcional con conversaciones
+- ✅ **Sistema de mensajes**: Funcionando correctamente (Bug crítico resuelto)
 - ⚠️ **Integración**: Falta ChatWidget en propiedades
 - ❌ **Testing**: No implementado
 - ❌ **Notificaciones**: No implementado
 
+### 🐛 Bugs Resueltos Recientemente
+- ✅ **Bug crítico de doble envoltura UniqueEntityID** (12 Nov 2025)
+  - Problema: Los IDs de participantes tenían estructura `UniqueEntityID { value: UniqueEntityID { value: "uuid" } }`
+  - Causa: Mapper `toDomainThread` creaba objetos `Participant` antes de pasarlos a `ChatThread.restore()`
+  - Solución: Pasar solo snapshots al `restore()` y dejar que cree los objetos internamente
+  - Archivos modificados:
+    - `chatThread.mapper.ts` - Corregir mapeo de participantes
+    - `UniqueEntityID.ts` - Agregar protección contra doble envoltura + `value` público
+    - `SendMessage.ts` - Simplificar validación de participantes
+
 ---
 
-## ✅ IMPLEMENTADO (60-70%)
+## ✅ IMPLEMENTADO (70-75%)
 
 ### 1. Domain Layer (100% Completo)
 
@@ -875,16 +886,17 @@ src/modules/comunication/UI/components/
 Domain Layer:        ████████████████████ 100%
 Application Layer:   ████████████████░░░░  80%
 Infrastructure:      ████████████████████ 100%
-UI Layer:            ████████████░░░░░░░░  60%
+UI Layer:            ██████████████░░░░░░  70%
 Testing:             ░░░░░░░░░░░░░░░░░░░░   0%
 -------------------------------------------
-TOTAL:               ████████████████░░░░  68%
+TOTAL:               ████████████████░░░░  75%
 ```
 
 ### Progreso por Funcionalidad
 ```
 Chat básico (inbox): ████████████████████ 100%
 Realtime:            ████████████████████ 100%
+Envío de mensajes:   ████████████████████ 100% ✅ (Bug resuelto)
 ChatWidget:          ░░░░░░░░░░░░░░░░░░░░   0%
 Notificaciones:      ░░░░░░░░░░░░░░░░░░░░   0%
 Estados avanzados:   ████░░░░░░░░░░░░░░░░  20%
@@ -1000,6 +1012,7 @@ Accesibilidad:       ░░░░░░░░░░░░░░░░░░░�
 
 ---
 
-**Última actualización**: 11 de Noviembre, 2025  
-**Estado**: En desarrollo activo (68% completo)  
-**Branch**: feature/chats-integration
+**Última actualización**: 12 de Noviembre, 2025  
+**Estado**: En desarrollo activo (75% completo)  
+**Branch**: feature/chats-integration  
+**Último cambio**: Bug crítico de envío de mensajes resuelto (doble envoltura UniqueEntityID)

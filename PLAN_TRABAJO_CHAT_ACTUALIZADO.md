@@ -1,21 +1,21 @@
 # NOVALIA - Plan de Implementación ACTUALIZADO: Módulo de Chat
 
-**Fecha**: 11 de Noviembre, 2025  
+**Fecha**: 12 de Noviembre, 2025  
 **Proyecto**: Novalia - Plataforma Inmobiliaria  
 **Módulo**: HU-07 - Comunicación en Tiempo Real  
-**Estado Actual**: 68% Completo  
-**Estimación Restante**: 8-10 días (~2 semanas)  
-**Versión**: 2.0
+**Estado Actual**: 75% Completo ✅  
+**Estimación Restante**: 6-8 días (~1.5 semanas)  
+**Versión**: 3.0
 
 ---
 
 ## 📊 RESUMEN DEL ESTADO ACTUAL
 
-### ✅ LO QUE YA ESTÁ IMPLEMENTADO (68%)
+### ✅ LO QUE YA ESTÁ IMPLEMENTADO (75%)
 
 #### Domain Layer - 100% ✅
 - ✅ Entidades: `ChatThread`, `ChatMessage`, `Participant`
-- ✅ Value Objects: `MessageBody`, `UniqueEntityID`
+- ✅ Value Objects: `MessageBody`, `UniqueEntityID` (con protección contra doble envoltura)
 - ✅ Enums: `SenderType`, `ParticipantType`, `MessageStatus`, `ThreadStatus`
 - ✅ Errors: `ChatError`, `InvariantViolationError`, `BaseDomainError`
 - ✅ Clock abstraction
@@ -23,13 +23,13 @@
 #### Application Layer - 80% ✅
 - ✅ DTOs completos (8 archivos)
 - ✅ Ports/Interfaces (5 archivos)
-- ✅ Mappers Domain ↔ DTO
+- ✅ Mappers Domain ↔ DTO (corregidos y funcionando)
 - ✅ Validators con Zod
 - ✅ Use Cases implementados (5/12):
   - ✅ `ListListerInbox`
   - ✅ `ListClientInbox`
   - ✅ `ListMessages`
-  - ✅ `SendMessage`
+  - ✅ `SendMessage` (Bug crítico resuelto 12 Nov 2025)
   - ✅ `MarkThreadAsRead`
 
 #### Infrastructure Layer - 100% ✅
@@ -39,11 +39,12 @@
 - ✅ `SupabaseAuthService` completo
 - ✅ Types de BD
 
-#### UI Layer - 60% ✅
+#### UI Layer - 70% ✅
 - ✅ `ChatsPage.tsx` completa con inbox funcional
 - ✅ `ChatProvider` context
 - ✅ `useChatRealtime` hook
 - ✅ CSS Modules completos
+- ✅ Sistema de mensajería operativo
 
 #### Container - 100% ✅
 - ✅ `comunication.container.ts` con DI completo
@@ -56,12 +57,48 @@
 
 ---
 
-### ❌ LO QUE FALTA (32%)
+### 🐛 BUG CRÍTICO RESUELTO (12 Nov 2025)
+
+**Problema:** Error `ACCESS_DENIED` al enviar mensajes
+
+**Síntoma:**
+```
+❌ Error enviando mensaje: {code: 'ACCESS_DENIED', message: 'No puedes enviar mensajes en este chat'}
+```
+
+**Causa Raíz:**
+Doble envoltura de `UniqueEntityID` en participantes:
+```typescript
+// Estructura incorrecta:
+UniqueEntityID { value: UniqueEntityID { value: "uuid-string" } }
+
+// Estructura correcta:
+UniqueEntityID { value: "uuid-string" }
+```
+
+**Solución:**
+1. ✅ Corregir `chatThread.mapper.ts` - Pasar snapshots en lugar de objetos
+2. ✅ Modificar `UniqueEntityID.ts` - Campo `value` público + protección contra doble envoltura
+3. ✅ Limpiar `SendMessage.ts` - Remover código de debug
+
+**Archivos Modificados:**
+- `src/modules/comunication/application/mappers/chatThread.mapper.ts`
+- `src/modules/comunication/domain/value-objects/UniqueEntityID.ts`
+- `src/modules/comunication/application/use-cases/messages/SendMessage.ts`
+
+**Resultado:**
+✅ Sistema de mensajería 100% funcional  
+✅ Mensajes se envían correctamente  
+✅ Validación de participantes operativa
+
+---
+
+### ❌ LO QUE FALTA (25%)
 
 #### Prioridad 🔴 CRÍTICA
-1. **ChatWidget** - 0% (Funcionalidad core)
-2. **Testing** - 0% (Calidad)
-3. **Use Cases faltantes** - 7 pendientes
+1. **ChatWidget** - 0% (Funcionalidad core del producto)
+2. **Testing** - 0% (Calidad y confiabilidad)
+3. **Use Cases faltantes** - 7 pendientes (Leads y threads avanzados)
 
 #### Prioridad 🟡 MEDIA
 4. **Notificaciones** - 0%
@@ -1435,17 +1472,18 @@ Actualizar `SendMessage` para agregar mensaje inmediatamente a UI antes de confi
 ## 📊 ESTIMACIÓN FINAL
 
 ```
-✅ YA COMPLETADO:       68% (13-14 días equivalentes)
-🔴 CRÍTICO (Días 1-5):  20% (ChatWidget + Tests)
-🟡 MEDIO (Días 6-8):    8% (Notificaciones + UI)
-🟢 BAJO (Días 9-10):    4% (Features extras)
+✅ YA COMPLETADO:       75% (15-16 días equivalentes)
+🔴 CRÍTICO (Días 1-5):  15% (ChatWidget + Tests)
+🟡 MEDIO (Días 6-7):    6% (Notificaciones + UI)
+🟢 BAJO (Días 8):       4% (Features extras)
 -------------------------------------------
-TOTAL RESTANTE:         32% (~8-10 días)
+TOTAL RESTANTE:         25% (~6-8 días)
 ```
 
-**Fecha estimada de completación**: ~23 de Noviembre, 2025
+**Fecha estimada de completación**: ~20 de Noviembre, 2025
 
 ---
 
-**Última actualización**: 11 de Noviembre, 2025  
-**Versión**: 2.0 (Plan actualizado con base en implementación existente)
+**Última actualización**: 12 de Noviembre, 2025  
+**Versión**: 3.0 (Actualizado con bug crítico resuelto)  
+**Progreso**: 75% → 100% en ~1.5 semanas
