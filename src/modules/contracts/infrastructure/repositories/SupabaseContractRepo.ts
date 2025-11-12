@@ -94,12 +94,11 @@ export class SupabaseContractRepo implements ContractRepo {
         }
       }
 
-      // Búsqueda opcional (por título, ID de contrato, nombre de propiedad o cliente)
+      // Búsqueda opcional (solo por título de contrato)
+      // Nota: La búsqueda por cliente y propiedad se hace localmente en el frontend
       if (filters.search && filters.search.trim()) {
         const term = filters.search.trim().replace(/[%_]/g, "\\$&");
-        query = query.or(
-          `title.ilike.%${term}%,id.ilike.%${term}%`
-        );
+        query = query.ilike("title", `%${term}%`);
       }
 
       // Ordenar y paginar
@@ -117,7 +116,7 @@ export class SupabaseContractRepo implements ContractRepo {
 
       const contractRows = data as unknown as ContractRow[];
 
-      console.log("🔍 Contratos raw desde DB:", contractRows.length);
+      // console.log("🔍 Contratos raw desde DB:", contractRows.length);
 
       // Recolectar IDs de clientes para hacer queries separadas
       const contactIds = contractRows
@@ -128,16 +127,16 @@ export class SupabaseContractRepo implements ContractRepo {
         .map((c) => c.client_profile_id)
         .filter((id): id is string => id !== null);
 
-      console.log("📋 IDs a buscar:", {
-        contactIds: contactIds.length,
-        profileIds: profileIds.length,
-      });
+      // console.log("📋 IDs a buscar:", {
+      //   contactIds: contactIds.length,
+      //   profileIds: profileIds.length,
+      // });
 
       // Usar función RPC para obtener nombres (bypass RLS)
       const clientNamesMap = new Map<string, string>();
       
       if (contactIds.length > 0 || profileIds.length > 0) {
-        console.log("🔍 Llamando get_client_names RPC...");
+        // console.log("🔍 Llamando get_client_names RPC...");
         
         const { data: clientsData, error: clientsError } = await this.client
           .rpc('get_client_names', {
@@ -145,25 +144,26 @@ export class SupabaseContractRepo implements ContractRepo {
             p_profile_ids: profileIds,
           });
 
-        console.log("📊 Respuesta de get_client_names:", {
-          error: clientsError,
-          data: clientsData,
-          cantidad: clientsData?.length || 0,
-        });
+        // console.log("📊 Respuesta de get_client_names:", {
+        //   error: clientsError,
+        //   data: clientsData,
+        //   cantidad: clientsData?.length || 0,
+        // });
 
         if (clientsError) {
           console.error("❌ Error loading client names:", clientsError);
-        } else if (clientsData) {
+        } 
+        else if (clientsData) {
           clientsData.forEach((client: { id: string; full_name: string; source: string }) => {
-            console.log(`👤 Cliente encontrado:`, {
-              id: client.id,
-              full_name: client.full_name,
-              source: client.source,
-            });
+            // console.log(`👤 Cliente encontrado:`, {
+            //   id: client.id,
+            //   full_name: client.full_name,
+            //   source: client.source,
+            // });
             clientNamesMap.set(client.id, client.full_name);
           });
-          console.log("✅ Clientes cargados:", clientNamesMap.size);
-          console.log("📋 Map de clientes:", Array.from(clientNamesMap.entries()));
+          // console.log("✅ Clientes cargados:", clientNamesMap.size);
+          // console.log("📋 Map de clientes:", Array.from(clientNamesMap.entries()));
         }
       }
 
@@ -205,19 +205,19 @@ export class SupabaseContractRepo implements ContractRepo {
         if (row.client_contact_id) {
           clientName = clientNamesMap.get(row.client_contact_id) || null;
           clientType = "lead_contact";
-          console.log(`🔎 Contrato ${row.id.substring(0, 8)}: Buscando lead_contact ${row.client_contact_id}:`, {
-            encontrado: clientName,
-            enMap: clientNamesMap.has(row.client_contact_id),
-          });
+          // console.log(`🔎 Contrato ${row.id.substring(0, 8)}: Buscando lead_contact ${row.client_contact_id}:`, {
+          //   encontrado: clientName,
+          //   enMap: clientNamesMap.has(row.client_contact_id),
+          // });
         } else if (row.client_profile_id) {
           clientName = clientNamesMap.get(row.client_profile_id) || null;
           clientType = "profile";
-          console.log(`🔎 Contrato ${row.id.substring(0, 8)}: Buscando profile ${row.client_profile_id}:`, {
-            encontrado: clientName,
-            enMap: clientNamesMap.has(row.client_profile_id),
-            mapSize: clientNamesMap.size,
-            mapKeys: Array.from(clientNamesMap.keys()),
-          });
+          // console.log(`🔎 Contrato ${row.id.substring(0, 8)}: Buscando profile ${row.client_profile_id}:`, {
+          //   encontrado: clientName,
+          //   enMap: clientNamesMap.has(row.client_profile_id),
+          //   mapSize: clientNamesMap.size,
+          //   mapKeys: Array.from(clientNamesMap.keys()),
+          // });
         }
 
         return {
@@ -249,6 +249,67 @@ export class SupabaseContractRepo implements ContractRepo {
       });
     } catch (error) {
       console.error("Unexpected error listing contracts:", error);
+      return Result.fail({
+        code: "UNKNOWN",
+        message: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }
+
+  async getById(contractId: string): Promise<Result<{ id: string; s3Key: string | null }>> {
+    try {
+      const { data, error } = await this.client
+        .from("contracts")
+        .select("id, s3_key")
+        .eq("id", contractId)
+        .single();
+
+      if (error) {
+        console.error("Error getting contract:", error);
+        return Result.fail({
+          code: "DATABASE_ERROR",
+          message: error.message,
+        });
+      }
+
+      if (!data) {
+        return Result.fail({
+          code: "NOT_FOUND",
+          message: "Contract not found",
+        });
+      }
+
+      return Result.ok({
+        id: data.id,
+        s3Key: data.s3_key,
+      });
+    } catch (error) {
+      console.error("Unexpected error getting contract:", error);
+      return Result.fail({
+        code: "UNKNOWN",
+        message: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }
+
+  async delete(contractId: string): Promise<Result<void>> {
+    try {
+      const { error } = await this.client
+        .from("contracts")
+        .delete()
+        .eq("id", contractId);
+
+      if (error) {
+        console.error("Error deleting contract:", error);
+        return Result.fail({
+          code: "DATABASE_ERROR",
+          message: error.message,
+        });
+      }
+
+      return Result.ok(undefined);
+    } catch (error) {
+      console.error("Unexpected error deleting contract:", error);
       return Result.fail({
         code: "UNKNOWN",
         message: error instanceof Error ? error.message : "Unknown error",

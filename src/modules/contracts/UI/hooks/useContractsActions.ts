@@ -20,12 +20,14 @@ interface UseContractsActionsState {
     clients: boolean;
     contracts: boolean;
     download: boolean;
+    delete: boolean;
   };
   errors: {
     properties: string | null;
     clients: string | null;
     contracts: string | null;
     download: string | null;
+    delete: string | null;
   };
   listPropertiesForSelector: (params?: {
     search?: string;
@@ -44,6 +46,7 @@ interface UseContractsActionsState {
     pageSize?: number;
   }) => Promise<Page<ContractListItemDTO> | null>;
   downloadContract: (s3Key: string, fileName: string) => Promise<void>;
+  deleteContract: (contractId: string) => Promise<boolean>;
 }
 
 export function useContractsActions(): UseContractsActionsState {
@@ -52,6 +55,7 @@ export function useContractsActions(): UseContractsActionsState {
     clients: false,
     contracts: false,
     download: false,
+    delete: false,
   });
 
   const [errors, setErrors] = useState<{
@@ -59,11 +63,13 @@ export function useContractsActions(): UseContractsActionsState {
     clients: string | null;
     contracts: string | null;
     download: string | null;
+    delete: string | null;
   }>({
     properties: null,
     clients: null,
     contracts: null,
     download: null,
+    delete: null,
   });
 
   const listPropertiesForSelector = useCallback(
@@ -252,6 +258,36 @@ export function useContractsActions(): UseContractsActionsState {
     []
   );
 
+  // Eliminar contrato
+  const deleteContract = useCallback(async (contractId: string): Promise<boolean> => {
+    setLoading((prev) => ({ ...prev, delete: true }));
+    setErrors((prev) => ({ ...prev, delete: null }));
+
+    try {
+      const result = await container.deleteContract.execute(contractId);
+
+      if (result.isErr()) {
+        const errorMessage = result.error.message || "Error al eliminar contrato";
+        setErrors((prev) => ({ ...prev, delete: errorMessage }));
+        console.error("Error deleting contract:", result.error);
+        return false;
+      }
+
+      console.log("✅ Contrato eliminado exitosamente");
+      return true;
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Error inesperado al eliminar contrato";
+      setErrors((prev) => ({ ...prev, delete: errorMessage }));
+      console.error("Unexpected error deleting contract:", error);
+      return false;
+    } finally {
+      setLoading((prev) => ({ ...prev, delete: false }));
+    }
+  }, []);
+
   return {
     loading,
     errors,
@@ -259,5 +295,6 @@ export function useContractsActions(): UseContractsActionsState {
     listClientsForSelector,
     listContracts,
     downloadContract,
+    deleteContract,
   };
 }

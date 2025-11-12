@@ -13,12 +13,12 @@ import { SearchIcon, X, PlusIcon } from "lucide-react";
 
 // Función helper para mapear DTO a IContract (mock interface)
 function mapDtoToContract(dto: ContractListItemDTO): IContract {
-  console.log(`📋 Mapeo contrato ${dto.id}:`, {
-    clientContactId: dto.clientContactId,
-    clientProfileId: dto.clientProfileId,
-    clientName: dto.clientName,
-    clientType: dto.clientType,
-  });
+  // console.log(`📋 Mapeo contrato ${dto.id}:`, {
+  //   clientContactId: dto.clientContactId,
+  //   clientProfileId: dto.clientProfileId,
+  //   clientName: dto.clientName,
+  //   clientType: dto.clientType,
+  // });
 
   return {
     id: dto.id,
@@ -54,43 +54,65 @@ function mapDtoToContract(dto: ContractListItemDTO): IContract {
 const ContractsPage: React.FC = () => {
   const { listContracts, loading } = useContractsActions();
 
-  const [contracts, setContracts] = useState<IContract[]>([]);
+  const [allContracts, setAllContracts] = useState<IContract[]>([]); // Todos los contratos sin filtrar
+  const [filteredContracts, setFilteredContracts] = useState<IContract[]>([]); // Contratos después de filtros
   const [selectedContract, setSelectedContract] = useState<IContract | null>(
     null
   );
   const [activeFilter, setActiveFilter] = useState("Todos");
   const [searchQuery, setSearchQuery] = useState("");
-  const [debouncedQuery, setDebouncedQuery] = useState("");
   const [showNewDocQuickView, setShowNewDocQuickView] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  // Cargar contratos al montar el componente
-  const loadContracts = useCallback(async () => {
+  // Cargar TODOS los contratos una sola vez al montar
+  const loadAllContracts = useCallback(async () => {
     const result = await listContracts({
-      search: debouncedQuery,
-      status: activeFilter,
-      pageSize: 100,
+      search: "", // Sin búsqueda en BD
+      status: "Todos", // Todos los estados
+      pageSize: 1000, // Cargar todos
     });
 
     if (result) {
       const mappedContracts = result.items.map(mapDtoToContract);
-      setContracts(mappedContracts);
+      setAllContracts(mappedContracts);
+      console.log("📦 Contratos cargados desde BD:", mappedContracts.length);
     }
-  }, [listContracts, debouncedQuery, activeFilter]);
+  }, [listContracts]);
 
-  // Cargar contratos al inicio y cuando cambien los filtros
+  // Filtrar contratos localmente (búsqueda + estado)
   useEffect(() => {
-    loadContracts();
-  }, [loadContracts]);
+    let filtered = [...allContracts];
 
-  // Debounce para búsqueda (300ms)
+    // Filtro por estado
+    if (activeFilter !== "Todos") {
+      filtered = filtered.filter((c) => c.estadoFirma === activeFilter);
+    }
+
+    // Filtro por búsqueda (busca en ID, propiedad, cliente)
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      filtered = filtered.filter((c) => {
+        const matchId = c.id.toLowerCase().includes(query);
+        const matchProperty = c.propiedadNombre.toLowerCase().includes(query);
+        const matchClient = c.contraparte.toLowerCase().includes(query);
+        return matchId || matchProperty || matchClient;
+      });
+    }
+
+    console.log("🔍 Filtros aplicados:", {
+      total: allContracts.length,
+      estado: activeFilter,
+      busqueda: searchQuery,
+      resultados: filtered.length,
+    });
+
+    setFilteredContracts(filtered);
+  }, [allContracts, activeFilter, searchQuery]);
+
+  // Cargar contratos solo al montar el componente
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedQuery(searchQuery);
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, [searchQuery]);
+    loadAllContracts();
+  }, [loadAllContracts]);
 
   const filters = [
     { label: "Todos", value: "Todos" },
@@ -108,20 +130,11 @@ const ContractsPage: React.FC = () => {
     searchInputRef.current?.focus();
   }, []);
 
-  const handleSearchKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLInputElement>) => {
-      if (e.key === "Enter") {
-        setDebouncedQuery(searchQuery);
-      }
-    },
-    [searchQuery]
-  );
-
   const handleMenuAction = (action: string, contractId: string) => {
     // Normalize action names coming from KebabMenu (Spanish labels)
     console.log(`Acción: ${action} en contrato: ${contractId}`);
     if (action === "ver-detalle" || action === "viewDetail") {
-      const contract = contracts.find((c) => c.id === contractId);
+      const contract = filteredContracts.find((c) => c.id === contractId);
       setSelectedContract(contract || null);
       return;
     }
@@ -133,8 +146,8 @@ const ContractsPage: React.FC = () => {
     }
 
     if (action === "eliminar" || action === "delete") {
-      // Simulate deletion from local mock data
-      setContracts((prev) => prev.filter((c) => c.id !== contractId));
+      // Simulate deletion from local data
+      setAllContracts((prev) => prev.filter((c) => c.id !== contractId));
       if (selectedContract?.id === contractId) setSelectedContract(null);
       return;
     }
@@ -178,7 +191,6 @@ const ContractsPage: React.FC = () => {
               className={styles.searchInput}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={handleSearchKeyDown}
               aria-label="Buscar contratos"
             />
             {searchQuery && (
@@ -231,7 +243,7 @@ const ContractsPage: React.FC = () => {
         <div className={styles.mainGridFull}>
           <div className={styles.mainColumn}>
             <ContractList
-              contracts={contracts}
+              contracts={filteredContracts}
               onRowClick={handleRowClick}
               onMenuAction={handleMenuAction}
               loading={loading.contracts}
@@ -244,6 +256,10 @@ const ContractsPage: React.FC = () => {
       <ContractDetailSideSheet
         contract={selectedContract}
         onClose={() => setSelectedContract(null)}
+        onDelete={() => {
+          // Recargar lista después de eliminar
+          loadAllContracts();
+        }}
       />
 
       <NewDocumentQuickView
@@ -252,7 +268,7 @@ const ContractsPage: React.FC = () => {
         onSuccess={(documentId) => {
           console.log("Documento creado:", documentId);
           // Recargar lista de contratos
-          loadContracts();
+          loadAllContracts();
           setShowNewDocQuickView(false);
         }}
       />
