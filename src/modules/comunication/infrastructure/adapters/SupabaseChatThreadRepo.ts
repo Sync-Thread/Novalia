@@ -90,6 +90,7 @@ function mapPostgrestError(code: ThreadInfraErrorCode, error: PostgrestError): T
 }
 
 type ParticipantDTO = ChatThreadDTO["participants"][number];
+type ParticipantThreadRow = { thread_id: string };
 
 export class SupabaseChatThreadRepo implements ChatThreadRepo {
   private readonly client: SupabaseClient;
@@ -234,6 +235,27 @@ export class SupabaseChatThreadRepo implements ChatThreadRepo {
     const pageSize = Math.min(Math.max(1, filters.pageSize ?? 20), 50);
     const offset = (page - 1) * pageSize;
 
+    let allowedThreadIds: string[] | null = null;
+    if (scope.userId) {
+      const participantColumn = scope.readerType === "user" ? "user_id" : "contact_id";
+      const { data: participantRows, error: participantError } = await this.client
+        .from("chat_participants")
+        .select("thread_id")
+        .eq(participantColumn, scope.userId);
+
+      if (participantError) {
+        return Result.fail(mapPostgrestError("THREAD_QUERY_FAILED", participantError));
+      }
+
+      allowedThreadIds = Array.from(
+        new Set(((participantRows ?? []) as ParticipantThreadRow[]).map(row => row.thread_id)),
+      );
+
+      if (allowedThreadIds.length === 0) {
+        return Result.ok(buildPage([], 0, page, pageSize));
+      }
+    }
+
     let query = this.client
       .from("chat_threads")
       .select(THREAD_SELECT, { count: "exact" })
@@ -250,6 +272,10 @@ export class SupabaseChatThreadRepo implements ChatThreadRepo {
       orgId: scope.orgId ?? null,
       userId: scope.userId ?? scope.orgId ?? "",
     });
+
+    if (allowedThreadIds) {
+      query = query.in("id", allowedThreadIds);
+    }
 
     const { data, error, count } = await query;
     
