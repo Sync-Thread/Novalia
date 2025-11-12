@@ -148,7 +148,7 @@ export default function PropertyDetailPage() {
             galleryUrls={galleryUrls}
             title={property.title}
           />
-          <SummaryPanel property={property} onContact={handleContact} />
+          <SummaryPanel property={property} onContact={handleContact} isOwner={isOwner} />
         </section>
 
         {/* Block 2: Descripción + Amenidades + Características (2 columnas) */}
@@ -374,18 +374,19 @@ export default function PropertyDetailPage() {
       </div>
 
       {/* Mobile sticky CTA bar */}
-      <div className={styles.mobileCtaBar}>
-        <button
-          type="button"
-          className={styles.mobileCtaButton}
-          onClick={handleContact}
-          disabled={isOwner}
-          aria-label="Contactar sobre esta propiedad"
-        >
-          <MessageCircle aria-hidden="true" />
-          Contactar
-        </button>
-      </div>
+      {!isOwner && (
+        <div className={styles.mobileCtaBar}>
+          <button
+            type="button"
+            className={styles.mobileCtaButton}
+            onClick={handleContact}
+            aria-label="Contactar sobre esta propiedad"
+          >
+            <MessageCircle aria-hidden="true" />
+            Contactar
+          </button>
+        </div>
+      )}
 
       {/* Chat Widget */}
       {id && data?.property && !isOwner && (

@@ -6,6 +6,7 @@ import { formatRelativeTime } from "../../utils/formatRelativeTime";
 import styles from "./ChatsPage.module.css";
 import { ChatThreadPanel } from "./ChatThreadPanel";
 import { ChevronDown, MessageCircle, Eye, Users } from "lucide-react";
+import { getPresignedUrlForDisplay } from "../../../properties/infrastructure/adapters/MediaStorage";
 
 type BaseLayoutProps = {
   selectedThread: ChatThreadDTO | null;
@@ -98,9 +99,8 @@ export function BuyerChatLayout({
             )}
             {filteredThreads.map(thread => {
               const propertyTitle = thread.property?.title ?? "Propiedad sin título";
-              const contactName =
-                thread.participants.find(participant => participant.type === "contact")?.displayName ??
-                "Contacto sin nombre";
+              const sellerParticipant = thread.participants.find(participant => participant.type === "user");
+              const sellerName = sellerParticipant?.displayName ?? "Vendedor";
               const subtitle = thread.lastMessage?.body ?? "Sin mensajes";
               const isActive = selectedThread?.id === thread.id;
               return (
@@ -110,7 +110,7 @@ export function BuyerChatLayout({
                   className={`${styles.threadButton} ${isActive ? styles.threadActive : ""}`}
                   onClick={() => onSelectThread(thread)}
                 >
-                  <div className={styles.threadTitle}>{contactName}</div>
+                  <div className={styles.threadTitle}>{sellerName}</div>
                   <div className={styles.threadSubtitle}>
                     {propertyTitle} · {subtitle}
                   </div>
@@ -254,7 +254,26 @@ type SellerPropertyCardProps = {
 
 function SellerPropertyCard({ group, expanded, onToggle, onSelectThread, selectedThreadId }: SellerPropertyCardProps) {
   const property = group.property;
-  const cover = property?.coverImageUrl ?? placeholderImage(property?.id);
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadImage = async () => {
+      if (!property?.coverImageUrl) {
+        setImageUrl(placeholderImage(property?.id));
+        return;
+      }
+
+      try {
+        const url = await getPresignedUrlForDisplay(property.coverImageUrl);
+        setImageUrl(url);
+      } catch (error) {
+        console.error('Error loading property image:', error);
+        setImageUrl(placeholderImage(property?.id));
+      }
+    };
+
+    void loadImage();
+  }, [property?.coverImageUrl, property?.id]);
 
   return (
     <div className={styles.propertyBlock}>
@@ -264,7 +283,7 @@ function SellerPropertyCard({ group, expanded, onToggle, onSelectThread, selecte
         onClick={onToggle}
       >
         <div className={styles.propertyPreview}>
-          <img className={styles.propertyImage} src={cover} alt={property?.title ?? 'Vista previa'} />
+          <img className={styles.propertyImage} src={imageUrl ?? placeholderImage(property?.id)} alt={property?.title ?? 'Vista previa'} />
           <div className={styles.propertyInfo}>
             <div className={styles.propertyTitleRow}>
               <h3>{property?.title ?? 'Propiedad sin título'}</h3>
@@ -292,9 +311,10 @@ function SellerPropertyCard({ group, expanded, onToggle, onSelectThread, selecte
       {expanded && (
         <div className={styles.propertyThreads}>
           {group.threads.map(thread => {
-            const contactName =
-              thread.participants.find(participant => participant.type === 'contact')?.displayName ??
-              'Contacto sin nombre';
+            // En seller view, el contacto puede ser un lead_contact o un usuario
+            const buyerParticipant = thread.participants.find(p => p.type === 'contact') ?? 
+                                     thread.participants.find(p => p.type === 'user' && p.id !== thread.createdBy);
+            const buyerName = buyerParticipant?.displayName ?? 'Comprador interesado';
             const isActive = selectedThreadId === thread.id;
             return (
               <button
@@ -304,7 +324,7 @@ function SellerPropertyCard({ group, expanded, onToggle, onSelectThread, selecte
                 onClick={() => onSelectThread(thread)}
               >
                 <div>
-                  <p className={styles.threadRowTitle}>{contactName}</p>
+                  <p className={styles.threadRowTitle}>{buyerName}</p>
                   <p className={styles.threadRowSubtitle}>{thread.lastMessage?.body ?? 'Sin mensajes'}</p>
                 </div>
                 <div className={styles.threadRowMeta}>

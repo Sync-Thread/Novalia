@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import type { ChatThreadDTO } from "../../application/dto/ChatThreadDTO";
 import type { ChatMessageDTO } from "../../application/dto/ChatMessageDTO";
 import styles from "./ChatsPage.module.css";
@@ -33,6 +34,14 @@ export function ChatThreadPanel({
   sending,
   sendError,
 }: ChatThreadPanelProps) {
+  const navigate = useNavigate();
+
+  const handleViewProperty = () => {
+    if (thread?.property?.id) {
+      navigate(`/properties/${thread.property.id}`);
+    }
+  };
+
   if (!thread) {
     return (
       <section className={styles.messagesPanel}>
@@ -52,6 +61,7 @@ export function ChatThreadPanel({
           property={thread.property ?? null}
           contactName={contactParticipant?.displayName ?? null}
           contactEmail={contactParticipant?.email ?? null}
+          onViewProperty={handleViewProperty}
         />
       </div>
 

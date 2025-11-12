@@ -49,7 +49,12 @@ const THREAD_SELECT = `
     city,
     state,
     operation_type,
-    status
+    status,
+    media_assets!media_assets_property_id_fkey(
+      id,
+      s3_key,
+      metadata
+    )
   ),
   participants:chat_participants(
     user_id,
@@ -351,6 +356,21 @@ function mapThreadRow(row: ThreadRowWithRelations, unreadCounts: Map<string, num
 
 function mapProperty(row: PropertySummaryRow | null): ChatThreadDTO["property"] {
   if (!row) return null;
+  
+  // Extract cover image from media_assets
+  let coverImageUrl: string | null = null;
+  if (row.media_assets && row.media_assets.length > 0) {
+    // Find image marked as cover
+    const coverMedia = row.media_assets.find(
+      media => media.metadata && (media.metadata as any).isCover === true
+    );
+    // Fallback to first image if no cover is marked
+    const selectedMedia = coverMedia ?? row.media_assets[0];
+    if (selectedMedia?.s3_key) {
+      coverImageUrl = selectedMedia.s3_key; // Store s3_key, will be resolved to URL by UI
+    }
+  }
+  
   return {
     id: row.id,
     title: row.title ?? null,
@@ -358,7 +378,7 @@ function mapProperty(row: PropertySummaryRow | null): ChatThreadDTO["property"] 
     currency: row.currency ?? null,
     city: row.city ?? null,
     state: row.state ?? null,
-    coverImageUrl: null,
+    coverImageUrl,
     operationType: row.operation_type ?? null,
     status: row.status ?? null,
   };

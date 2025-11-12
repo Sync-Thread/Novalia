@@ -1,6 +1,8 @@
+import { useEffect, useState } from 'react';
 import type { PropertySummaryDTO } from '../../../application/dto/ChatThreadDTO';
 import styles from './PropertyHeaderCard.module.css';
-import { Building2, MapPin } from 'lucide-react';
+import { Building2, MapPin, ExternalLink } from 'lucide-react';
+import { getPresignedUrlForDisplay } from '../../../../properties/infrastructure/adapters/MediaStorage';
 
 interface PropertyHeaderCardProps {
   property: PropertySummaryDTO | null;
@@ -19,6 +21,31 @@ export function PropertyHeaderCard({
   contactEmail,
   onViewProperty,
 }: PropertyHeaderCardProps) {
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [loadingImage, setLoadingImage] = useState(false);
+
+  useEffect(() => {
+    const loadImage = async () => {
+      if (!property?.coverImageUrl) {
+        setImageUrl(null);
+        return;
+      }
+
+      setLoadingImage(true);
+      try {
+        const url = await getPresignedUrlForDisplay(property.coverImageUrl);
+        setImageUrl(url);
+      } catch (error) {
+        console.error('Error loading property image:', error);
+        setImageUrl(null);
+      } finally {
+        setLoadingImage(false);
+      }
+    };
+
+    void loadImage();
+  }, [property?.coverImageUrl]);
+
   if (!property) {
     return (
       <div className={styles.emptyCard}>
@@ -45,14 +72,18 @@ export function PropertyHeaderCard({
 
   return (
     <div className={styles.card}>
-      {/* Imagen de propiedad (placeholder por ahora) */}
+      {/* Imagen de propiedad */}
       <div className={styles.imageContainer}>
-        {property.coverImageUrl ? (
+        {imageUrl ? (
           <img 
-            src={property.coverImageUrl} 
+            src={imageUrl} 
             alt={property.title ?? 'Propiedad'} 
             className={styles.image}
           />
+        ) : loadingImage ? (
+          <div className={styles.placeholderImage}>
+            <Building2 size={24} className={styles.placeholderIcon} />
+          </div>
         ) : (
           <div className={styles.placeholderImage}>
             <Building2 size={32} className={styles.placeholderIcon} />
@@ -85,16 +116,15 @@ export function PropertyHeaderCard({
           </div>
         )}
 
-        {/* Botón para ver propiedad */}
-        {onViewProperty && (
-          <button 
-            className={styles.viewButton}
-            onClick={onViewProperty}
-            type="button"
-          >
-            Ver detalles de la propiedad
-          </button>
-        )}
+        {/* Botón para ver propiedad - siempre visible */}
+        <button 
+          className={styles.viewButton}
+          onClick={onViewProperty}
+          type="button"
+        >
+          <ExternalLink size={14} />
+          Ver detalles de la propiedad
+        </button>
       </div>
     </div>
   );

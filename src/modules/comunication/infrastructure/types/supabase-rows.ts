@@ -64,6 +64,11 @@ export type PropertySummaryRow = {
   state: string | null;
   operation_type: string | null;
   status: string | null;
+  media_assets?: Array<{
+    id: string;
+    s3_key: string;
+    metadata: Record<string, unknown> | null;
+  }> | null;
 };
 
 export type LeadContactRow = {
