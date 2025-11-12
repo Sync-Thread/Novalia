@@ -81,11 +81,11 @@ export class FindOrCreateThread {
       participantUserIds.push(input.listerUserId);
     }
 
-    // Use current user's org_id (not the lister's)
-    // If current user is a buyer (no org), thread will have org_id = null
-    // If current user is a seller/agent (has org), thread will belong to their org
+    // Use the org_id from input (property's org) so RLS works correctly
+    // The property's org owns the thread, allowing the seller's org to access it
+    // Buyers (no org) can still access because they're participants
     const createResult = await this.deps.threadRepo.create({
-      orgId: auth.orgId ?? null,
+      orgId: input.orgId ?? null,
       propertyId: input.propertyId,
       createdBy: auth.userId,
       participantUserIds,

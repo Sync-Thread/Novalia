@@ -169,8 +169,8 @@ export function ChatWidget({
 
       console.log("✅ Mensaje enviado:", result.value.id);
 
-      // Add message to local state
-      setMessages(prev => [...prev, result.value]);
+      // ✅ NO agregamos el mensaje manualmente - realtime se encarga
+      // El mensaje llegará vía handleNewMessage
       setMessageBody("");
       setSending(false);
 

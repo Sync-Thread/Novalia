@@ -91,6 +91,8 @@ export function useSendMessage({
       setError(null);
 
       try {
+        console.log('📤 Enviando mensaje:', { threadId, bodyLength: body.length });
+        
         const result = await useCases.sendMessage.execute({
           threadId,
           body: body.trim(),
@@ -100,6 +102,7 @@ export function useSendMessage({
           const errorMsg = typeof result.error === 'object' && result.error !== null && 'message' in result.error
             ? (result.error as { message: string }).message
             : 'Error al enviar el mensaje';
+          console.error('❌ Error al enviar:', errorMsg);
           setError(errorMsg);
           onError?.(errorMsg);
           return false;
@@ -107,6 +110,7 @@ export function useSendMessage({
 
         // Mensaje enviado exitosamente
         const sentMessage = result.value;
+        console.log('✅ Mensaje enviado exitosamente:', sentMessage.id);
         setLastSentMessage(sentMessage);
         onSuccess?.(sentMessage);
         

@@ -23,8 +23,8 @@
 }
 
 .sidebar {
-  background: #fff;
-  border-radius: 18px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  border-radius: 20px;
   border: 1px solid rgba(15, 23, 42, 0.09);
   box-shadow: 0 24px 45px rgba(15, 23, 42, 0.08);
   display: flex;
@@ -33,8 +33,25 @@
 }
 
 .sidebarHeader {
-  padding: 20px 24px 12px;
+  padding: 24px;
   border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  background: linear-gradient(135deg, #f8faff 0%, #ffffff 100%);
+}
+
+.sidebarTitle {
+  margin: 0 0 16px;
+  font-size: 20px;
+  font-weight: 700;
+  color: #0f172a;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sidebarSubtitle {
+  margin: 0 0 16px;
+  font-size: 13px;
+  color: #64748b;
 }
 
 .searchInput {
@@ -67,36 +84,70 @@
 
 .threadButton {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
+  align-items: center;
+  gap: 12px;
   border-radius: 14px;
-  padding: 12px 14px;
+  padding: 14px 16px;
   border: 1px solid transparent;
   cursor: pointer;
-  background: rgba(248, 250, 255, 0.7);
-  transition: border-color 120ms ease, background 120ms ease;
+  background: linear-gradient(135deg, rgba(248, 250, 255, 0.9) 0%, rgba(255, 255, 255, 0.7) 100%);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   text-align: left;
+  position: relative;
+  overflow: hidden;
+}
+
+.threadButton::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.05) 0%, rgba(59, 130, 246, 0.05) 100%);
+  opacity: 0;
+  transition: opacity 0.2s;
 }
 
 .threadButton:hover {
-  border-color: rgba(37, 99, 235, 0.4);
+  border-color: rgba(37, 99, 235, 0.3);
+  transform: translateX(4px);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.12);
+}
+
+.threadButton:hover::before {
+  opacity: 1;
 }
 
 .threadActive {
-  background: #fff;
-  border-color: rgba(37, 99, 235, 0.7);
-  box-shadow: 0 16px 28px rgba(15, 23, 42, 0.08);
+  background: linear-gradient(135deg, #ffffff 0%, #f8faff 100%);
+  border-color: rgba(37, 99, 235, 0.5);
+  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.15), inset 0 0 0 1px rgba(37, 99, 235, 0.1);
+  transform: translateX(4px);
+}
+
+.threadActive::before {
+  opacity: 1;
 }
 
 .threadTitle {
   font-size: 15px;
   font-weight: 600;
   color: #0f172a;
+  margin-bottom: 4px;
+  position: relative;
+  z-index: 1;
 }
 
 .threadSubtitle {
   font-size: 13px;
-  color: #475569;
+  color: #64748b;
+  margin-bottom: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  position: relative;
+  z-index: 1;
 }
 
 .threadMeta {
@@ -108,12 +159,15 @@
 }
 
 .badge {
-  background: #2563eb;
+  background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
   color: #fff;
   border-radius: 999px;
-  padding: 2px 10px;
-  font-weight: 600;
-  font-size: 12px;
+  padding: 3px 10px;
+  font-weight: 700;
+  font-size: 11px;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+  position: relative;
+  z-index: 1;
 }
 
 .messagesPanel {
@@ -127,11 +181,9 @@
 }
 
 .messagesHeader {
-  padding: 20px 28px;
+  padding: 24px;
   border-bottom: 1px solid rgba(15, 23, 42, 0.06);
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
 }
 
 .propertyTitle {

@@ -3,6 +3,7 @@ import type { ChatMessageDTO } from '../../../application/dto/ChatMessageDTO';
 import type { ChatThreadDTO } from '../../../application/dto/ChatThreadDTO';
 import { MessageBubble } from '../MessageBubble';
 import styles from './MessageList.module.css';
+import { supabase } from '../../../../../core/supabase/client';
 
 interface MessageListProps {
   messages: ChatMessageDTO[];
@@ -38,6 +39,18 @@ export function MessageList({
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [newMessages, setNewMessages] = useState(0);
   const lastMessageCountRef = useRef(messages.length);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
+  // Obtener el userId del usuario actual
+  useEffect(() => {
+    const getCurrentUser = async () => {
+      const { data } = await supabase.auth.getSession();
+      const userId = data.session?.user?.id ?? null;
+      setCurrentUserId(userId);
+      console.log('👤 Usuario actual ID:', userId);
+    };
+    void getCurrentUser();
+  }, []);
 
   // Auto-scroll cuando llegan mensajes nuevos
   useEffect(() => {
@@ -131,7 +144,7 @@ export function MessageList({
             </div>
 
             {group.messages.map(message => {
-              const isMine = isOwnMessage(message, currentThread);
+              const isMine = isOwnMessage(message, currentThread, currentUserId);
               const sender = currentThread?.participants.find(
                 p => p.id === message.senderId
               );
@@ -141,7 +154,7 @@ export function MessageList({
                   key={message.id}
                   message={message}
                   isMine={isMine}
-                  senderName={sender?.displayName}
+                  senderName={sender?.displayName ?? 'Usuario'}
                   showSender={!isMine}
                 />
               );
@@ -178,10 +191,41 @@ function isScrolledToBottom(element: HTMLElement): boolean {
   return element.scrollHeight - element.scrollTop - element.clientHeight < threshold;
 }
 
-function isOwnMessage(message: ChatMessageDTO, thread: ChatThreadDTO | null): boolean {
-  if (!thread) return false;
-  const currentUser = thread.participants.find(p => p.type === 'user');
-  return currentUser?.id === message.senderId;
+function isOwnMessage(
+  message: ChatMessageDTO, 
+  thread: ChatThreadDTO | null, 
+  currentUserId: string | null
+): boolean {
+  if (!thread || !currentUserId) return false;
+  
+  console.log('🔍 Verificando mensaje:', {
+    messageId: message.id.substring(0, 8),
+    senderId: message.senderId?.substring(0, 8),
+    senderType: message.senderType,
+    currentUserId: currentUserId.substring(0, 8),
+  });
+  
+  // El mensaje es mío si:
+  // 1. El sender_type es 'user' Y el senderId coincide con mi userId actual
+  if (message.senderType === 'user') {
+    const isMine = message.senderId === currentUserId;
+    console.log(`  -> Mensaje de tipo 'user': ${isMine ? 'MÍO' : 'DE OTRO'}`);
+    return isMine;
+  }
+  
+  // 2. El sender_type es 'contact' Y yo NO soy un usuario (no estoy en participants como user)
+  // Esto significa que soy un comprador viendo mis propios mensajes
+  const userParticipants = thread.participants.filter(p => p.type === 'user');
+  const amIAUser = userParticipants.some(p => p.id === currentUserId);
+  
+  if (message.senderType === 'contact' && !amIAUser) {
+    // Soy un comprador (contact) viendo mis propios mensajes
+    console.log(`  -> Mensaje de tipo 'contact' y soy comprador: MÍO`);
+    return true;
+  }
+  
+  console.log(`  -> Mensaje de tipo '${message.senderType}': DE OTRO`);
+  return false;
 }
 
 function groupMessagesByDate(messages: ChatMessageDTO[]): Array<{

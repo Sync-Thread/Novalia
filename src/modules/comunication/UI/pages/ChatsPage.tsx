@@ -7,6 +7,7 @@ import { useInbox } from "../hooks/useInbox";
 import { useMessages } from "../hooks/useMessages";
 import { useSendMessage } from "../hooks/useSendMessage";
 import { MessageList } from "../components/MessageList";
+import { PropertyHeaderCard } from "../components/PropertyHeaderCard";
 import { supabase } from "../../../../core/supabase/client";
 
 export default function ChatsPage() {
@@ -147,6 +148,18 @@ function ChatExperience() {
       <div className={styles.panels}>
         <aside className={styles.sidebar}>
           <div className={styles.sidebarHeader}>
+            {/* Header del sidebar */}
+            <h2 className={styles.sidebarTitle}>
+              💬 Conversaciones
+            </h2>
+            <p className={styles.sidebarSubtitle}>
+              {isLoadingInbox
+                ? "Cargando..."
+                : totalUnread > 0
+                  ? `${totalUnread} mensaje${totalUnread > 1 ? 's' : ''} sin leer`
+                  : "Al día con tus mensajes"}
+            </p>
+            
             {/* Filtros en pestañas */}
             <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
               <button
@@ -224,8 +237,11 @@ function ChatExperience() {
               const isCollapsed = collapsedGroups.has(propertyId);
               const groupUnread = group.threads.reduce((sum, t) => sum + t.unreadCount, 0);
               
+              // Usar threadIds combinados como key única
+              const groupKey = `group-${propertyId}-${group.threads.map(t => t.id).join('-')}`;
+              
               return (
-                <div key={propertyId} className={styles.group}>
+                <div key={groupKey} className={styles.group}>
                   {/* Header de grupo con toggle */}
                   <button
                     onClick={() => toggleGroup(propertyId)}
@@ -308,12 +324,12 @@ function ChatExperience() {
                             className={`${styles.threadButton} ${isActive ? styles.threadActive : ""}`}
                             onClick={() => handleSelectThread(thread)}
                           >
-                            <div style={{ flex: 1 }}>
+                            <div style={{ flex: 1, minWidth: 0 }}>
                               <div className={styles.threadTitle}>{contactName}</div>
                               <div className={styles.threadSubtitle}>{subtitle}</div>
                             </div>
-                            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
-                              <span style={{ fontSize: 11, color: "#94a3b8" }}>
+                            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6, flexShrink: 0 }}>
+                              <span style={{ fontSize: 11, color: "#94a3b8", whiteSpace: "nowrap" }}>
                                 {formatRelativeTime(thread.lastMessageAt ?? thread.createdAt)}
                               </span>
                               {thread.unreadCount > 0 && (
@@ -335,16 +351,21 @@ function ChatExperience() {
           {selectedThread ? (
             <>
               <div className={styles.messagesHeader}>
-                <div className={styles.propertyTitle}>{selectedThread.property?.title ?? "Chat sin propiedad"}</div>
-                <div className={styles.propertyMeta}>
-                  {selectedThread.property?.price
-                    ? new Intl.NumberFormat("es-MX", {
-                        style: "currency",
-                        currency: selectedThread.property.currency ?? "MXN",
-                      }).format(selectedThread.property?.price)
-                    : "Precio no disponible"}{" "}
-                  · {selectedThread.property?.city ?? "Sin ciudad"}
-                </div>
+                {/* ✅ Card visual de la propiedad */}
+                <PropertyHeaderCard
+                  property={selectedThread.property}
+                  contactName={
+                    selectedThread.participants.find(p => p.type === 'contact')?.displayName ?? null
+                  }
+                  contactEmail={
+                    selectedThread.participants.find(p => p.type === 'contact')?.email ?? null
+                  }
+                  onViewProperty={
+                    selectedThread.property?.id
+                      ? () => window.open(`/properties/${selectedThread.property!.id}`, '_blank')
+                      : undefined
+                  }
+                />
               </div>
 
               <div className={styles.messagesBody} data-messages-container>
