@@ -30,33 +30,42 @@ export function useInboxRealtime({
   useEffect(() => {
     if (!enabled) return;
 
+    console.log('[InboxRealtime] Setting up realtime subscriptions');
+
     // Debounce para evitar múltiples llamadas rápidas
     let messageTimeout: ReturnType<typeof setTimeout> | null = null;
     let threadTimeout: ReturnType<typeof setTimeout> | null = null;
 
-    // Suscripción a nuevos mensajes
+    // Usar nombres únicos para evitar conflictos entre múltiples suscripciones
+    const channelId = Math.random().toString(36).substring(7);
+
+    // Suscripción a nuevos mensajes E UPDATES (cuando se marcan como leídos)
     const messagesChannel = supabase
-      .channel('inbox-messages')
+      .channel(`inbox-messages-${channelId}`)
       .on(
         'postgres_changes',
         {
-          event: 'INSERT',
+          event: '*', // Escuchar todos los eventos (INSERT, UPDATE, DELETE)
           schema: 'public',
           table: 'chat_messages',
         },
         (payload) => {
-          // Debounce de 500ms para evitar múltiples refrescos
+          console.log('[InboxRealtime] Message event:', payload.eventType, payload);
+          // Debounce de 300ms para evitar múltiples refrescos
           if (messageTimeout) clearTimeout(messageTimeout);
           messageTimeout = setTimeout(() => {
+            console.log('[InboxRealtime] Calling onNewMessage');
             handlersRef.current.onNewMessage?.();
-          }, 500);
+          }, 300);
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('[InboxRealtime] Messages channel status:', status);
+      });
 
     // Suscripción a actualizaciones de threads (last_message_at)
     const threadsChannel = supabase
-      .channel('inbox-threads')
+      .channel(`inbox-threads-${channelId}`)
       .on(
         'postgres_changes',
         {
@@ -65,14 +74,18 @@ export function useInboxRealtime({
           table: 'chat_threads',
         },
         (payload) => {
-          // Debounce de 500ms
+          console.log('[InboxRealtime] Thread UPDATE:', payload);
+          // Debounce de 300ms
           if (threadTimeout) clearTimeout(threadTimeout);
           threadTimeout = setTimeout(() => {
+            console.log('[InboxRealtime] Calling onThreadUpdate');
             handlersRef.current.onThreadUpdate?.();
-          }, 500);
+          }, 300);
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('[InboxRealtime] Threads channel status:', status);
+      });
 
     // Cleanup
     return () => {
