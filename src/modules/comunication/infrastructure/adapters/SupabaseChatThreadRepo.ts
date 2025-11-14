@@ -129,7 +129,7 @@ export class SupabaseChatThreadRepo implements ChatThreadRepo {
 
     const row = data as unknown as ThreadRowWithRelations;
 
-    const unreadCounts = await this.computeUnreadCounts([row.id], "user");
+    const unreadCounts = await this.computeUnreadCounts([row.id], "user", null);
     if (unreadCounts.isErr()) {
       return Result.fail(unreadCounts.error);
     }
@@ -177,7 +177,7 @@ export class SupabaseChatThreadRepo implements ChatThreadRepo {
       return Result.ok(null);
     }
 
-    const unreadCounts = await this.computeUnreadCounts([matchingThread.id], "user");
+    const unreadCounts = await this.computeUnreadCounts([matchingThread.id], "user", input.userId);
     if (unreadCounts.isErr()) {
       return Result.fail(unreadCounts.error);
     }
@@ -294,6 +294,7 @@ export class SupabaseChatThreadRepo implements ChatThreadRepo {
     const unreadCounts = await this.computeUnreadCounts(
       rows.map(row => row.id),
       scope.readerType,
+      scope.userId,
     );
     if (unreadCounts.isErr()) {
       return Result.fail(unreadCounts.error);
@@ -312,27 +313,54 @@ export class SupabaseChatThreadRepo implements ChatThreadRepo {
   private async computeUnreadCounts(
     threadIds: string[],
     readerType: SenderType,
+    readerId: string | null,
   ): Promise<Result<Map<string, number>>> {
     if (threadIds.length === 0) {
       return Result.ok(new Map());
     }
 
-    const senderType = readerType === "user" ? "contact" : "user";
-    const { data, error } = await this.client
+    console.log('[UnreadCounts] Computing unread counts:', {
+      threadIds,
+      readerType,
+      readerId,
+      logic: `Counting messages NOT sent by readerId=${readerId} with read_at=null`
+    });
+    
+    // Count messages that:
+    // 1. Are in the specified threads
+    // 2. Have read_at = null (unread)
+    // 3. Were NOT sent by the current user (if readerId is provided)
+    let query = this.client
       .from("chat_messages")
-      .select("thread_id")
+      .select("thread_id, sender_user_id, sender_contact_id")
       .in("thread_id", threadIds)
-      .eq("sender_type", senderType)
       .is("read_at", null);
+    
+    // Filter out messages sent by the reader
+    if (readerId) {
+      if (readerType === "user") {
+        query = query.neq("sender_user_id", readerId);
+      } else {
+        query = query.neq("sender_contact_id", readerId);
+      }
+    }
+
+    const { data, error } = await query;
 
     if (error) {
+      console.error('[UnreadCounts] Error fetching unread messages:', error);
       return Result.fail(mapPostgrestError("THREAD_QUERY_FAILED", error));
     }
+
+    console.log('[UnreadCounts] Unread messages (not sent by reader):', data);
 
     const counts = new Map<string, number>();
     (data as { thread_id: string }[] | null)?.forEach(row => {
       counts.set(row.thread_id, (counts.get(row.thread_id) ?? 0) + 1);
     });
+    
+    console.log('[UnreadCounts] Final counts map:', Object.fromEntries(counts));
+    
     return Result.ok(counts);
   }
 }
