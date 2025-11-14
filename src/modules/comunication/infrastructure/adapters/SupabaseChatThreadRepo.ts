@@ -319,13 +319,6 @@ export class SupabaseChatThreadRepo implements ChatThreadRepo {
       return Result.ok(new Map());
     }
 
-    console.log('[UnreadCounts] Computing unread counts:', {
-      threadIds,
-      readerType,
-      readerId,
-      logic: `Counting messages NOT sent by readerId=${readerId} with read_at=null`
-    });
-    
     // Count messages that:
     // 1. Are in the specified threads
     // 2. Have read_at = null (unread)
@@ -348,18 +341,13 @@ export class SupabaseChatThreadRepo implements ChatThreadRepo {
     const { data, error } = await query;
 
     if (error) {
-      console.error('[UnreadCounts] Error fetching unread messages:', error);
       return Result.fail(mapPostgrestError("THREAD_QUERY_FAILED", error));
     }
-
-    console.log('[UnreadCounts] Unread messages (not sent by reader):', data);
 
     const counts = new Map<string, number>();
     (data as { thread_id: string }[] | null)?.forEach(row => {
       counts.set(row.thread_id, (counts.get(row.thread_id) ?? 0) + 1);
     });
-    
-    console.log('[UnreadCounts] Final counts map:', Object.fromEntries(counts));
     
     return Result.ok(counts);
   }

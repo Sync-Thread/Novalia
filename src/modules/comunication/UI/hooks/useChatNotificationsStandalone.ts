@@ -39,7 +39,6 @@ export function useChatNotificationsStandalone(): UseChatNotificationsStandalone
     const checkAuth = async () => {
       const { data } = await supabase.auth.getSession();
       const authenticated = !!data.session?.user;
-      console.log('[Notifications] Auth check:', authenticated);
       setIsAuthenticated(authenticated);
     };
     
@@ -47,7 +46,6 @@ export function useChatNotificationsStandalone(): UseChatNotificationsStandalone
 
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
       const authenticated = !!session?.user;
-      console.log('[Notifications] Auth state changed:', authenticated);
       setIsAuthenticated(authenticated);
     });
 
@@ -59,7 +57,6 @@ export function useChatNotificationsStandalone(): UseChatNotificationsStandalone
   const loadNotifications = useCallback(async () => {
     // No cargar si no está autenticado
     if (!isAuthenticated) {
-      console.log('[Notifications] User not authenticated, skipping load');
       setLoading(false);
       return;
     }
@@ -71,51 +68,40 @@ export function useChatNotificationsStandalone(): UseChatNotificationsStandalone
       const container = createCommunicationContainer();
       const { useCases } = container;
 
-      console.log('[Notifications] Loading notifications...');
-
       // Intentar cargar como vendedor primero
       const sellerResult = await useCases.listListerInbox.execute();
 
       if (sellerResult.isOk()) {
         const inbox = sellerResult.value;
-        console.log('[Notifications] Seller inbox loaded:', inbox);
         const allThreads = inbox.groups.flatMap(g => g.threads);
         const unreadThreads = allThreads.filter(t => t.unreadCount > 0);
         
-        console.log('[Notifications] Unread threads:', unreadThreads.length);
         const formattedNotifications = unreadThreads.map(thread => threadToNotification(thread));
         
         setNotifications(formattedNotifications);
         setTotalUnread(inbox.totalUnread);
-        console.log('[Notifications] Total unread:', inbox.totalUnread);
       } else {
-        console.log('[Notifications] Seller inbox failed, trying buyer inbox...');
         // Si falla, intentar como comprador
         const buyerResult = await useCases.listClientInbox.execute();
         
         if (buyerResult.isOk()) {
           const inboxes = buyerResult.value;
-          console.log('[Notifications] Buyer inbox loaded:', inboxes);
           const unreadThreads = inboxes
             .filter(inbox => inbox.unreadCount > 0 && inbox.thread !== null)
             .map(inbox => inbox.thread!);
           
-          console.log('[Notifications] Unread threads:', unreadThreads.length);
           const formattedNotifications = unreadThreads.map(thread => threadToNotification(thread));
           const totalUnreadCount = inboxes.reduce((sum, inbox) => sum + inbox.unreadCount, 0);
           
           setNotifications(formattedNotifications);
           setTotalUnread(totalUnreadCount);
-          console.log('[Notifications] Total unread:', totalUnreadCount);
         } else {
-          console.error('[Notifications] Both inbox attempts failed');
           setError('Error al cargar notificaciones');
           setNotifications([]);
           setTotalUnread(0);
         }
       }
     } catch (err) {
-      console.error('[Notifications] Error al cargar notificaciones:', err);
       setError('Error inesperado al cargar notificaciones');
       setNotifications([]);
       setTotalUnread(0);

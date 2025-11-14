@@ -30,8 +30,6 @@ export function useInboxRealtime({
   useEffect(() => {
     if (!enabled) return;
 
-    console.log('[InboxRealtime] Setting up realtime subscriptions');
-
     // Debounce para evitar múltiples llamadas rápidas
     let messageTimeout: ReturnType<typeof setTimeout> | null = null;
     let threadTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -50,18 +48,14 @@ export function useInboxRealtime({
           table: 'chat_messages',
         },
         (payload) => {
-          console.log('[InboxRealtime] Message event:', payload.eventType, payload);
           // Debounce de 300ms para evitar múltiples refrescos
           if (messageTimeout) clearTimeout(messageTimeout);
           messageTimeout = setTimeout(() => {
-            console.log('[InboxRealtime] Calling onNewMessage');
             handlersRef.current.onNewMessage?.();
           }, 300);
         }
       )
-      .subscribe((status) => {
-        console.log('[InboxRealtime] Messages channel status:', status);
-      });
+      .subscribe();
 
     // Suscripción a actualizaciones de threads (last_message_at)
     const threadsChannel = supabase
@@ -74,18 +68,14 @@ export function useInboxRealtime({
           table: 'chat_threads',
         },
         (payload) => {
-          console.log('[InboxRealtime] Thread UPDATE:', payload);
           // Debounce de 300ms
           if (threadTimeout) clearTimeout(threadTimeout);
           threadTimeout = setTimeout(() => {
-            console.log('[InboxRealtime] Calling onThreadUpdate');
             handlersRef.current.onThreadUpdate?.();
           }, 300);
         }
       )
-      .subscribe((status) => {
-        console.log('[InboxRealtime] Threads channel status:', status);
-      });
+      .subscribe();
 
     // Cleanup
     return () => {

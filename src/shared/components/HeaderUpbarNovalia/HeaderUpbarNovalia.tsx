@@ -397,17 +397,6 @@ export default function HeaderUpbarNovalia({
 
   const notificationsCount = role !== "visitor" ? totalUnread : 0;
 
-  // Debug: Log cuando cambien las notificaciones
-  useEffect(() => {
-    console.log('[Header] Notifications state:', {
-      role,
-      totalUnread,
-      notificationsCount,
-      notificationsLoading,
-      notificationsLength: notifications.length
-    });
-  }, [role, totalUnread, notificationsCount, notificationsLoading, notifications.length]);
-
   useEffect(() => {
     setSheetOpen(false);
     setDropdownOpen(false);
