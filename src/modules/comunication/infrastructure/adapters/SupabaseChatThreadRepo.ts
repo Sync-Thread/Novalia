@@ -18,8 +18,8 @@ type ThreadRowWithRelations = ChatThreadRow & {
   participants?: Array<{
     user_id: string | null;
     contact_id: string | null;
-    profiles?: Array<{ id: string; full_name: string | null; email: string | null; phone: string | null }> | null;
-    lead_contacts?: Array<{ id: string; full_name: string | null; email: string | null; phone: string | null }> | null;
+    user_profiles?: { id: string; full_name: string | null; email: string | null; phone: string | null } | Array<{ id: string; full_name: string | null; email: string | null; phone: string | null }> | null;
+    contacts?: { id: string; full_name: string | null; email: string | null; phone: string | null } | Array<{ id: string; full_name: string | null; email: string | null; phone: string | null }> | null;
   }> | null;
   last_message?: ChatMessageRow[] | null;
 };
@@ -355,6 +355,8 @@ export class SupabaseChatThreadRepo implements ChatThreadRepo {
 
 function mapThreadRow(row: ThreadRowWithRelations, unreadCounts: Map<string, number>): ChatThreadDTO {
   const lastMessageRow = Array.isArray(row.last_message) ? row.last_message[0] ?? null : null;
+  const mappedParticipants = mapParticipants(row.participants ?? []);
+  
   return {
     id: row.id,
     orgId: row.org_id,
@@ -364,8 +366,8 @@ function mapThreadRow(row: ThreadRowWithRelations, unreadCounts: Map<string, num
     createdAt: row.created_at,
     lastMessageAt: row.last_message_at,
     unreadCount: unreadCounts.get(row.id) ?? 0,
-    status: "open",
-    participants: mapParticipants(row.participants ?? []),
+    status: "open" as const,
+    participants: mappedParticipants,
     lastMessage: lastMessageRow ? mapMessageRow(lastMessageRow) : null,
   };
 }
@@ -406,7 +408,11 @@ function mapParticipants(rows: ThreadRowWithRelations["participants"]): Particip
   return rows
     .map(row => {
       if (row.user_id) {
-        const profileData = (row as any).user_profiles;
+        // Acceder a user_profiles (el alias en el SELECT)
+        const profileData = Array.isArray((row as any).user_profiles) 
+          ? (row as any).user_profiles[0] 
+          : (row as any).user_profiles;
+        
         return {
           id: row.user_id,
           type: "user" as const,
@@ -416,8 +422,13 @@ function mapParticipants(rows: ThreadRowWithRelations["participants"]): Particip
           lastSeenAt: null,
         };
       }
+      
       if (row.contact_id) {
-        const contactData = (row as any).contacts;
+        // Acceder a contacts (el alias en el SELECT para lead_contacts)
+        const contactData = Array.isArray((row as any).contacts) 
+          ? (row as any).contacts[0] 
+          : (row as any).contacts;
+        
         return {
           id: row.contact_id,
           type: "contact" as const,
@@ -427,7 +438,8 @@ function mapParticipants(rows: ThreadRowWithRelations["participants"]): Particip
           lastSeenAt: null,
         };
       }
-      console.warn("Participant without user_id or contact_id", row);
+      
+      console.warn("❌ Participant without user_id or contact_id", row);
       return null;
     })
     .filter((participant): participant is Exclude<typeof participant, null> => participant !== null);
