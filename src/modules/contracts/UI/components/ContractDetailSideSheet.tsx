@@ -19,8 +19,10 @@ import {
   Upload,
   User,
   X,
+  Send,
 } from "lucide-react";
 import { useContractsActions } from "../hooks/useContractsActions";
+import { useContractDocuments } from "../hooks/useContractDocuments";
 import { supabase } from "../../../../core/supabase/client";
 import styles from "./ContractDetailSideSheet.module.css";
 
@@ -56,7 +58,11 @@ const ContractDetailSideSheet: React.FC<DetailSheetProps> = ({
   );
   const [isSavingClient, setIsSavingClient] = useState(false);
   const [isLoadingClients, setIsLoadingClients] = useState(false);
+  const [showDocumentSelector, setShowDocumentSelector] = useState(false);
   const clientSearchRef = useRef<HTMLInputElement>(null);
+  
+  // Fetch documents from contract_documents table
+  const { documents: contractDocuments, loading: loadingDocuments } = useContractDocuments(contract?.id || null);
 
   // Cargar preview de la propiedad desde S3
   useEffect(() => {
@@ -376,11 +382,12 @@ const ContractDetailSideSheet: React.FC<DetailSheetProps> = ({
                 </div>
                 <button
                   className={styles.btnSecondaryFull}
-                  disabled
-                  aria-label="Enviar por chat al cliente (próximamente)"
-                  title="Función disponible próximamente cuando se integre el módulo de comunicación"
+                  onClick={() => setShowDocumentSelector(true)}
+                  disabled={!hasFile && contractDocuments.length === 0}
+                  aria-label="Enviar documento por chat"
+                  title={!hasFile && contractDocuments.length === 0 ? "No hay documentos para enviar" : "Seleccionar documento para enviar por chat"}
                 >
-                  <User size={16} />
+                  <Send size={16} />
                   Enviar por chat
                 </button>
               </>
@@ -435,35 +442,53 @@ const ContractDetailSideSheet: React.FC<DetailSheetProps> = ({
                 </div>
               )}
 
-              {/* Anexos del contrato */}
-              {contract.documentos && contract.documentos.length > 0
-                ? contract.documentos.map((doc) => (
-                    <div key={doc.id} className={styles.documentItem}>
-                      <FileText size={18} className={styles.documentIcon} />
-                      <div className={styles.documentInfo}>
-                        <p className={styles.documentName}>{doc.nombre}</p>
-                        <p className={styles.documentMeta}>
-                          v{doc.version} • {formatDate(doc.fecha)} •{" "}
-                          {doc.origen}
-                        </p>
-                      </div>
-                      <button
-                        className={styles.btnIconSmall}
-                        aria-label="Descargar documento"
-                      >
-                        <Download size={16} />
-                      </button>
+              {/* Documentos adicionales desde contract_documents */}
+              {loadingDocuments ? (
+                <div style={{ padding: "16px", textAlign: "center", color: "#6b7280" }}>
+                  <Loader2 size={20} className="animate-spin" style={{ margin: "0 auto" }} />
+                  <p style={{ marginTop: "8px", fontSize: "14px" }}>Cargando documentos...</p>
+                </div>
+              ) : contractDocuments.length > 0 ? (
+                contractDocuments.map((doc) => (
+                  <div key={doc.id} className={styles.documentItem}>
+                    <div className={styles.previewIcon}>
+                      <FileText size={32} />
                     </div>
-                  ))
-                : null}
+                    <div className={styles.documentInfo}>
+                      <p className={styles.documentName}>{doc.fileName}</p>
+                      <p className={styles.documentMeta}>
+                        {formatFileSize(doc.fileSize)} • Actualizado:{" "}
+                        {formatDate(doc.uploadedAt)} • v{doc.version}
+                      </p>
+                    </div>
+                    <button
+                      className={styles.btnIconSmall}
+                      onClick={async () => {
+                        try {
+                          const url = await getPresignedUrlForDisplay(doc.s3Key);
+                          const link = document.createElement('a');
+                          link.href = url;
+                          link.download = doc.fileName;
+                          link.click();
+                        } catch (error) {
+                          console.error('Error downloading document:', error);
+                          alert('Error al descargar el documento');
+                        }
+                      }}
+                      aria-label="Descargar documento"
+                    >
+                      <Download size={16} />
+                    </button>
+                  </div>
+                ))
+              ) : null}
 
               {/* Empty state si no hay ningún documento */}
-              {!hasFile &&
-                (!contract.documentos || contract.documentos.length === 0) && (
-                  <p className={styles.emptyState}>
-                    No hay documentos en el expediente
-                  </p>
-                )}
+              {!hasFile && contractDocuments.length === 0 && (
+                <p className={styles.emptyState}>
+                  No hay documentos en el expediente
+                </p>
+              )}
             </div>
           </section>
 
@@ -797,6 +822,84 @@ const ContractDetailSideSheet: React.FC<DetailSheetProps> = ({
           )}
         </div>
       </aside>
+
+      {/* Document Selector Modal */}
+      {showDocumentSelector && (
+        <div className={styles.modalOverlay} onClick={() => setShowDocumentSelector(false)}>
+          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h3 className={styles.modalTitle}>Seleccionar documento para enviar</h3>
+              <button
+                className={styles.modalCloseBtn}
+                onClick={() => setShowDocumentSelector(false)}
+                aria-label="Cerrar"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className={styles.modalBody}>
+              {/* Contrato Principal */}
+              {hasFile && (
+                <button
+                  className={styles.documentSelectorItem}
+                  onClick={() => {
+                    // TODO: Implement send to chat
+                    alert(`Enviar documento "${contract.metadata?.fileName || 'contrato-' + contract.id + '.pdf'}" por chat (función próximamente)`);
+                    setShowDocumentSelector(false);
+                  }}
+                >
+                  <div className={styles.documentSelectorIcon}>
+                    <FileText size={24} />
+                  </div>
+                  <div className={styles.documentSelectorInfo}>
+                    <p className={styles.documentSelectorName}>
+                      {contract.metadata?.fileName || `contrato-${contract.id}.pdf`}
+                      <span className={`${styles.badge} ${styles.badgeInfo}`} style={{ marginLeft: "8px" }}>
+                        Principal
+                      </span>
+                    </p>
+                    <p className={styles.documentSelectorMeta}>
+                      {formatFileSize(contract.metadata?.size)} • {formatDate(contract.metadata?.uploadedAt)}
+                    </p>
+                  </div>
+                  <Send size={18} className={styles.documentSelectorSendIcon} />
+                </button>
+              )}
+
+              {/* Additional documents */}
+              {contractDocuments.map((doc) => (
+                <button
+                  key={doc.id}
+                  className={styles.documentSelectorItem}
+                  onClick={() => {
+                    // TODO: Implement send to chat
+                    alert(`Enviar documento "${doc.fileName}" por chat (función próximamente)`);
+                    setShowDocumentSelector(false);
+                  }}
+                >
+                  <div className={styles.documentSelectorIcon}>
+                    <FileText size={24} />
+                  </div>
+                  <div className={styles.documentSelectorInfo}>
+                    <p className={styles.documentSelectorName}>{doc.fileName}</p>
+                    <p className={styles.documentSelectorMeta}>
+                      {formatFileSize(doc.fileSize)} • {formatDate(doc.uploadedAt)}
+                    </p>
+                  </div>
+                  <Send size={18} className={styles.documentSelectorSendIcon} />
+                </button>
+              ))}
+
+              {!hasFile && contractDocuments.length === 0 && (
+                <div style={{ padding: "32px", textAlign: "center", color: "#6b7280" }}>
+                  <FileText size={40} style={{ margin: "0 auto 16px", opacity: 0.3 }} />
+                  <p>No hay documentos disponibles</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
