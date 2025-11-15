@@ -50,7 +50,11 @@ interface ClientOption {
   type: "profile" | "lead_contact"; // Tipo de cliente: usuario autenticado o lead
 }
 
+type FormMode = "new-contract" | "add-to-existing";
+
 interface FormData {
+  mode: FormMode;
+  contractId: string; // For adding to existing contract
   documentType: string;
   propertyId: string;
   clientId: string;
@@ -93,6 +97,8 @@ export default function NewDocumentQuickView({
   } = useContractsActions();
 
   const [formData, setFormData] = useState<FormData>({
+    mode: "new-contract",
+    contractId: "",
     documentType: "",
     propertyId: "",
     clientId: "",
@@ -113,6 +119,9 @@ export default function NewDocumentQuickView({
   const [clientSearch, setClientSearch] = useState("");
   const [clientOptions, setClientOptions] = useState<ClientOption[]>([]);
   const [showClientDropdown, setShowClientDropdown] = useState(false);
+  const [contractOptions, setContractOptions] = useState<Array<{id: string; title: string; propertyName: string}>>([]);
+  const [contractSearch, setContractSearch] = useState("");
+  const [showContractDropdown, setShowContractDropdown] = useState(false);
   const [propertyPreviews, setPropertyPreviews] = useState<
     Record<string, string>
   >({});
@@ -228,13 +237,32 @@ export default function NewDocumentQuickView({
       c.phone?.includes(clientSearch.trim())
   );
 
+  /** Cargar contratos existentes */
+  const loadAllContracts = useCallback(async () => {
+    const {data, error} = await supabase
+      .from('contracts')
+      .select('id, title, property_id, properties(title)')
+      .order('created_at', {ascending: false})
+      .limit(100);
+    
+    if (data && !error) {
+      const mapped = data.map(c => ({
+        id: c.id,
+        title: c.title || 'Sin título',
+        propertyName: (c.properties as any)?.title || 'Sin propiedad'
+      }));
+      setContractOptions(mapped);
+    }
+  }, []);
+
   /** Cargar propiedades y clientes al abrir */
   useEffect(() => {
     if (open) {
       loadAllProperties();
       loadAllClients();
+      loadAllContracts();
     }
-  }, [open, loadAllProperties, loadAllClients]);
+  }, [open, loadAllProperties, loadAllClients, loadAllContracts]);
 
   /** Recargar clientes cuando cambie la propiedad seleccionada */
   useEffect(() => {
@@ -259,6 +287,28 @@ export default function NewDocumentQuickView({
   const validateForm = useCallback((): boolean => {
     const newErrors: FormErrors = {};
 
+    // Si modo es "agregar a existente", solo validar contractId y file
+    if (formData.mode === "add-to-existing") {
+      if (!formData.contractId) {
+        newErrors.documentType = "Selecciona un contrato existente";
+      }
+      if (!formData.file) {
+        newErrors.file = "Debes seleccionar un archivo";
+      } else {
+        const validTypes = ["application/pdf", "image/jpeg", "image/png"];
+        if (!validTypes.includes(formData.file.type)) {
+          newErrors.file = "Solo se permiten archivos PDF, JPG o PNG";
+        }
+        const maxSize = 10 * 1024 * 1024; // 10MB
+        if (formData.file.size > maxSize) {
+          newErrors.file = "El archivo no puede superar los 10MB";
+        }
+      }
+      setErrors(newErrors);
+      return Object.keys(newErrors).length === 0;
+    }
+
+    // Validación completa para nuevo contrato
     if (!formData.documentType) {
       newErrors.documentType = "Selecciona un tipo de contrato";
     }
@@ -354,50 +404,82 @@ export default function NewDocumentQuickView({
 
         setUploadProgress(60);
 
-        // 3. Obtener orgId del usuario actual
+        // 3. Obtener usuario actual
         const {
           data: { user },
         } = await supabase.auth.getUser();
         if (!user) throw new Error("No authenticated user");
 
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("org_id")
-          .eq("id", user.id)
-          .single();
+        // MODO: Agregar documento a contrato existente
+        if (formData.mode === "add-to-existing") {
+          setUploadProgress(80);
+          
+          const { error: docError } = await supabase
+            .from("contract_documents")
+            .insert({
+              contract_id: formData.contractId,
+              user_id: user.id,
+              s3_key: uploadResult.key,
+              hash_sha256: fileHash,
+              file_name: formData.file.name,
+              content_type: formData.file.type,
+              file_size: formData.file.size,
+              metadata: {
+                uploadedAt: new Date().toISOString(),
+              },
+            });
 
-        const orgId = profile?.org_id || null;
+          if (docError) {
+            console.error("Error inserting document:", docError);
+            throw new Error(`Failed to create document: ${docError.message}`);
+          }
 
-        // 4. Crear registro en tabla contracts
-        setUploadProgress(80);
-        const { data: contract, error: insertError } = await supabase
-          .from("contracts")
-          .insert({
-            org_id: orgId, // Puede ser null para usuarios sin org
-            user_id: user.id, // Usuario creador del contrato
-            property_id: formData.propertyId || null,
-            // Usar la columna correcta según el tipo de cliente
-            client_contact_id:
-              formData.clientType === "lead_contact" ? formData.clientId : null,
-            client_profile_id:
-              formData.clientType === "profile" ? formData.clientId : null,
-            contract_type: formData.documentType, // 'intermediacion' | 'oferta' | 'promesa'
-            status: "draft",
-            is_template: false, // Es un contrato real, no una plantilla
-            title: formData.title,
-            description: formData.description || null,
-            issued_on: formData.issuedDate,
-            due_on: formData.expirationDate || null,
-            s3_key: uploadResult.key,
-            hash_sha256: fileHash,
-            metadata: {
-              fileName: formData.file.name,
-              contentType: formData.file.type,
-              size: formData.file.size,
-              uploadedAt: new Date().toISOString(),
-            },
-          })
-          .select("id")
+          setUploadProgress(100);
+
+          if (onSuccess) {
+            onSuccess(formData.contractId);
+          }
+        } 
+        // MODO: Crear nuevo contrato
+        else {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("org_id")
+            .eq("id", user.id)
+            .single();
+
+          const orgId = profile?.org_id || null;
+
+          // 4. Crear registro en tabla contracts
+          setUploadProgress(80);
+          const { data: contract, error: insertError } = await supabase
+            .from("contracts")
+            .insert({
+              org_id: orgId, // Puede ser null para usuarios sin org
+              user_id: user.id, // Usuario creador del contrato
+              property_id: formData.propertyId || null,
+              // Usar la columna correcta según el tipo de cliente
+              client_contact_id:
+                formData.clientType === "lead_contact" ? formData.clientId : null,
+              client_profile_id:
+                formData.clientType === "profile" ? formData.clientId : null,
+              contract_type: formData.documentType, // 'intermediacion' | 'oferta' | 'promesa'
+              status: "draft",
+              is_template: false, // Es un contrato real, no una plantilla
+              title: formData.title,
+              description: formData.description || null,
+              issued_on: formData.issuedDate,
+              due_on: formData.expirationDate || null,
+              s3_key: uploadResult.key,
+              hash_sha256: fileHash,
+              metadata: {
+                fileName: formData.file.name,
+                contentType: formData.file.type,
+                size: formData.file.size,
+                uploadedAt: new Date().toISOString(),
+              },
+            })
+            .select("id")
           .single();
 
         if (insertError) {
@@ -410,9 +492,12 @@ export default function NewDocumentQuickView({
         if (onSuccess && contract) {
           onSuccess(contract.id);
         }
+        }
 
         // Reset form
         setFormData({
+          mode: "new-contract",
+          contractId: "",
           documentType: "",
           propertyId: "",
           clientId: "",
@@ -425,6 +510,7 @@ export default function NewDocumentQuickView({
         });
         setPropertySearch("");
         setClientSearch("");
+        setContractSearch("");
         setErrors({});
 
         onClose();
@@ -448,8 +534,11 @@ export default function NewDocumentQuickView({
   /** Cambio de campos del formulario */
   const handleChange = useCallback((field: keyof FormData, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
-    setErrors((prev) => ({ ...prev, [field]: undefined }));
-  }, []);
+    // Solo limpiar error si el campo existe en FormErrors
+    if (field in errors) {
+      setErrors((prev) => ({ ...prev, [field as keyof FormErrors]: undefined }));
+    }
+  }, [errors]);
 
   if (!open) return null;
 
@@ -547,6 +636,241 @@ export default function NewDocumentQuickView({
             onSubmit={handleSubmit}
             style={{ display: "flex", flexDirection: "column", gap: "24px" }}
           >
+            {/* Selector de modo: Nuevo contrato vs Agregar a existente */}
+            <div>
+              <label
+                style={{
+                  display: "block",
+                  fontWeight: 500,
+                  marginBottom: "12px",
+                  fontSize: "14px",
+                  color: "#374151",
+                }}
+              >
+                ¿Qué deseas hacer?
+              </label>
+              <div style={{ display: "flex", gap: "12px" }}>
+                <button
+                  type="button"
+                  onClick={() => handleChange("mode", "new-contract")}
+                  style={{
+                    flex: 1,
+                    padding: "12px 16px",
+                    border: `2px solid ${formData.mode === "new-contract" ? "#295dff" : "#e5e7eb"}`,
+                    borderRadius: "12px",
+                    background: formData.mode === "new-contract" ? "#f0f5ff" : "#ffffff",
+                    color: formData.mode === "new-contract" ? "#295dff" : "#6b7280",
+                    fontWeight: 500,
+                    fontSize: "14px",
+                    cursor: "pointer",
+                    transition: "all 0.2s ease",
+                  }}
+                >
+                  Crear nuevo contrato
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleChange("mode", "add-to-existing")}
+                  style={{
+                    flex: 1,
+                    padding: "12px 16px",
+                    border: `2px solid ${formData.mode === "add-to-existing" ? "#295dff" : "#e5e7eb"}`,
+                    borderRadius: "12px",
+                    background: formData.mode === "add-to-existing" ? "#f0f5ff" : "#ffffff",
+                    color: formData.mode === "add-to-existing" ? "#295dff" : "#6b7280",
+                    fontWeight: 500,
+                    fontSize: "14px",
+                    cursor: "pointer",
+                    transition: "all 0.2s ease",
+                  }}
+                >
+                  Agregar a contrato existente
+                </button>
+              </div>
+            </div>
+
+            {/* Mostrar selector de contrato si modo es "add-to-existing" */}
+            {formData.mode === "add-to-existing" && (
+              <div>
+                <label
+                  htmlFor="contractSearch"
+                  style={{
+                    display: "block",
+                    fontWeight: 500,
+                    marginBottom: "8px",
+                    fontSize: "14px",
+                    color: "#374151",
+                  }}
+                >
+                  Seleccionar contrato <span style={{ color: "#dc2626" }}>*</span>
+                </label>
+                <div style={{ position: "relative" }}>
+                  <Search
+                    size={18}
+                    style={{
+                      position: "absolute",
+                      left: "12px",
+                      top: "50%",
+                      transform: "translateY(-50%)",
+                      color: "#9ca3af",
+                      pointerEvents: "none",
+                      zIndex: 1,
+                    }}
+                  />
+                  <input
+                    id="contractSearch"
+                    type="text"
+                    placeholder="Buscar por título..."
+                    value={contractSearch}
+                    onChange={(e) => setContractSearch(e.target.value)}
+                    onFocus={() => setShowContractDropdown(true)}
+                    aria-invalid={!!errors.documentType}
+                    style={{
+                      width: "100%",
+                      height: "44px",
+                      padding: "0 14px 0 40px",
+                      border: `1px solid ${errors.documentType ? "#dc2626" : "rgba(148, 163, 184, 0.45)"}`,
+                      borderRadius: "12px",
+                      fontSize: "15px",
+                      fontFamily: "inherit",
+                      color: "#111827",
+                      background: "#ffffff",
+                      transition: "border-color 0.2s ease, box-shadow 0.2s ease",
+                    }}
+                    onFocusCapture={(e) => {
+                      e.target.style.borderColor = "#295dff";
+                      e.target.style.boxShadow = "0 0 0 3px rgba(41, 93, 255, 0.18)";
+                    }}
+                    onBlurCapture={(e) => {
+                      setTimeout(() => {
+                        setShowContractDropdown(false);
+                        e.target.style.borderColor = errors.documentType
+                          ? "#dc2626"
+                          : "rgba(148, 163, 184, 0.45)";
+                        e.target.style.boxShadow = "none";
+                      }, 200);
+                    }}
+                  />
+
+                  {/* Dropdown de contratos */}
+                  {showContractDropdown && (
+                    <div
+                      style={{
+                        position: "absolute",
+                        top: "calc(100% + 8px)",
+                        left: 0,
+                        right: 0,
+                        background: "#ffffff",
+                        border: "1px solid #e5e7eb",
+                        borderRadius: "12px",
+                        boxShadow: "0 10px 25px rgba(0, 0, 0, 0.1)",
+                        maxHeight: "240px",
+                        overflowY: "auto",
+                        zIndex: 1000,
+                      }}
+                    >
+                      {contractOptions.filter(c => 
+                        !contractSearch.trim() || 
+                        c.title.toLowerCase().includes(contractSearch.toLowerCase()) ||
+                        c.propertyName.toLowerCase().includes(contractSearch.toLowerCase())
+                      ).length === 0 ? (
+                        <div
+                          style={{
+                            padding: "16px",
+                            color: "#9ca3af",
+                            textAlign: "center",
+                            fontSize: "14px",
+                          }}
+                        >
+                          No se encontraron contratos
+                        </div>
+                      ) : (
+                        contractOptions.filter(c => 
+                          !contractSearch.trim() || 
+                          c.title.toLowerCase().includes(contractSearch.toLowerCase()) ||
+                          c.propertyName.toLowerCase().includes(contractSearch.toLowerCase())
+                        ).map((contract) => (
+                          <button
+                            key={contract.id}
+                            type="button"
+                            onClick={() => {
+                              setFormData(prev => ({...prev, contractId: contract.id}));
+                              setContractSearch(contract.title);
+                              setShowContractDropdown(false);
+                              setErrors((prev) => ({ ...prev, documentType: undefined }));
+                            }}
+                            style={{
+                              width: "100%",
+                              padding: "12px 16px",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "12px",
+                              border: "none",
+                              background: "transparent",
+                              cursor: "pointer",
+                              textAlign: "left",
+                              transition: "background 0.15s ease",
+                              borderRadius: "8px",
+                            }}
+                            onMouseEnter={(e) =>
+                              (e.currentTarget.style.background =
+                                "rgba(41, 93, 255, 0.08)")
+                            }
+                            onMouseLeave={(e) =>
+                              (e.currentTarget.style.background = "transparent")
+                            }
+                          >
+                            <FileText size={20} style={{ color: "#295dff" }} />
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div
+                                style={{
+                                  fontWeight: 500,
+                                  color: "#111827",
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap",
+                                  fontSize: "14px",
+                                }}
+                              >
+                                {contract.title}
+                              </div>
+                              <div
+                                style={{
+                                  fontSize: "12px",
+                                  color: "#6b7280",
+                                  marginTop: "2px",
+                                }}
+                              >
+                                {contract.propertyName}
+                              </div>
+                            </div>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+                {errors.documentType && (
+                  <p
+                    style={{
+                      color: "#dc2626",
+                      fontSize: "13px",
+                      marginTop: "6px",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "4px",
+                    }}
+                  >
+                    <AlertCircle size={14} />
+                    {errors.documentType}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Campos para nuevo contrato */}
+            {formData.mode === "new-contract" && (
+              <>
             {/* Tipo de documento */}
             <div>
               <label
@@ -1381,8 +1705,10 @@ export default function NewDocumentQuickView({
                 )}
               </div>
             </div>
+              </>
+            )}
 
-            {/* Dropzone para archivo */}
+            {/* Dropzone para archivo (siempre visible) */}
             <div>
               <label
                 htmlFor="file"
