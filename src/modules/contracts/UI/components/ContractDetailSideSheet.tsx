@@ -20,10 +20,13 @@ import {
   User,
   X,
   Send,
+  MessageCircle,
+  CheckCircle,
 } from "lucide-react";
 import { useContractsActions } from "../hooks/useContractsActions";
 import { useContractDocuments } from "../hooks/useContractDocuments";
 import { supabase } from "../../../../core/supabase/client";
+import { useChatModule } from "../../../comunication/UI/contexts/ChatProvider";
 import styles from "./ContractDetailSideSheet.module.css";
 
 interface DetailSheetProps {
@@ -59,10 +62,58 @@ const ContractDetailSideSheet: React.FC<DetailSheetProps> = ({
   const [isSavingClient, setIsSavingClient] = useState(false);
   const [isLoadingClients, setIsLoadingClients] = useState(false);
   const [showDocumentSelector, setShowDocumentSelector] = useState(false);
+  const [showThreadSelector, setShowThreadSelector] = useState(false);
+  const [selectedDocumentForChat, setSelectedDocumentForChat] = useState<{
+    fileName: string;
+    s3Key: string;
+    isMain: boolean;
+  } | null>(null);
+  const [chatThreads, setChatThreads] = useState<any[]>([]);
+  const [loadingThreads, setLoadingThreads] = useState(false);
+  const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
+  const [sendingToChat, setSendingToChat] = useState(false);
+  const [sendSuccess, setSendSuccess] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const clientSearchRef = useRef<HTMLInputElement>(null);
   
   // Fetch documents from contract_documents table
   const { documents: contractDocuments, loading: loadingDocuments } = useContractDocuments(contract?.id || null);
+  
+  // Chat module
+  const { useCases } = useChatModule();
+
+  // Get current user ID
+  useEffect(() => {
+    const getCurrentUser = async () => {
+      const { data } = await supabase.auth.getSession();
+      const userId = data.session?.user?.id ?? null;
+      setCurrentUserId(userId);
+    };
+    void getCurrentUser();
+  }, []);
+
+  // Load available chat threads
+  const loadChatThreads = useCallback(async () => {
+    setLoadingThreads(true);
+    try {
+      const result = await useCases.listListerInbox.execute();
+      if (result.isOk()) {
+        // Flatten all threads from all groups
+        const allThreads = result.value.groups.flatMap(group => group.threads);
+        console.log('📋 Loaded threads:', allThreads.length, 'threads');
+        console.log('🔍 Thread participants sample:', allThreads[0]?.participants);
+        setChatThreads(allThreads);
+      } else {
+        console.error('Error loading threads:', result.error);
+        setChatThreads([]);
+      }
+    } catch (error) {
+      console.error('Error loading chat threads:', error);
+      setChatThreads([]);
+    } finally {
+      setLoadingThreads(false);
+    }
+  }, [useCases]);
 
   // Cargar preview de la propiedad desde S3
   useEffect(() => {
@@ -176,6 +227,78 @@ const ContractDetailSideSheet: React.FC<DetailSheetProps> = ({
       setIsSavingClient(false);
     }
   }, [selectedClient, contract]);
+
+  // Handle sending document to selected thread
+  const handleSendDocumentToChat = useCallback(async (threadId: string) => {
+    if (!selectedDocumentForChat) {
+      console.error('❌ Missing document data');
+      return;
+    }
+
+    console.log('📤 Starting document send...', {
+      document: selectedDocumentForChat,
+      threadId,
+      contract: contract?.id,
+    });
+
+    setSendingToChat(true);
+    setSelectedThreadId(threadId);
+
+    try {
+      // Get presigned URL for the document
+      console.log('🔗 Getting presigned URL for:', selectedDocumentForChat.s3Key);
+      const documentUrl = await getPresignedUrlForDisplay(selectedDocumentForChat.s3Key);
+      console.log('✅ Presigned URL obtained:', documentUrl?.substring(0, 100) + '...');
+      
+      // Prepare message with document metadata
+      const documentType = selectedDocumentForChat.isMain ? 'Contrato Principal' : 'Documento';
+      const messageBody = `📄 ${documentType}: ${selectedDocumentForChat.fileName}`;
+      
+      console.log('📨 Sending message with payload...', {
+        body: messageBody,
+        threadId,
+      });
+      
+      // Send message directly using use case
+      const result = await useCases.sendMessage.execute({
+        threadId,
+        body: messageBody,
+        payload: {
+          type: 'document',
+          fileName: selectedDocumentForChat.fileName,
+          s3Key: selectedDocumentForChat.s3Key,
+          documentUrl,
+          contractId: contract?.id,
+          contractProperty: contract?.propiedadNombre,
+        },
+      });
+
+      if (result.isOk()) {
+        console.log('✅ Document sent to chat successfully:', result.value);
+        setSendingToChat(false);
+        setSendSuccess(true);
+        setTimeout(() => {
+          setShowThreadSelector(false);
+          setShowDocumentSelector(false);
+          setSendSuccess(false);
+          setSelectedDocumentForChat(null);
+          setSelectedThreadId(null);
+        }, 2000);
+      } else {
+        console.error('❌ Error sending message:', result.error);
+        const errorMsg = typeof result.error === 'object' && result.error !== null && 'message' in result.error
+          ? (result.error as { message: string }).message
+          : 'Error al enviar el mensaje';
+        alert(`Error al enviar documento: ${errorMsg}`);
+        setSendingToChat(false);
+      }
+    } catch (error) {
+      console.error('❌ Error sending document (catch):', error);
+      console.error('Error details:', error instanceof Error ? error.message : String(error));
+      alert('Error al enviar el documento');
+      setSendingToChat(false);
+    }
+  }, [selectedDocumentForChat, useCases.sendMessage, contract]);
 
   if (!contract) return null;
 
@@ -843,9 +966,14 @@ const ContractDetailSideSheet: React.FC<DetailSheetProps> = ({
                 <button
                   className={styles.documentSelectorItem}
                   onClick={() => {
-                    // TODO: Implement send to chat
-                    alert(`Enviar documento "${contract.metadata?.fileName || 'contrato-' + contract.id + '.pdf'}" por chat (función próximamente)`);
+                    setSelectedDocumentForChat({
+                      fileName: contract.metadata?.fileName || `contrato-${contract.id}.pdf`,
+                      s3Key: contract.s3Key!,
+                      isMain: true,
+                    });
                     setShowDocumentSelector(false);
+                    setShowThreadSelector(true);
+                    loadChatThreads();
                   }}
                 >
                   <div className={styles.documentSelectorIcon}>
@@ -872,9 +1000,14 @@ const ContractDetailSideSheet: React.FC<DetailSheetProps> = ({
                   key={doc.id}
                   className={styles.documentSelectorItem}
                   onClick={() => {
-                    // TODO: Implement send to chat
-                    alert(`Enviar documento "${doc.fileName}" por chat (función próximamente)`);
+                    setSelectedDocumentForChat({
+                      fileName: doc.fileName,
+                      s3Key: doc.s3Key,
+                      isMain: false,
+                    });
                     setShowDocumentSelector(false);
+                    setShowThreadSelector(true);
+                    loadChatThreads();
                   }}
                 >
                   <div className={styles.documentSelectorIcon}>
@@ -895,6 +1028,95 @@ const ContractDetailSideSheet: React.FC<DetailSheetProps> = ({
                   <FileText size={40} style={{ margin: "0 auto 16px", opacity: 0.3 }} />
                   <p>No hay documentos disponibles</p>
                 </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Thread Selector Modal */}
+      {showThreadSelector && selectedDocumentForChat && (
+        <div className={styles.modalOverlay} onClick={() => !sendingToChat && setShowThreadSelector(false)}>
+          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h3 className={styles.modalTitle}>
+                {sendSuccess ? '✅ Documento enviado' : 'Seleccionar conversación'}
+              </h3>
+              {!sendingToChat && !sendSuccess && (
+                <button
+                  className={styles.modalCloseBtn}
+                  onClick={() => setShowThreadSelector(false)}
+                  aria-label="Cerrar"
+                >
+                  <X size={20} />
+                </button>
+              )}
+            </div>
+            <div className={styles.modalBody}>
+              {sendSuccess ? (
+                <div style={{ padding: "32px", textAlign: "center" }}>
+                  <CheckCircle size={64} style={{ color: "#10b981", margin: "0 auto 16px" }} />
+                  <p style={{ fontSize: "16px", fontWeight: 500, color: "#111827", marginBottom: "8px" }}>
+                    Documento enviado correctamente
+                  </p>
+                  <p style={{ fontSize: "14px", color: "#6b7280" }}>
+                    {selectedDocumentForChat.fileName}
+                  </p>
+                </div>
+              ) : loadingThreads ? (
+                <div style={{ padding: "32px", textAlign: "center", color: "#6b7280" }}>
+                  <Loader2 size={40} className="animate-spin" style={{ margin: "0 auto 16px" }} />
+                  <p>Cargando conversaciones...</p>
+                </div>
+              ) : chatThreads.length === 0 ? (
+                <div style={{ padding: "32px", textAlign: "center", color: "#6b7280" }}>
+                  <MessageCircle size={40} style={{ margin: "0 auto 16px", opacity: 0.3 }} />
+                  <p>No hay conversaciones disponibles</p>
+                </div>
+              ) : (
+                <>
+                  <p style={{ fontSize: "14px", color: "#6b7280", marginBottom: "16px", padding: "0 8px" }}>
+                    Enviar "{selectedDocumentForChat.fileName}" a:
+                  </p>
+                  {chatThreads.map((thread) => {
+                    // Find the other participant (not the current user)
+                    const otherParticipant = currentUserId 
+                      ? thread.participants.find((p: any) => p.id !== currentUserId)
+                      : thread.participants.find((p: any) => p.type === 'contact') || thread.participants[0];
+                    
+                    // Use the already mapped displayName, with fallback to email or phone
+                    const participantName = otherParticipant?.displayName 
+                      || otherParticipant?.email 
+                      || otherParticipant?.phone
+                      || 'Usuario';
+                    
+                    const propertyName = thread.property?.title || 'Sin propiedad';
+                    
+                    return (
+                      <button
+                        key={thread.id}
+                        className={styles.threadSelectorItem}
+                        onClick={() => {
+                          handleSendDocumentToChat(thread.id);
+                        }}
+                        disabled={sendingToChat}
+                      >
+                        <div className={styles.threadSelectorAvatar}>
+                          {participantName.charAt(0).toUpperCase()}
+                        </div>
+                        <div className={styles.threadSelectorInfo}>
+                          <p className={styles.threadSelectorName}>{participantName}</p>
+                          <p className={styles.threadSelectorMeta}>{propertyName}</p>
+                        </div>
+                        {sendingToChat && selectedThreadId === thread.id ? (
+                          <Loader2 size={18} className="animate-spin" style={{ color: "#295dff" }} />
+                        ) : (
+                          <Send size={18} className={styles.threadSelectorSendIcon} />
+                        )}
+                      </button>
+                    );
+                  })}
+                </>
               )}
             </div>
           </div>

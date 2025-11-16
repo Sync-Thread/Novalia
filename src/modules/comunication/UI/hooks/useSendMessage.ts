@@ -9,7 +9,7 @@ interface UseSendMessageOptions {
 }
 
 interface UseSendMessageReturn {
-  sendMessage: (body: string) => Promise<boolean>;
+  sendMessage: (body: string, payload?: Record<string, unknown> | null) => Promise<boolean>;
   sending: boolean;
   error: string | null;
   lastSentMessage: ChatMessageDTO | null;
@@ -68,10 +68,11 @@ export function useSendMessage({
   /**
    * Enviar un mensaje
    * @param body - Texto del mensaje
+   * @param payload - Datos adicionales opcionales (para adjuntos, metadata, etc.)
    * @returns true si se envió exitosamente, false si hubo un error
    */
   const sendMessage = useCallback(
-    async (body: string): Promise<boolean> => {
+    async (body: string, payload?: Record<string, unknown> | null): Promise<boolean> => {
       // Validaciones
       if (!threadId) {
         const errorMsg = 'No hay un thread seleccionado';
@@ -91,29 +92,36 @@ export function useSendMessage({
       setError(null);
 
       try {
+        console.log('📤 Sending message:', { threadId, body: body.trim(), payload });
+        
         const result = await useCases.sendMessage.execute({
           threadId,
           body: body.trim(),
+          payload: payload ?? null,
         });
+
+        console.log('📨 Send result:', result);
 
         if (result.isErr()) {
           const errorMsg = typeof result.error === 'object' && result.error !== null && 'message' in result.error
             ? (result.error as { message: string }).message
             : 'Error al enviar el mensaje';
-          console.error('❌ Error al enviar:', errorMsg);
+          console.error('❌ Error al enviar:', errorMsg, 'Full error:', result.error);
           setError(errorMsg);
           onError?.(errorMsg);
           return false;
         }
 
         const sentMessage = result.value;
+        console.log('✅ Message sent successfully:', sentMessage);
         setLastSentMessage(sentMessage);
         onSuccess?.(sentMessage);
         
         return true;
       } catch (err) {
-        console.error('Error al enviar mensaje:', err);
-        const errorMsg = 'Error inesperado al enviar el mensaje';
+        console.error('❌ Error al enviar mensaje (catch):', err);
+        console.error('Stack trace:', err instanceof Error ? err.stack : 'No stack trace');
+        const errorMsg = err instanceof Error ? err.message : 'Error inesperado al enviar el mensaje';
         setError(errorMsg);
         onError?.(errorMsg);
         return false;

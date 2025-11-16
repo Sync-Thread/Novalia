@@ -1,4 +1,5 @@
 import type { ChatMessageDTO } from '../../../application/dto/ChatMessageDTO';
+import { DocumentAttachment } from '../DocumentAttachment';
 import styles from './MessageBubble.module.css';
 
 interface MessageBubbleProps {
@@ -18,6 +19,7 @@ interface MessageBubbleProps {
  */
 export function MessageBubble({ message, isMine, senderName, showSender = false }: MessageBubbleProps) {
   const isSystem = message.senderType === 'system';
+  const isDocument = message.payload?.type === 'document';
 
   if (isSystem) {
     return (
@@ -36,7 +38,16 @@ export function MessageBubble({ message, isMine, senderName, showSender = false 
           <div className={styles.senderName}>{senderName}</div>
         )}
         
-        <div className={styles.messageBody}>{message.body}</div>
+        {isDocument ? (
+          <DocumentAttachment
+            fileName={message.payload.fileName as string}
+            s3Key={message.payload.s3Key as string}
+            documentUrl={message.payload.documentUrl as string | undefined}
+            contractProperty={message.payload.contractProperty as string | undefined}
+          />
+        ) : (
+          <div className={styles.messageBody}>{message.body}</div>
+        )}
         
         <div className={styles.meta}>
           <span className={styles.timestamp}>{formatTime(message.createdAt)}</span>
