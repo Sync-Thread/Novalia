@@ -4,6 +4,7 @@ import styles from "./ContractsPage.module.css";
 import ContractList from "../components/ContractList";
 import ContractDetailSideSheet from "../components/ContractDetailSideSheet";
 import NewDocumentQuickView from "../components/NewDocumentQuickView";
+import ContractDocumentsModal from "../components/ContractDocumentsModal";
 import { useContractsActions } from "../hooks/useContractsActions";
 
 import type { IContract } from "../../domain/entities/contractType";
@@ -48,6 +49,7 @@ function mapDtoToContract(dto: ContractListItemDTO): IContract {
       ? new Date(dto.dueOn).toLocaleDateString("es-MX")
       : new Date(dto.issuedOn).toLocaleDateString("es-MX"),
     porcentajeCompletado: 0, // TODO: Calcular basado en checklist cuando se implemente
+    documentos: [], // TODO: Get documents from backend when implemented
   };
 }
 
@@ -62,6 +64,7 @@ const ContractsPage: React.FC = () => {
   const [activeFilter, setActiveFilter] = useState("Todos");
   const [searchQuery, setSearchQuery] = useState("");
   const [showNewDocQuickView, setShowNewDocQuickView] = useState(false);
+  const [documentsModalContract, setDocumentsModalContract] = useState<IContract | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Cargar TODOS los contratos una sola vez al montar
@@ -169,10 +172,10 @@ const ContractsPage: React.FC = () => {
               <button
                 className="btn btn-primary"
                 onClick={() => setShowNewDocQuickView(true)}
-                aria-label="Crear nuevo documento"
+                aria-label="Crear nuevo contrato"
               >
                 <PlusIcon size={18} />
-                Nuevo documento
+                Nuevo contrato
               </button>
             </div>
           </div>
@@ -246,6 +249,7 @@ const ContractsPage: React.FC = () => {
               contracts={filteredContracts}
               onRowClick={handleRowClick}
               onMenuAction={handleMenuAction}
+              onViewDocuments={setDocumentsModalContract}
               loading={loading.contracts}
               onNewDocument={() => setShowNewDocQuickView(true)}
             />
@@ -262,13 +266,17 @@ const ContractsPage: React.FC = () => {
         }}
       />
 
+      <ContractDocumentsModal
+        contract={documentsModalContract}
+        onClose={() => setDocumentsModalContract(null)}
+      />
+
       <NewDocumentQuickView
         open={showNewDocQuickView}
         onClose={() => setShowNewDocQuickView(false)}
         onSuccess={(documentId) => {
-          console.log("Documento creado:", documentId);
-          // Recargar lista de contratos
-          loadAllContracts();
+          console.log("✅ Documento creado exitosamente:", documentId);
+          // NO recargar - el realtime se encargará de actualizar los contadores
           setShowNewDocQuickView(false);
         }}
       />

@@ -18,8 +18,8 @@ type ThreadRowWithRelations = ChatThreadRow & {
   participants?: Array<{
     user_id: string | null;
     contact_id: string | null;
-    profiles?: Array<{ id: string; full_name: string | null; email: string | null; phone: string | null }> | null;
-    lead_contacts?: Array<{ id: string; full_name: string | null; email: string | null; phone: string | null }> | null;
+    user_profiles?: { id: string; full_name: string | null; email: string | null; phone: string | null } | Array<{ id: string; full_name: string | null; email: string | null; phone: string | null }> | null;
+    contacts?: { id: string; full_name: string | null; email: string | null; phone: string | null } | Array<{ id: string; full_name: string | null; email: string | null; phone: string | null }> | null;
   }> | null;
   last_message?: ChatMessageRow[] | null;
 };
@@ -49,7 +49,12 @@ const THREAD_SELECT = `
     city,
     state,
     operation_type,
-    status
+    status,
+    media_assets!media_assets_property_id_fkey(
+      id,
+      s3_key,
+      metadata
+    )
   ),
   participants:chat_participants(
     user_id,
@@ -90,6 +95,7 @@ function mapPostgrestError(code: ThreadInfraErrorCode, error: PostgrestError): T
 }
 
 type ParticipantDTO = ChatThreadDTO["participants"][number];
+type ParticipantThreadRow = { thread_id: string };
 
 export class SupabaseChatThreadRepo implements ChatThreadRepo {
   private readonly client: SupabaseClient;
@@ -123,7 +129,7 @@ export class SupabaseChatThreadRepo implements ChatThreadRepo {
 
     const row = data as unknown as ThreadRowWithRelations;
 
-    const unreadCounts = await this.computeUnreadCounts([row.id], "user");
+    const unreadCounts = await this.computeUnreadCounts([row.id], "user", null);
     if (unreadCounts.isErr()) {
       return Result.fail(unreadCounts.error);
     }
@@ -171,7 +177,7 @@ export class SupabaseChatThreadRepo implements ChatThreadRepo {
       return Result.ok(null);
     }
 
-    const unreadCounts = await this.computeUnreadCounts([matchingThread.id], "user");
+    const unreadCounts = await this.computeUnreadCounts([matchingThread.id], "user", input.userId);
     if (unreadCounts.isErr()) {
       return Result.fail(unreadCounts.error);
     }
@@ -234,6 +240,27 @@ export class SupabaseChatThreadRepo implements ChatThreadRepo {
     const pageSize = Math.min(Math.max(1, filters.pageSize ?? 20), 50);
     const offset = (page - 1) * pageSize;
 
+    let allowedThreadIds: string[] | null = null;
+    if (scope.userId) {
+      const participantColumn = scope.readerType === "user" ? "user_id" : "contact_id";
+      const { data: participantRows, error: participantError } = await this.client
+        .from("chat_participants")
+        .select("thread_id")
+        .eq(participantColumn, scope.userId);
+
+      if (participantError) {
+        return Result.fail(mapPostgrestError("THREAD_QUERY_FAILED", participantError));
+      }
+
+      allowedThreadIds = Array.from(
+        new Set(((participantRows ?? []) as ParticipantThreadRow[]).map(row => row.thread_id)),
+      );
+
+      if (allowedThreadIds.length === 0) {
+        return Result.ok(buildPage([], 0, page, pageSize));
+      }
+    }
+
     let query = this.client
       .from("chat_threads")
       .select(THREAD_SELECT, { count: "exact" })
@@ -251,6 +278,10 @@ export class SupabaseChatThreadRepo implements ChatThreadRepo {
       userId: scope.userId ?? scope.orgId ?? "",
     });
 
+    if (allowedThreadIds) {
+      query = query.in("id", allowedThreadIds);
+    }
+
     const { data, error, count } = await query;
     
     if (error) {
@@ -263,6 +294,7 @@ export class SupabaseChatThreadRepo implements ChatThreadRepo {
     const unreadCounts = await this.computeUnreadCounts(
       rows.map(row => row.id),
       scope.readerType,
+      scope.userId,
     );
     if (unreadCounts.isErr()) {
       return Result.fail(unreadCounts.error);
@@ -281,18 +313,32 @@ export class SupabaseChatThreadRepo implements ChatThreadRepo {
   private async computeUnreadCounts(
     threadIds: string[],
     readerType: SenderType,
+    readerId: string | null,
   ): Promise<Result<Map<string, number>>> {
     if (threadIds.length === 0) {
       return Result.ok(new Map());
     }
 
-    const senderType = readerType === "user" ? "contact" : "user";
-    const { data, error } = await this.client
+    // Count messages that:
+    // 1. Are in the specified threads
+    // 2. Have read_at = null (unread)
+    // 3. Were NOT sent by the current user (if readerId is provided)
+    let query = this.client
       .from("chat_messages")
-      .select("thread_id")
+      .select("thread_id, sender_user_id, sender_contact_id")
       .in("thread_id", threadIds)
-      .eq("sender_type", senderType)
       .is("read_at", null);
+    
+    // Filter out messages sent by the reader
+    if (readerId) {
+      if (readerType === "user") {
+        query = query.neq("sender_user_id", readerId);
+      } else {
+        query = query.neq("sender_contact_id", readerId);
+      }
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       return Result.fail(mapPostgrestError("THREAD_QUERY_FAILED", error));
@@ -302,12 +348,15 @@ export class SupabaseChatThreadRepo implements ChatThreadRepo {
     (data as { thread_id: string }[] | null)?.forEach(row => {
       counts.set(row.thread_id, (counts.get(row.thread_id) ?? 0) + 1);
     });
+    
     return Result.ok(counts);
   }
 }
 
 function mapThreadRow(row: ThreadRowWithRelations, unreadCounts: Map<string, number>): ChatThreadDTO {
   const lastMessageRow = Array.isArray(row.last_message) ? row.last_message[0] ?? null : null;
+  const mappedParticipants = mapParticipants(row.participants ?? []);
+  
   return {
     id: row.id,
     orgId: row.org_id,
@@ -317,14 +366,29 @@ function mapThreadRow(row: ThreadRowWithRelations, unreadCounts: Map<string, num
     createdAt: row.created_at,
     lastMessageAt: row.last_message_at,
     unreadCount: unreadCounts.get(row.id) ?? 0,
-    status: "open",
-    participants: mapParticipants(row.participants ?? []),
+    status: "open" as const,
+    participants: mappedParticipants,
     lastMessage: lastMessageRow ? mapMessageRow(lastMessageRow) : null,
   };
 }
 
 function mapProperty(row: PropertySummaryRow | null): ChatThreadDTO["property"] {
   if (!row) return null;
+  
+  // Extract cover image from media_assets
+  let coverImageUrl: string | null = null;
+  if (row.media_assets && row.media_assets.length > 0) {
+    // Find image marked as cover
+    const coverMedia = row.media_assets.find(
+      media => media.metadata && (media.metadata as any).isCover === true
+    );
+    // Fallback to first image if no cover is marked
+    const selectedMedia = coverMedia ?? row.media_assets[0];
+    if (selectedMedia?.s3_key) {
+      coverImageUrl = selectedMedia.s3_key; // Store s3_key, will be resolved to URL by UI
+    }
+  }
+  
   return {
     id: row.id,
     title: row.title ?? null,
@@ -332,7 +396,7 @@ function mapProperty(row: PropertySummaryRow | null): ChatThreadDTO["property"] 
     currency: row.currency ?? null,
     city: row.city ?? null,
     state: row.state ?? null,
-    coverImageUrl: null,
+    coverImageUrl,
     operationType: row.operation_type ?? null,
     status: row.status ?? null,
   };
@@ -344,7 +408,11 @@ function mapParticipants(rows: ThreadRowWithRelations["participants"]): Particip
   return rows
     .map(row => {
       if (row.user_id) {
-        const profileData = (row as any).user_profiles;
+        // Acceder a user_profiles (el alias en el SELECT)
+        const profileData = Array.isArray((row as any).user_profiles) 
+          ? (row as any).user_profiles[0] 
+          : (row as any).user_profiles;
+        
         return {
           id: row.user_id,
           type: "user" as const,
@@ -354,8 +422,13 @@ function mapParticipants(rows: ThreadRowWithRelations["participants"]): Particip
           lastSeenAt: null,
         };
       }
+      
       if (row.contact_id) {
-        const contactData = (row as any).contacts;
+        // Acceder a contacts (el alias en el SELECT para lead_contacts)
+        const contactData = Array.isArray((row as any).contacts) 
+          ? (row as any).contacts[0] 
+          : (row as any).contacts;
+        
         return {
           id: row.contact_id,
           type: "contact" as const,
@@ -365,7 +438,8 @@ function mapParticipants(rows: ThreadRowWithRelations["participants"]): Particip
           lastSeenAt: null,
         };
       }
-      console.warn("Participant without user_id or contact_id", row);
+      
+      console.warn("❌ Participant without user_id or contact_id", row);
       return null;
     })
     .filter((participant): participant is Exclude<typeof participant, null> => participant !== null);

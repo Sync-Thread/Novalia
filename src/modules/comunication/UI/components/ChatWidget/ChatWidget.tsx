@@ -1,10 +1,11 @@
-﻿import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { X, Send, Loader2 } from "lucide-react";
 import { useChatModule } from "../../contexts/ChatProvider";
 import { useChatRealtime } from "../../hooks/useChatRealtime";
 import type { ChatThreadDTO } from "../../../application/dto/ChatThreadDTO";
 import type { ChatMessageDTO } from "../../../application/dto/ChatMessageDTO";
 import styles from "./ChatWidget.module.css";
+import { supabase } from "../../../../../core/supabase/client";
 
 export interface ChatWidgetProps {
   propertyId: string;
@@ -30,9 +31,18 @@ export function ChatWidget({
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // âœ… Handler para mensajes en tiempo real
+  useEffect(() => {
+    const fetchSession = async () => {
+      const { data } = await supabase.auth.getSession();
+      setCurrentUserId(data.session?.user?.id ?? null);
+    };
+    void fetchSession();
+  }, []);
+
+  // ✅ Handler para mensajes en tiempo real
   const handleNewMessage = useCallback((newMessage: ChatMessageDTO) => {
     setMessages(prev => {
       // Evitar duplicados
@@ -43,7 +53,7 @@ export function ChatWidget({
     });
   }, []);
 
-  // âœ… Integrar realtime
+  // ✅ Integrar realtime
   useChatRealtime(thread?.id ?? null, {
     onMessage: handleNewMessage,
   });
@@ -82,7 +92,7 @@ export function ChatWidget({
           const errorMsg = typeof threadResult.error === 'object' && threadResult.error !== null && 'message' in threadResult.error
             ? (threadResult.error as { message: string }).message
             : 'Error al iniciar el chat';
-          console.error("âŒ Error creando thread:", threadResult.error);
+          console.error("❌ Error creando thread:", threadResult.error);
           setError(errorMsg);
           setLoading(false);
           return;
@@ -94,7 +104,7 @@ export function ChatWidget({
         } catch (e) {
         }
 
-        // âœ… FIX: Siempre intentar cargar mensajes, no solo si lastMessage existe
+        // ✅ FIX: Siempre intentar cargar mensajes, no solo si lastMessage existe
         const messagesResult = await useCases.listMessages.execute({
           threadId: newThread.id,
           page: 1,
@@ -108,12 +118,12 @@ export function ChatWidget({
           if (messageCount === 0) {
           }
         } else {
-          console.error("âŒ Error cargando mensajes:", messagesResult.error);
+          console.error("❌ Error cargando mensajes:", messagesResult.error);
         }
 
         setLoading(false);
       } catch (err) {
-        console.error("ðŸ’¥ Error inesperado:", err);
+        console.error("💥 Error inesperado:", err);
         setError("Error inesperado al iniciar el chat");
         setLoading(false);
       }
@@ -143,22 +153,22 @@ export function ChatWidget({
         const errorMsg = typeof result.error === 'object' && result.error !== null && 'message' in result.error
           ? (result.error as { message: string }).message
           : 'Error al enviar el mensaje';
-        console.error("âŒ Error enviando mensaje:", result.error);
+        console.error("❌ Error enviando mensaje:", result.error);
         setError(errorMsg);
         setSending(false);
         return;
       }
 
 
-      // âœ… NO agregamos el mensaje manualmente - realtime se encarga
-      // El mensaje llegarÃ¡ vÃ­a handleNewMessage
+      // ✅ NO agregamos el mensaje manualmente - realtime se encarga
+      // El mensaje llegará vía handleNewMessage
       setMessageBody("");
       setSending(false);
 
       // Mark as read
       void useCases.markThreadAsRead.execute(thread.id);
     } catch (err) {
-      console.error("ðŸ’¥ Error inesperado enviando mensaje:", err);
+      console.error("💥 Error inesperado enviando mensaje:", err);
       setError("Error inesperado al enviar el mensaje");
       setSending(false);
     }
@@ -214,12 +224,12 @@ export function ChatWidget({
               <div className={styles.messages}>
                 {messages.length === 0 && (
                   <div className={styles.emptyState}>
-                    <p>EnvÃ­a un mensaje para iniciar la conversaciÃ³n</p>
+                    <p>Env\u00eda un mensaje para iniciar la conversaci\u00f3n</p>
                   </div>
                 )}
 
                 {messages.map(message => {
-                  const isOwn = message.senderType === "user";
+                  const isOwn = isOwnMessage(message, thread, currentUserId, listerUserId);
                   return (
                     <div
                       key={message.id}
@@ -267,4 +277,38 @@ export function ChatWidget({
       </div>
     </div>
   );
+}
+
+function isOwnMessage(
+  message: ChatMessageDTO,
+  thread: ChatThreadDTO | null,
+  currentUserId: string | null,
+  listerUserId: string | null,
+): boolean {
+  // Buyer-side widget: treat system messages as not own
+  if (!thread) return false;
+
+  if (message.senderType === "contact") {
+    const contactId =
+      thread.contactId ??
+      thread.participants.find(participant => participant.type === "contact")?.id ??
+      null;
+    if (contactId) {
+      return message.senderId === contactId;
+    }
+    // If no contact exists (buyer es usuario), asumimos que los mensajes del contacto son del visitante
+    return true;
+  }
+
+  if (message.senderType === "user") {
+    if (currentUserId && message.senderId) {
+      return message.senderId === currentUserId;
+    }
+    if (listerUserId && message.senderId) {
+      return message.senderId !== listerUserId;
+    }
+    return false;
+  }
+
+  return false;
 }

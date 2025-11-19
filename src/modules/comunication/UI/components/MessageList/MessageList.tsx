@@ -40,6 +40,7 @@ export function MessageList({
   const [newMessages, setNewMessages] = useState(0);
   const lastMessageCountRef = useRef(messages.length);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const hasScrolledToInitialRef = useRef(false);
 
   // Obtener el userId del usuario actual
   useEffect(() => {
@@ -50,6 +51,19 @@ export function MessageList({
     };
     void getCurrentUser();
   }, []);
+
+  // Auto-scroll inicial cuando cargan los mensajes por primera vez
+  useEffect(() => {
+    if (!scrollRef.current || loading || messages.length === 0) return;
+    
+    if (!hasScrolledToInitialRef.current) {
+      // Primer scroll sin animación para ir directo al final
+      setTimeout(() => {
+        scrollToBottom(false);
+        hasScrolledToInitialRef.current = true;
+      }, 100);
+    }
+  }, [messages.length, loading]);
 
   // Auto-scroll cuando llegan mensajes nuevos
   useEffect(() => {

@@ -2,6 +2,7 @@ import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import HeaderUpbarNovalia from "../components/HeaderUpbarNovalia/HeaderUpbarNovalia";
 import { supabase } from "../../core/supabase/client";
 import { ChatProvider } from "../../modules/comunication/UI/contexts/ChatProvider";
+import { ChatBubble } from "../../modules/comunication/UI/components/ChatBubble";
 
 export default function AppShell() {
   const navigate = useNavigate();
@@ -42,6 +43,7 @@ export default function AppShell() {
             <Outlet />
           </div>
         </div>
+        <ChatBubble />
       </div>
     </ChatProvider>
   );

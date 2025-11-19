@@ -1,13 +1,15 @@
 import React, { useEffect, useState } from "react";
 import styles from "./ContractList.module.css";
 import type { IContract } from "../../domain/entities/contractType";
-import { FileText, PlusIcon } from "lucide-react";
+import { FileText, PlusIcon, Files } from "lucide-react";
 import { getPresignedUrlForDisplay } from "../../../properties/infrastructure/adapters/MediaStorage";
+import { useContractDocumentCounts } from "../hooks/useContractDocumentCounts";
 
 interface ContractListProps {
   contracts: IContract[];
   onRowClick: (contract: IContract) => void;
   onMenuAction?: (action: string, contractId: string) => void;
+  onViewDocuments?: (contract: IContract) => void;
   loading?: boolean;
   onNewDocument?: () => void;
 }
@@ -92,10 +94,15 @@ const getEstadoClass = (estado: IContract["estadoFirma"]) => {
 const ContractList: React.FC<ContractListProps> = ({
   contracts,
   onRowClick,
+  onViewDocuments,
   loading = false,
   onNewDocument,
 }) => {
   const [previews, setPreviews] = useState<Record<string, string>>({});
+  
+  // Get document counts for all contracts
+  const contractIds = contracts.map(c => c.id);
+  const { counts: documentCounts } = useContractDocumentCounts(contractIds);
 
   // Cargar previews de imágenes
   useEffect(() => {
@@ -134,6 +141,7 @@ const ContractList: React.FC<ContractListProps> = ({
             <col className={styles.colClient} />
             <col className={styles.colStatus} />
             <col className={styles.colFechas} />
+            <col className={styles.colActions} />
           </colgroup>
           <thead>
             <tr>
@@ -193,6 +201,9 @@ const ContractList: React.FC<ContractListProps> = ({
                     style={{ width: "70%", marginTop: "6px" }}
                   />
                 </td>
+                <td className={styles.tdActions}>
+                  <div className={styles.skeletonButton} />
+                </td>
               </tr>
             ))}
           </tbody>
@@ -237,7 +248,7 @@ const ContractList: React.FC<ContractListProps> = ({
             <p
               style={{ color: "#6b7280", fontSize: "15px", maxWidth: "400px" }}
             >
-              Comienza creando un nuevo documento para tu propiedad
+              Comienza creando un nuevo contrato para tu propiedad
             </p>
           </div>
           {onNewDocument && (
@@ -247,7 +258,7 @@ const ContractList: React.FC<ContractListProps> = ({
               style={{ marginTop: "8px", gap: "8px" }}
             >
               <PlusIcon size={18} />
-              Nuevo documento
+              Nuevo contrato
             </button>
           )}
         </div>
@@ -264,6 +275,7 @@ const ContractList: React.FC<ContractListProps> = ({
           <col className={styles.colClient} />
           <col className={styles.colStatus} />
           <col className={styles.colFechas} />
+          <col className={styles.colActions} />
         </colgroup>
         <thead>
           <tr>
@@ -272,6 +284,7 @@ const ContractList: React.FC<ContractListProps> = ({
             <th className={styles.thClient}>Contraparte</th>
             <th className={styles.thStatus}>Estado</th>
             <th className={styles.thFechas}>Fechas</th>
+            <th className={styles.thActions}>Documentos</th>
           </tr>
         </thead>
         <tbody>
@@ -370,6 +383,19 @@ const ContractList: React.FC<ContractListProps> = ({
                     </span>
                   </div>
                 </div>
+              </td>
+              <td className={styles.tdActions}>
+                <button
+                  className={styles.documentsButton}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onViewDocuments?.(contract);
+                  }}
+                  title={`Ver documentos (${documentCounts[contract.id] || 0})`}
+                >
+                  <Files size={18} />
+                  <span>{documentCounts[contract.id] || 0}</span>
+                </button>
               </td>
             </tr>
           ))}

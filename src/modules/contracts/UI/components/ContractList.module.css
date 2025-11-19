@@ -187,6 +187,10 @@
   text-align: left;
 }
 
+.thActions {
+  text-align: center;
+}
+
 /* Anchos de columna con table-layout: fixed */
 .colProperty {
   width: 30%;
@@ -206,6 +210,10 @@
 
 .colFechas {
   width: 13%;
+}
+
+.colActions {
+  width: 8%;
 }
 
 /* Alineación de celdas del cuerpo */
@@ -301,6 +309,45 @@
   color: #374151;
   font-weight: 500;
   font-variant-numeric: tabular-nums;
+}
+
+.tdActions {
+  text-align: center;
+}
+
+.documentsButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #295dff;
+  background: #f0f5ff;
+  border: 1px solid #d9e5ff;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.documentsButton:hover {
+  background: #e0edff;
+  border-color: #b8d4ff;
+  transform: translateY(-1px);
+}
+
+.documentsButton:active {
+  transform: translateY(0);
+}
+
+.skeletonButton {
+  width: 60px;
+  height: 28px;
+  border-radius: 8px;
+  margin: 0 auto;
+  background: linear-gradient(90deg, #f3f4f6 0%, #e5e7eb 50%, #f3f4f6 100%);
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.5s ease-in-out infinite;
 }
 
 /* Estado de foco accesible */

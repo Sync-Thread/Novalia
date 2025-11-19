@@ -83,15 +83,27 @@ export class SupabaseChatMessageRepo implements ChatMessageRepo {
   }
 
   async markThreadAsRead(input: { threadId: string; readerType: SenderType; readerId: string | null }): Promise<Result<void>> {
-    const counterpart = input.readerType === "user" ? "contact" : "user";
+    if (!input.readerId) {
+      return Result.ok(undefined); // No reader ID, skip
+    }
+
     const timestamp = new Date().toISOString();
 
-    const { error } = await this.client
+    // Mark as read all messages NOT sent by the reader (i.e., sent by others)
+    let query = this.client
       .from("chat_messages")
       .update({ read_at: timestamp, delivered_at: timestamp })
       .eq("thread_id", input.threadId)
-      .eq("sender_type", counterpart)
       .is("read_at", null);
+
+    // Filter out messages sent by the reader
+    if (input.readerType === "user") {
+      query = query.neq("sender_user_id", input.readerId);
+    } else {
+      query = query.neq("sender_contact_id", input.readerId);
+    }
+
+    const { error } = await query;
 
     if (error) {
       return Result.fail(mapPostgrestError("MESSAGE_QUERY_FAILED", error));

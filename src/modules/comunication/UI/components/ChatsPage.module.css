@@ -30,6 +30,8 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  min-height: 0;
+  max-height: 100%;
 }
 
 .sidebarHeader {
@@ -122,40 +124,51 @@
 
 .propertyCard {
   width: 100%;
-  background: #fff;
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
   border-radius: 18px;
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  box-shadow: 0 26px 45px rgba(15, 23, 42, 0.08);
-  padding: 14px 16px;
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  box-shadow: 0 4px 20px rgba(59, 130, 246, 0.12);
+  padding: 18px 20px;
   display: block;
   cursor: pointer;
   text-align: left;
+  transition: all 0.2s ease;
+}
+
+.propertyCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(59, 130, 246, 0.18);
 }
 
 .propertyCardExpanded {
-  border-color: rgba(37, 99, 235, 0.4);
-  box-shadow: 0 30px 60px rgba(37, 99, 235, 0.14);
+  border-color: rgba(37, 99, 235, 0.5);
+  box-shadow: 0 8px 40px rgba(37, 99, 235, 0.2);
+  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
 }
 
 .propertyPreview {
-  display: flex;
+  display: grid;
+  grid-template-columns: 80px 1fr auto;
   gap: 14px;
   align-items: center;
 }
 
 .propertyImage {
-  width: 78px;
-  height: 78px;
-  border-radius: 16px;
+  width: 80px;
+  height: 80px;
+  border-radius: 12px;
   object-fit: cover;
-  background: #eef2ff;
+  background: #f1f5f9;
+  border: 2px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .propertyInfo {
-  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 6px;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .propertyTitleRow {
@@ -166,28 +179,37 @@
 
 .propertyTitleRow h3 {
   margin: 0;
-  font-size: 18px;
+  font-size: 15px;
+  font-weight: 700;
   color: #0f172a;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
 }
 
 .propertyStats {
   display: flex;
-  gap: 14px;
-  font-size: 11px;
+  gap: 12px;
+  font-size: 12px;
   color: #475569;
 }
 
 .propertyStats span {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   font-weight: 600;
+  background: rgba(255, 255, 255, 0.8);
+  padding: 3px 8px;
+  border-radius: 6px;
 }
 
 .propertyArrow {
   color: #2563eb;
-  margin-left: auto;
   transition: transform 120ms ease;
+  flex-shrink: 0;
 }
 
 .propertyArrowOpen {
@@ -245,10 +267,10 @@
 
 .threadButton {
   display: flex;
-  align-items: center;
-  gap: 12px;
+  flex-direction: column;
+  gap: 4px;
   border-radius: 14px;
-  padding: 14px 16px;
+  padding: 12px 14px;
   border: 1px solid transparent;
   cursor: pointer;
   background: linear-gradient(135deg, rgba(248, 250, 255, 0.9) 0%, rgba(255, 255, 255, 0.7) 100%);
@@ -256,6 +278,7 @@
   text-align: left;
   position: relative;
   overflow: hidden;
+  width: 100%;
 }
 
 .threadButton::before {
@@ -292,23 +315,27 @@
 }
 
 .threadTitle {
-  font-size: 15px;
-  font-weight: 600;
+  font-size: 14px;
+  font-weight: 700;
   color: #0f172a;
-  margin-bottom: 4px;
+  margin: 0;
   position: relative;
   z-index: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .threadSubtitle {
-  font-size: 13px;
+  font-size: 12px;
   color: #64748b;
-  margin-bottom: 6px;
+  margin: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   position: relative;
   z-index: 1;
+  line-height: 1.4;
 }
 
 .threadMeta {
@@ -439,4 +466,211 @@
   justify-content: center;
   color: #94a3b8;
   font-size: 15px;
+}
+
+.errorState {
+  padding: 16px;
+  background: #fee2e2;
+  color: #991b1b;
+  border-radius: 12px;
+  font-size: 14px;
+  text-align: center;
+}
+
+/* Responsive styles */
+@media (max-width: 1024px) {
+  .panels {
+    grid-template-columns: 300px 1fr;
+  }
+
+  .propertyColumn {
+    padding-right: 2px;
+  }
+
+  .propertyCard {
+    padding: 14px 16px;
+  }
+
+  .propertyImage {
+    width: 70px;
+    height: 70px;
+  }
+
+  .propertyInfo {
+    gap: 6px;
+  }
+
+  .propertyTitleRow h3 {
+    font-size: 14px;
+  }
+
+  .propertyStats {
+    gap: 10px;
+    font-size: 11px;
+  }
+
+  .propertyStats span {
+    padding: 3px 7px;
+  }
+}
+
+@media (max-width: 768px) {
+  .page {
+    padding: 16px;
+    height: calc(100vh - 100px);
+  }
+
+  .panels {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .sidebar {
+    max-height: 45vh;
+  }
+
+  .sidebarHeader {
+    padding: 16px;
+  }
+
+  .searchInput {
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+
+  .threadButton {
+    padding: 10px 12px;
+  }
+
+  .threadTitle {
+    font-size: 13px;
+  }
+
+  .threadSubtitle {
+    font-size: 11px;
+  }
+
+  .propertyColumn {
+    max-height: 45vh;
+  }
+
+  .messagesPanel {
+    min-height: 50vh;
+  }
+
+  .propertyCard {
+    padding: 12px 14px;
+  }
+
+  .propertyImage {
+    width: 60px;
+    height: 60px;
+  }
+
+  .propertyTitleRow h3 {
+    font-size: 13px;
+  }
+
+  .propertyStats {
+    font-size: 11px;
+    gap: 8px;
+  }
+
+  .propertyStats span {
+    padding: 3px 6px;
+    font-size: 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .page {
+    padding: 12px;
+    gap: 12px;
+  }
+
+  .contextRow {
+    gap: 12px;
+  }
+
+  .contextRow h1 {
+    font-size: 22px !important;
+  }
+
+  .contextRow p {
+    font-size: 13px !important;
+  }
+
+  .sidebar {
+    border-radius: 16px;
+  }
+
+  .sidebarHeader {
+    padding: 14px;
+  }
+
+  .searchInput {
+    padding: 8px 10px;
+    font-size: 12px;
+    border-radius: 10px;
+  }
+
+  .threadButton {
+    padding: 8px 10px;
+    border-radius: 12px;
+  }
+
+  .threadTitle {
+    font-size: 12px;
+  }
+
+  .threadSubtitle {
+    font-size: 10px;
+  }
+
+  .threadMeta {
+    font-size: 10px;
+    margin-top: 2px;
+  }
+
+  .badge {
+    font-size: 9px;
+    padding: 2px 6px;
+  }
+
+  .propertyCard {
+    padding: 10px 12px;
+    border-radius: 14px;
+  }
+
+  .propertyImage {
+    width: 50px;
+    height: 50px;
+    border-radius: 10px;
+  }
+
+  .propertyTitleRow h3 {
+    font-size: 12px;
+  }
+
+  .propertyStats {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .propertyStats span {
+    font-size: 9px;
+    gap: 4px;
+  }
+
+  .messagesBody {
+    padding: 16px;
+  }
+
+  .composer {
+    padding: 12px 16px;
+  }
+
+  .messagesPanel {
+    border-radius: 16px;
+  }
 }

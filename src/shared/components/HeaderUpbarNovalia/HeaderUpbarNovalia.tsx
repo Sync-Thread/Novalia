@@ -15,6 +15,9 @@ import { supabase } from "../../../core/supabase/client";
 import Modal from "../../UI/Modal";
 import AccountTypeModal from "../../../modules/auth/UI/components/AccountTypeModal";
 import type { AccountType } from "../../types/auth";
+import { useChatNotificationsStandalone } from "../../../modules/comunication/UI/hooks/useChatNotificationsStandalone";
+import { ChatNotificationsDropdown, ChatNotificationToast } from "../../../modules/comunication/UI/components/ChatNotifications";
+import type { ChatNotification } from "../../../modules/comunication/UI/hooks/useChatNotifications";
 
 type HeaderRole = "visitor" | "buyer" | "agent_org";
 type HeaderSize = "desktop" | "mobile";
@@ -373,7 +376,9 @@ export default function HeaderUpbarNovalia({
 
   const [sheetOpen, setSheetOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
+  const notificationsRef = useRef<HTMLDivElement | null>(null);
   const dropdownItemsRef = useRef<
     (HTMLAnchorElement | HTMLButtonElement | null)[]
   >([]);
@@ -382,25 +387,33 @@ export default function HeaderUpbarNovalia({
   const closeAuthPrompt = useCallback(() => setAuthPromptOpen(false), []);
   const [accountTypeModalOpen, setAccountTypeModalOpen] = useState(false);
   const [hoveredSubmenu, setHoveredSubmenu] = useState<string | null>(null);
+  const [toastNotification, setToastNotification] = useState<ChatNotification | null>(null);
+  const [lastNotificationId, setLastNotificationId] = useState<string | null>(null);
 
   const navItems = navItemsByRole[role];
 
-  const notificationsCount = 0; // TODO(CONTADORES): notificaciones y badges al integrar Telemetry/Chats.
+  // Hook de notificaciones de chat (solo para usuarios autenticados)
+  const { notifications, totalUnread, loading: notificationsLoading } = useChatNotificationsStandalone();
+
+  const notificationsCount = role !== "visitor" ? totalUnread : 0;
 
   useEffect(() => {
     setSheetOpen(false);
     setDropdownOpen(false);
+    setNotificationsOpen(false);
   }, [location.pathname, location.search]);
 
   useEffect(() => {
     if (!dropdownOpen) return;
-    const handleClickOutside = (event: MouseEvent) => {
+    const handleClickOutside = (event: Event) => {
+      const mouseEvent = event as unknown as { target: Node };
       if (!dropdownRef.current) return;
-      if (dropdownRef.current.contains(event.target as Node)) return;
+      if (dropdownRef.current.contains(mouseEvent.target as Node)) return;
       setDropdownOpen(false);
     };
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
+    const handleEscape = (event: Event) => {
+      const keyEvent = event as unknown as { key: string };
+      if (keyEvent.key === "Escape") {
         setDropdownOpen(false);
       }
     };
@@ -413,6 +426,39 @@ export default function HeaderUpbarNovalia({
   }, [dropdownOpen]);
 
   useEffect(() => {
+    if (!notificationsOpen) return;
+    const handleClickOutside = (event: Event) => {
+      const mouseEvent = event as unknown as { target: Node };
+      if (!notificationsRef.current) return;
+      if (notificationsRef.current.contains(mouseEvent.target as Node)) return;
+      setNotificationsOpen(false);
+    };
+    const handleEscape = (event: Event) => {
+      const keyEvent = event as unknown as { key: string };
+      if (keyEvent.key === "Escape") {
+        setNotificationsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleEscape);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [notificationsOpen]);
+
+  // Mostrar toast cuando llegue una nueva notificación
+  useEffect(() => {
+    if (notifications.length > 0 && !notificationsLoading) {
+      const latestNotification = notifications[0];
+      if (latestNotification.id !== lastNotificationId) {
+        setLastNotificationId(latestNotification.id);
+        setToastNotification(latestNotification);
+      }
+    }
+  }, [notifications, notificationsLoading, lastNotificationId]);
+
+  useEffect(() => {
     if (isMobile) {
       setDropdownOpen(false);
     }
@@ -422,8 +468,9 @@ export default function HeaderUpbarNovalia({
     if (!sheetOpen) {
       return;
     }
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
+    const handleKeyDown = (event: Event) => {
+      const keyEvent = event as unknown as { key: string };
+      if (keyEvent.key === "Escape") {
         setSheetOpen(false);
       }
     };
@@ -664,7 +711,7 @@ export default function HeaderUpbarNovalia({
             to={item.to}
             className={`nav-item${isActive ? " nav-item--active" : ""}${requiresAuth ? " nav-item--blocked" : ""}`}
             aria-label={ariaLabel}
-            onClick={(event) => {
+            onClick={() => {
               if (options.closeSheet) {
                 setSheetOpen(false);
               }
@@ -681,7 +728,7 @@ export default function HeaderUpbarNovalia({
               to={subItem.to}
               className="nav-item"
               style={{ paddingLeft: "42px" }}
-              onClick={(event) => {
+              onClick={() => {
                 if (options.closeSheet) {
                   setSheetOpen(false);
                 }
@@ -783,20 +830,36 @@ export default function HeaderUpbarNovalia({
     const avatarInitials = user?.initials ?? "NV";
     const avatarLabel = user?.fullName ?? user?.email ?? "Cuenta";
 
+    const toggleNotifications = () => {
+      setNotificationsOpen(prev => !prev);
+      setDropdownOpen(false);
+    };
+
     const bellButton = (
-      <button
-        type="button"
-        className="icon-btn"
-        aria-label={`Abrir notificaciones (${notificationsCount})`}
-        aria-haspopup="true"
-      >
-        <BellIcon />
-        {notificationsCount > 0 && (
-          <span className="badge badge--count" aria-live="polite">
-            {notificationsCount}
-          </span>
+      <div className="upbar-notifications" ref={notificationsRef} style={{ position: 'relative' }}>
+        <button
+          type="button"
+          className="icon-btn"
+          aria-label={`Abrir notificaciones (${notificationsCount})`}
+          aria-haspopup="true"
+          aria-expanded={notificationsOpen}
+          onClick={toggleNotifications}
+        >
+          <BellIcon />
+          {notificationsCount > 0 && (
+            <span className="badge badge--count" aria-live="polite">
+              {notificationsCount}
+            </span>
+          )}
+        </button>
+        {notificationsOpen && (
+          <ChatNotificationsDropdown
+            notifications={notifications}
+            loading={notificationsLoading}
+            onClose={() => setNotificationsOpen(false)}
+          />
         )}
-      </button>
+      </div>
     );
 
     const avatarButton = (
@@ -996,7 +1059,7 @@ export default function HeaderUpbarNovalia({
           {!isMobile && (
             <div className="upbar-center">
               <nav aria-label="Navegacion principal">
-                <div className="nav">{navItems.map(renderNavItem)}</div>
+                <div className="nav">{navItems.map((item) => renderNavItem(item))}</div>
               </nav>
             </div>
           )}
@@ -1054,10 +1117,10 @@ export default function HeaderUpbarNovalia({
                     className="btn btn-outline"
                     onClick={() => {
                       closeSheet();
-                      // TODO(CONTADORES): integrar detalle de notificaciones en mobile sheet.
+                      navigate('/chats');
                     }}
                   >
-                    Notificaciones
+                    Notificaciones {notificationsCount > 0 && `(${notificationsCount})`}
                   </button>
                 </div>
               )}
@@ -1082,6 +1145,11 @@ export default function HeaderUpbarNovalia({
         open={accountTypeModalOpen}
         onClose={() => setAccountTypeModalOpen(false)}
         onContinue={handleAccountTypeSelection}
+      />
+
+      <ChatNotificationToast
+        notification={toastNotification}
+        onClose={() => setToastNotification(null)}
       />
     </>
   );
@@ -1158,26 +1226,6 @@ function BuildingIcon() {
     >
       <path
         d="M3 21h18M5 21V5a1 1 0 0 1 1-1h6v17M13 21V9h5a1 1 0 0 1 1 1v11M7 8h2m-2 4h2m-2 4h2m4-3h2"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function FileIcon() {
-  return (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden="true"
-    >
-      <path
-        d="M14 3v4a1 1 0 0 0 1 1h4M7 21h10a1 1 0 0 0 1-1V8.828a1 1 0 0 0-.293-.707L13.879 3.293A1 1 0 0 0 13.172 3H7a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1Zm2-7h6m-6-3h1m-1 6h4"
         stroke="currentColor"
         strokeWidth="1.8"
         strokeLinecap="round"

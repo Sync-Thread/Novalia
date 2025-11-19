@@ -1,3 +1,5 @@
+import { useNavigate } from 'react-router-dom';
+import { useEffect, useRef } from 'react';
 import type { ChatThreadDTO } from "../../application/dto/ChatThreadDTO";
 import type { ChatMessageDTO } from "../../application/dto/ChatMessageDTO";
 import styles from "./ChatsPage.module.css";
@@ -33,6 +35,25 @@ export function ChatThreadPanel({
   sending,
   sendError,
 }: ChatThreadPanelProps) {
+  const navigate = useNavigate();
+  const composerInputRef = useRef<HTMLInputElement>(null);
+
+  // Auto-focus en el input cuando se selecciona un thread
+  useEffect(() => {
+    if (thread && composerInputRef.current) {
+      // Delay para asegurar que el componente está montado
+      setTimeout(() => {
+        composerInputRef.current?.focus();
+      }, 100);
+    }
+  }, [thread?.id]);
+
+  const handleViewProperty = () => {
+    if (thread?.property?.id) {
+      navigate(`/properties/${thread.property.id}`);
+    }
+  };
+
   if (!thread) {
     return (
       <section className={styles.messagesPanel}>
@@ -52,6 +73,7 @@ export function ChatThreadPanel({
           property={thread.property ?? null}
           contactName={contactParticipant?.displayName ?? null}
           contactEmail={contactParticipant?.email ?? null}
+          onViewProperty={handleViewProperty}
         />
       </div>
 
@@ -81,6 +103,7 @@ export function ChatThreadPanel({
           </p>
         )}
         <input
+          ref={composerInputRef}
           className={styles.composerInput}
           placeholder="Escribe un mensaje..."
           value={composer}

@@ -34,29 +34,32 @@ export function useInboxRealtime({
     let messageTimeout: ReturnType<typeof setTimeout> | null = null;
     let threadTimeout: ReturnType<typeof setTimeout> | null = null;
 
-    // Suscripción a nuevos mensajes
+    // Usar nombres únicos para evitar conflictos entre múltiples suscripciones
+    const channelId = Math.random().toString(36).substring(7);
+
+    // Suscripción a nuevos mensajes E UPDATES (cuando se marcan como leídos)
     const messagesChannel = supabase
-      .channel('inbox-messages')
+      .channel(`inbox-messages-${channelId}`)
       .on(
         'postgres_changes',
         {
-          event: 'INSERT',
+          event: '*', // Escuchar todos los eventos (INSERT, UPDATE, DELETE)
           schema: 'public',
           table: 'chat_messages',
         },
         (payload) => {
-          // Debounce de 500ms para evitar múltiples refrescos
+          // Debounce de 300ms para evitar múltiples refrescos
           if (messageTimeout) clearTimeout(messageTimeout);
           messageTimeout = setTimeout(() => {
             handlersRef.current.onNewMessage?.();
-          }, 500);
+          }, 300);
         }
       )
       .subscribe();
 
     // Suscripción a actualizaciones de threads (last_message_at)
     const threadsChannel = supabase
-      .channel('inbox-threads')
+      .channel(`inbox-threads-${channelId}`)
       .on(
         'postgres_changes',
         {
@@ -65,11 +68,11 @@ export function useInboxRealtime({
           table: 'chat_threads',
         },
         (payload) => {
-          // Debounce de 500ms
+          // Debounce de 300ms
           if (threadTimeout) clearTimeout(threadTimeout);
           threadTimeout = setTimeout(() => {
             handlersRef.current.onThreadUpdate?.();
-          }, 500);
+          }, 300);
         }
       )
       .subscribe();

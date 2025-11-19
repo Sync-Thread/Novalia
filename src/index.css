@@ -1030,6 +1030,11 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
   display: inline-flex;
   align-items: center;
 }
+.upbar-notifications {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
 .upbar-avatar {
   width: 40px;
   height: 40px;
