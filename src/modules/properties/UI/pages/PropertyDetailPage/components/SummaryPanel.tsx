@@ -22,13 +22,15 @@ import styles from "./SummaryPanel.module.css";
 
 export interface SummaryPanelProps {
   property: PropertyDTO;
+  onContact?: () => void;
+  isOwner?: boolean;
 }
 
 /**
  * Panel resumen sticky con precio, tipo, stats, dirección y CTA.
  * Placeholder para acciones (Guardar/Compartir/Contactar).
  */
-export function SummaryPanel({ property }: SummaryPanelProps) {
+export function SummaryPanel({ property, onContact, isOwner = false }: SummaryPanelProps) {
   const {
     price,
     propertyType,
@@ -60,8 +62,11 @@ export function SummaryPanel({ property }: SummaryPanelProps) {
   };
 
   const handleContact = () => {
-    // TODO: implementar contactar
-    console.log("Contactar");
+    if (onContact) {
+      onContact();
+    } else {
+      console.log("Contactar");
+    }
   };
 
   return (
@@ -157,15 +162,17 @@ export function SummaryPanel({ property }: SummaryPanelProps) {
         </button>
       </div>
 
-      <button
-        type="button"
-        className={styles.ctaButton}
-        onClick={handleContact}
-        aria-label="Contactar sobre esta propiedad"
-      >
-        <MessageCircle aria-hidden="true" />
-        Contactar
-      </button>
+      {!isOwner && (
+        <button
+          type="button"
+          className={styles.ctaButton}
+          onClick={handleContact}
+          aria-label="Contactar sobre esta propiedad"
+        >
+          <MessageCircle aria-hidden="true" />
+          Contactar
+        </button>
+      )}
     </aside>
   );
 }

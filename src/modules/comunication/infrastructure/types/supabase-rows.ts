@@ -9,13 +9,28 @@ export type ChatThreadRow = {
 };
 
 export type ChatParticipantRow = {
-  thread_id: string;
+  thread_id?: string;
   user_id: string | null;
   contact_id: string | null;
+  // Estos campos se agregan después del enriquecimiento
+  // Supabase puede usar cualquiera de estos nombres dependiendo del query
+  user_profiles?: {
+    id: string;
+    full_name: string | null;
+    avatar_url: string | null;
+    email: string | null;
+    phone: string | null;
+  } | null;
   profiles?: {
     id: string;
     full_name: string | null;
     avatar_url: string | null;
+    email: string | null;
+    phone: string | null;
+  } | null;
+  contacts?: {
+    id: string;
+    full_name: string | null;
     email: string | null;
     phone: string | null;
   } | null;
@@ -49,6 +64,11 @@ export type PropertySummaryRow = {
   state: string | null;
   operation_type: string | null;
   status: string | null;
+  media_assets?: Array<{
+    id: string;
+    s3_key: string;
+    metadata: Record<string, unknown> | null;
+  }> | null;
 };
 
 export type LeadContactRow = {

@@ -409,31 +409,16 @@ export class SupabaseMediaStorage implements MediaStorage {
 
   /**
    * Lista todos los media assets de una propiedad
+   * Permite acceso público sin autenticación para que los visitantes puedan ver las imágenes
    */
   async listMedia(propertyId: string): Promise<Result<MediaDTO[]>> {
     try {
-      console.log('list media');
-      
-      const authResult = await this.authService.getCurrent();
-      console.log('auth: ', authResult);
-      
-      if (authResult.isErr()) {
-        return Result.fail(mediaError("AUTH", "Not authenticated", authResult.error));
-      }
-      
-      // const profile = authResult.value;
-      // if (!profile.orgId) {
-      //   return Result.fail(mediaError("AUTH", "No org context available"));
-      // }
-
-      const { data, error } =  await this.supabase
+      // Permitir acceso público a las imágenes de propiedades sin requerir autenticación
+      const { data, error } = await this.supabase
         .from("media_assets")
         .select("*")
         .eq("property_id", propertyId)
-        // .eq("org_id", profile.orgId)
         .order("position", { ascending: true });
-
-      
 
       if (error) {
         return Result.fail(

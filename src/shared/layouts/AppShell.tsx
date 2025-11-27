@@ -1,6 +1,8 @@
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import HeaderUpbarNovalia from "../components/HeaderUpbarNovalia/HeaderUpbarNovalia";
 import { supabase } from "../../core/supabase/client";
+import { ChatProvider } from "../../modules/comunication/UI/contexts/ChatProvider";
+import { ChatBubble } from "../../modules/comunication/UI/components/ChatBubble";
 
 export default function AppShell() {
   const navigate = useNavigate();
@@ -33,13 +35,16 @@ export default function AppShell() {
   };
 
   return (
-    <div className="app-shell">
-      <HeaderUpbarNovalia onSignIn={handleSignIn} onSignUp={handleSignUp} onSignOut={handleSignOut} />
-      <div className="app-shell__content">
-        <div className="app-shell__main">
-          <Outlet />
+    <ChatProvider>
+      <div className="app-shell">
+        <HeaderUpbarNovalia onSignIn={handleSignIn} onSignUp={handleSignUp} onSignOut={handleSignOut} />
+        <div className="app-shell__content">
+          <div className="app-shell__main">
+            <Outlet />
+          </div>
         </div>
+        <ChatBubble />
       </div>
-    </div>
+    </ChatProvider>
   );
 }

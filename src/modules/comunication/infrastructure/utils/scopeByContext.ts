@@ -15,5 +15,5 @@ export function scopeByContext<T>(query: T, ctx: ScopeContext): T {
     return builder.eq("org_id", ctx.orgId) as T;
   }
 
-  return builder.is("org_id", null) as T;
+  return query;
 }

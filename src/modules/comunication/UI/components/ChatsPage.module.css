@@ -23,18 +23,37 @@
 }
 
 .sidebar {
-  background: #fff;
-  border-radius: 18px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  border-radius: 20px;
   border: 1px solid rgba(15, 23, 42, 0.09);
   box-shadow: 0 24px 45px rgba(15, 23, 42, 0.08);
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  min-height: 0;
+  max-height: 100%;
 }
 
 .sidebarHeader {
-  padding: 20px 24px 12px;
+  padding: 24px;
   border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  background: linear-gradient(135deg, #f8faff 0%, #ffffff 100%);
+}
+
+.sidebarTitle {
+  margin: 0 0 16px;
+  font-size: 20px;
+  font-weight: 700;
+  color: #0f172a;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sidebarSubtitle {
+  margin: 0 0 16px;
+  font-size: 13px;
+  color: #64748b;
 }
 
 .searchInput {
@@ -65,38 +84,258 @@
   gap: 8px;
 }
 
-.threadButton {
+.propertyColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-height: 100%;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.propertyColumnHeader {
+  background: #fff;
+  border-radius: 18px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.propertyColumnLabel {
+  margin: 0;
+  font-size: 14px;
+  color: #475569;
+}
+
+.propertyList {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.propertyBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.propertyCard {
+  width: 100%;
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+  border-radius: 18px;
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  box-shadow: 0 4px 20px rgba(59, 130, 246, 0.12);
+  padding: 18px 20px;
+  display: block;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.2s ease;
+}
+
+.propertyCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(59, 130, 246, 0.18);
+}
+
+.propertyCardExpanded {
+  border-color: rgba(37, 99, 235, 0.5);
+  box-shadow: 0 8px 40px rgba(37, 99, 235, 0.2);
+  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+}
+
+.propertyPreview {
+  display: grid;
+  grid-template-columns: 80px 1fr auto;
+  gap: 14px;
+  align-items: center;
+}
+
+.propertyImage {
+  width: 80px;
+  height: 80px;
+  border-radius: 12px;
+  object-fit: cover;
+  background: #f1f5f9;
+  border: 2px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.propertyInfo {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.propertyTitleRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.propertyTitleRow h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.propertyStats {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+  color: #475569;
+}
+
+.propertyStats span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.8);
+  padding: 3px 8px;
+  border-radius: 6px;
+}
+
+.propertyArrow {
+  color: #2563eb;
+  transition: transform 120ms ease;
+  flex-shrink: 0;
+}
+
+.propertyArrowOpen {
+  transform: rotate(180deg);
+}
+
+.propertyThreads {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px 4px 24px;
+  border-left: 2px solid rgba(37, 99, 235, 0.25);
+  margin-left: 20px;
+}
+
+.threadRow {
+  border: 1px solid rgba(15, 23, 42, 0.08);
   border-radius: 14px;
   padding: 12px 14px;
-  border: 1px solid transparent;
-  cursor: pointer;
-  background: rgba(248, 250, 255, 0.7);
-  transition: border-color 120ms ease, background 120ms ease;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
   text-align: left;
+  cursor: pointer;
+  background: rgba(248, 250, 255, 0.8);
 }
 
-.threadButton:hover {
-  border-color: rgba(37, 99, 235, 0.4);
-}
-
-.threadActive {
+.threadRowActive {
+  border-color: rgba(37, 99, 235, 0.8);
   background: #fff;
-  border-color: rgba(37, 99, 235, 0.7);
-  box-shadow: 0 16px 28px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 18px 36px rgba(37, 99, 235, 0.15);
 }
 
-.threadTitle {
+.threadRowTitle {
+  margin: 0;
   font-size: 15px;
   font-weight: 600;
   color: #0f172a;
 }
 
-.threadSubtitle {
+.threadRowSubtitle {
+  margin: 4px 0 0;
   font-size: 13px;
   color: #475569;
+}
+
+.threadRowMeta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.threadButton {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-radius: 14px;
+  padding: 12px 14px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  background: linear-gradient(135deg, rgba(248, 250, 255, 0.9) 0%, rgba(255, 255, 255, 0.7) 100%);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  text-align: left;
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+}
+
+.threadButton::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.05) 0%, rgba(59, 130, 246, 0.05) 100%);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.threadButton:hover {
+  border-color: rgba(37, 99, 235, 0.3);
+  transform: translateX(4px);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.12);
+}
+
+.threadButton:hover::before {
+  opacity: 1;
+}
+
+.threadActive {
+  background: linear-gradient(135deg, #ffffff 0%, #f8faff 100%);
+  border-color: rgba(37, 99, 235, 0.5);
+  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.15), inset 0 0 0 1px rgba(37, 99, 235, 0.1);
+  transform: translateX(4px);
+}
+
+.threadActive::before {
+  opacity: 1;
+}
+
+.threadTitle {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+  position: relative;
+  z-index: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.threadSubtitle {
+  font-size: 12px;
+  color: #64748b;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  position: relative;
+  z-index: 1;
+  line-height: 1.4;
 }
 
 .threadMeta {
@@ -108,12 +347,15 @@
 }
 
 .badge {
-  background: #2563eb;
+  background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
   color: #fff;
   border-radius: 999px;
-  padding: 2px 10px;
-  font-weight: 600;
-  font-size: 12px;
+  padding: 3px 10px;
+  font-weight: 700;
+  font-size: 11px;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+  position: relative;
+  z-index: 1;
 }
 
 .messagesPanel {
@@ -127,11 +369,9 @@
 }
 
 .messagesHeader {
-  padding: 20px 28px;
+  padding: 24px;
   border-bottom: 1px solid rgba(15, 23, 42, 0.06);
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
 }
 
 .propertyTitle {
@@ -226,4 +466,211 @@
   justify-content: center;
   color: #94a3b8;
   font-size: 15px;
+}
+
+.errorState {
+  padding: 16px;
+  background: #fee2e2;
+  color: #991b1b;
+  border-radius: 12px;
+  font-size: 14px;
+  text-align: center;
+}
+
+/* Responsive styles */
+@media (max-width: 1024px) {
+  .panels {
+    grid-template-columns: 300px 1fr;
+  }
+
+  .propertyColumn {
+    padding-right: 2px;
+  }
+
+  .propertyCard {
+    padding: 14px 16px;
+  }
+
+  .propertyImage {
+    width: 70px;
+    height: 70px;
+  }
+
+  .propertyInfo {
+    gap: 6px;
+  }
+
+  .propertyTitleRow h3 {
+    font-size: 14px;
+  }
+
+  .propertyStats {
+    gap: 10px;
+    font-size: 11px;
+  }
+
+  .propertyStats span {
+    padding: 3px 7px;
+  }
+}
+
+@media (max-width: 768px) {
+  .page {
+    padding: 16px;
+    height: calc(100vh - 100px);
+  }
+
+  .panels {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .sidebar {
+    max-height: 45vh;
+  }
+
+  .sidebarHeader {
+    padding: 16px;
+  }
+
+  .searchInput {
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+
+  .threadButton {
+    padding: 10px 12px;
+  }
+
+  .threadTitle {
+    font-size: 13px;
+  }
+
+  .threadSubtitle {
+    font-size: 11px;
+  }
+
+  .propertyColumn {
+    max-height: 45vh;
+  }
+
+  .messagesPanel {
+    min-height: 50vh;
+  }
+
+  .propertyCard {
+    padding: 12px 14px;
+  }
+
+  .propertyImage {
+    width: 60px;
+    height: 60px;
+  }
+
+  .propertyTitleRow h3 {
+    font-size: 13px;
+  }
+
+  .propertyStats {
+    font-size: 11px;
+    gap: 8px;
+  }
+
+  .propertyStats span {
+    padding: 3px 6px;
+    font-size: 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .page {
+    padding: 12px;
+    gap: 12px;
+  }
+
+  .contextRow {
+    gap: 12px;
+  }
+
+  .contextRow h1 {
+    font-size: 22px !important;
+  }
+
+  .contextRow p {
+    font-size: 13px !important;
+  }
+
+  .sidebar {
+    border-radius: 16px;
+  }
+
+  .sidebarHeader {
+    padding: 14px;
+  }
+
+  .searchInput {
+    padding: 8px 10px;
+    font-size: 12px;
+    border-radius: 10px;
+  }
+
+  .threadButton {
+    padding: 8px 10px;
+    border-radius: 12px;
+  }
+
+  .threadTitle {
+    font-size: 12px;
+  }
+
+  .threadSubtitle {
+    font-size: 10px;
+  }
+
+  .threadMeta {
+    font-size: 10px;
+    margin-top: 2px;
+  }
+
+  .badge {
+    font-size: 9px;
+    padding: 2px 6px;
+  }
+
+  .propertyCard {
+    padding: 10px 12px;
+    border-radius: 14px;
+  }
+
+  .propertyImage {
+    width: 50px;
+    height: 50px;
+    border-radius: 10px;
+  }
+
+  .propertyTitleRow h3 {
+    font-size: 12px;
+  }
+
+  .propertyStats {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .propertyStats span {
+    font-size: 9px;
+    gap: 4px;
+  }
+
+  .messagesBody {
+    padding: 16px;
+  }
+
+  .composer {
+    padding: 12px 16px;
+  }
+
+  .messagesPanel {
+    border-radius: 16px;
+  }
 }
