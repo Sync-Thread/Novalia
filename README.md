@@ -6,7 +6,7 @@ Este proyecto fue creado con **Vite** usando **React + TypeScript**.
 
 1. Clona este repositorio en la carpeta que prefieras:  
    ```bash
-   git clone https://github.com/Perales14/Novalia/
+   git clone https://github.com/Sync-Thread/Novalia/
 2. Instala las dependencias necesarias:
    ```bash
    npm install
